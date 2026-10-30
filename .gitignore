@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+host/build/
+host/dist/
+*.spec
+
+# Android and Gradle
+.gradle/
+android/build/
+android/app/build/
+android/.kotlin/
+android/local.properties
+android/captures/
+*.apk
+*.aab
+*.idsig
+
+# Signing keys and secrets. Never commit these.
+*.jks
+*.keystore
+*.p12
+*.pem
+keystore.properties
+.env
+.env.*
+
+# Local host config (holds pairing keys)
+config.json
+
+# IDEs and OS files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+desktop.ini

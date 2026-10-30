@@ -1,0 +1,117 @@
+name: Build
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  host-tests:
+    name: Host tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - run: python -m pip install -e "host[dev]"
+      - name: Fetch org.json for the Java interop test
+        if: runner.os == 'Linux'
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/json.jar" https://repo1.maven.org/maven2/org/json/json/20250517/json-20250517.jar
+          echo "MDOCK_JSON_JAR=$RUNNER_TEMP/json.jar" >> "$GITHUB_ENV"
+      - run: python -m pytest -q host/tests -rs
+
+  windows-exe:
+    name: Windows host .exe
+    needs: host-tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - run: python -m pip install "./host[windows-media]" "pyinstaller>=6.22"
+      - name: Build
+        working-directory: host
+        run: pyinstaller --noconfirm --onefile --windowed --name MobileDockHost --collect-submodules winrt run_host.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: MobileDockHost-windows
+          path: host/dist/MobileDockHost.exe
+
+  android:
+    name: Android app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+      - name: Install SDK platform
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+      - name: Decode release keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.MDOCK_KEYSTORE_B64 }}
+        if: env.KEYSTORE_B64 != ''
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "MDOCK_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+      - name: Build and lint
+        working-directory: android
+        env:
+          MDOCK_KEYSTORE_PASSWORD: ${{ secrets.MDOCK_KEYSTORE_PASSWORD }}
+          MDOCK_KEY_ALIAS: ${{ secrets.MDOCK_KEY_ALIAS }}
+          MDOCK_KEY_PASSWORD: ${{ secrets.MDOCK_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon lint assembleDebug assembleRelease
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: MobileDock-android
+          path: |
+            android/app/build/outputs/apk/debug/*.apk
+            android/app/build/outputs/apk/release/*.apk
+            android/app/build/reports/lint-results-*.html
+
+  release:
+    name: GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows-exe, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: dist
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          # Unsigned release APKs cannot be installed, so only signed ones are attached.
+          files=(dist/MobileDockHost-windows/MobileDockHost.exe dist/MobileDock-android/outputs/apk/debug/*.apk)
+          for apk in dist/MobileDock-android/outputs/apk/release/*.apk; do
+            [[ "$apk" == *unsigned* ]] || files+=("$apk")
+          done
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --generate-notes "${files[@]}"

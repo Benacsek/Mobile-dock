@@ -1,0 +1,37 @@
+import sys
+from pathlib import Path
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from mobiledock_host.platforms import PlatformError, get_platform  # noqa: E402
+from mobiledock_host.platforms.png import write_png  # noqa: E402
+
+
+def test_png_writer(tmp_path):
+    path = tmp_path / "x.png"
+    write_png(path, 2, 1, bytes([255, 0, 0, 0, 255, 0]))
+    assert path.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
+
+
+def test_platform_lists_apps():
+    pf = get_platform()
+    apps = pf.list_apps()
+    assert isinstance(apps, list)
+    assert all(set(a) == {"id", "name"} for a in apps)
+
+
+def test_bad_input_rejected():
+    pf = get_platform()
+    with pytest.raises(PlatformError):
+        pf.key("rm -rf", [])
+    with pytest.raises(PlatformError):
+        pf.media("format_c")
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux only")
+def test_linux_unknown_app_rejected():
+    pf = get_platform()
+    with pytest.raises(PlatformError):
+        pf.launch("does-not-exist.desktop")

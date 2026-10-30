@@ -1,2 +1,69 @@
-# Mobile-dock
-Its a mobile and windows app that lets you use the your mobile phone as a dock, with easy drag and drop.
+## Mobile Dock
+
+Mobile Dock turns an Android phone into a dock for your PC. Put the phone next to your keyboard in landscape. Tap it to open apps, control music, take screenshots, record the screen, or use it as a touchpad and keyboard.
+
+It works on your local network or over USB. There is no account, no cloud service and no telemetry. The phone and the PC talk directly to each other, and all traffic is encrypted.
+
+| Part | Folder | Runs on |
+| --- | --- | --- |
+| PC host | [host](host/README.md) | Windows 10 and 11, Linux with Hyprland |
+| Phone app | [android](android/README.md) | Android 4.1 (API 16) up to Android 16 |
+
+## What you can do from the phone
+
+- Browse your pinned apps in a grid and tap one to open it on the PC.
+- Long press a tile and drag it to a new spot. Drop it on the red bar to unpin it.
+- Add apps from a searchable list of everything installed on the PC.
+- Play, pause, skip and change volume. See the song title and artist.
+- Take a screenshot. It saves on the PC in Pictures/Mobile Dock.
+- Start and stop screen recording. Videos save in Videos/Mobile Dock.
+- Use the touchpad. Tap to click. Use two fingers to scroll or to right click.
+- Type on the PC. Use Ctrl, Alt, Shift and Win keys, arrows, F1 to F12 and common shortcuts.
+
+## Quick start
+
+1. Install the host on your PC. See [host/README.md](host/README.md).
+2. Install the APK on your phone. See [android/README.md](android/README.md).
+3. Start the host. On Windows, allow it through the firewall on private networks when asked.
+4. Open the app on the phone. Your PC shows up in the list if both are on the same Wi-Fi.
+5. Click Pair new phone on the PC. Type the 6 digit PIN on the phone.
+
+The phone remembers the PC. Next time it connects on its own.
+
+## Connect over USB
+
+1. Turn on USB debugging on the phone and plug it in.
+2. Install Android platform-tools on the PC so the adb command works.
+3. Click Enable USB in the host window. On Linux, run `mobile-dock-host --headless --usb`.
+4. Tap Connect over USB on the phone.
+
+This uses `adb reverse`, which needs Android 5.0 or newer. On Android 4.x, turn on USB tethering instead and connect by the PC address.
+
+## Where to get the builds
+
+Every push builds the Windows .exe and the Android APK in GitHub Actions. Open the Actions tab, pick the latest run, and download the artifacts. Tags that start with v also create a GitHub release with the files attached.
+
+You can also build them yourself. Each README explains how.
+
+## Security
+
+- Pairing uses a one-time 6 digit PIN with the SPAKE2 protocol. Someone on your network gets one guess per attempt, and the PIN dies after 5 wrong guesses or 3 minutes.
+- After pairing, each phone has its own 256-bit key. Both sides prove they hold it on every connection.
+- Every message is encrypted with AES-256 and signed with HMAC-SHA256. Replayed or changed messages close the connection.
+- The phone can only open apps the PC found on its own. It never sends a command line.
+- You can remove a phone at any time in the host window. Its key stops working at once.
+
+Read [SECURITY.md](SECURITY.md) for the full threat model and [docs/PROTOCOL.md](docs/PROTOCOL.md) for the wire format.
+
+## Project layout
+
+```
+host/        Python host for Windows and Linux
+android/     Android app, plain Java, no libraries
+docs/        Protocol description
+.github/     CI that tests and builds everything
+```
+
+## License
+
+MIT. See [LICENSE](LICENSE).

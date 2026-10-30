@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=80"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mobile-dock-host"
+version = "1.0.0"
+description = "PC side of Mobile Dock. Use an Android phone as a dock for Windows or Hyprland."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+    "cryptography>=46",
+    "evdev>=1.9; sys_platform == 'linux'",
+]
+
+[project.optional-dependencies]
+windows-media = ["winrt-Windows.Media.Control>=3.2; sys_platform == 'win32'", "winrt-runtime>=3.2; sys_platform == 'win32'"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+mobile-dock-host = "mobiledock_host.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["mobiledock_host*"]
