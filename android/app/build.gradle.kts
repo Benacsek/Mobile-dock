@@ -46,5 +46,8 @@ android {
 
     lint {
         abortOnError = true
+        // Print every finding in the CI log, not only the first one.
+        textReport = true
+        textOutput = file("stdout")
     }
 }

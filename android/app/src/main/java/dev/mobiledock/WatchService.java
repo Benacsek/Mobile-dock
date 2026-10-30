@@ -117,7 +117,9 @@ public final class WatchService extends Service {
         return b.build();
     }
 
+    @android.annotation.SuppressLint("UnspecifiedRegisterReceiverFlag") // only below Android 6, sticky read
     private boolean charging() {
+        if (Build.VERSION.SDK_INT >= 23) return WatchCompat.charging(this);
         Intent battery = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
         return battery != null && battery.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0;
     }

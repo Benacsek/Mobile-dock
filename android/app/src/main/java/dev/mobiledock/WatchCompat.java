@@ -7,6 +7,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.net.Uri;
 import android.os.Build;
@@ -45,10 +46,17 @@ final class WatchCompat {
 
     static void notify(Context c, int id, Notification n) {
         if (Build.VERSION.SDK_INT >= 33
-                && c.checkSelfPermission("android.permission.POST_NOTIFICATIONS") != 0) {
+                && c.checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
             return;
         }
         ((NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE)).notify(id, n);
+    }
+
+    /** Charging state without registering a receiver (Android 6 and newer). */
+    @TargetApi(23)
+    static boolean charging(Context c) {
+        android.os.BatteryManager bm = (android.os.BatteryManager) c.getSystemService(Context.BATTERY_SERVICE);
+        return bm != null && bm.isCharging();
     }
 
     static boolean canDrawOverlays(Context c) {
