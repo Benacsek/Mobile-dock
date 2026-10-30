@@ -14,6 +14,7 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -38,9 +39,9 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private FrameLayout content;
     private AppsPanel apps;
     private MediaPanel media;
-    private final List<Button> tabs = new ArrayList<Button>();
+    private final List<LinearLayout> tabs = new ArrayList<LinearLayout>();
     private final List<View> panels = new ArrayList<View>();
-    private Button recordButton;
+    private LinearLayout recordButton;
     private boolean recording;
     private PhoneUpdater updater;
     private static final java.util.regex.Pattern MUSIC_APPS = java.util.regex.Pattern.compile(
@@ -129,11 +130,20 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private View buildConnect() {
         LinearLayout page = Ui.row(this);
         page.setGravity(Gravity.TOP);
-        int pad = Ui.dp(this, 24);
+        int pad = Ui.dp(this, 16);
         page.setPadding(pad, pad, pad, pad);
 
+        int cardPad = Ui.dp(this, 18);
         LinearLayout left = Ui.column(this);
-        left.addView(Ui.title(this, "Mobile Dock"));
+        left.setBackground(Ui.rounded(this, Ui.SURFACE, 18));
+        left.setPadding(cardPad, cardPad, cardPad, cardPad);
+        LinearLayout brand = Ui.row(this);
+        ImageView logo = new ImageView(this);
+        logo.setImageDrawable(new Icon(Icon.Kind.APPS, Ui.ACCENT));
+        brand.addView(logo, new LinearLayout.LayoutParams(Ui.dp(this, 30), Ui.dp(this, 30)));
+        TextView name = Ui.title(this, "  Mobile Dock");
+        brand.addView(name);
+        left.addView(brand);
         connectStatus = Ui.text(this, "Looking for your PC", 15, Ui.MUTED);
         left.addView(connectStatus, Ui.fillWidth(this, 4));
         left.addView(Ui.text(this, "PCs on this network", 14, Ui.TEXT), Ui.fillWidth(this, 4));
@@ -156,6 +166,8 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         page.addView(gap, new LinearLayout.LayoutParams(pad, 1));
 
         LinearLayout right = Ui.column(this);
+        right.setBackground(Ui.rounded(this, Ui.SURFACE, 18));
+        right.setPadding(cardPad, cardPad, cardPad, cardPad);
         right.addView(Ui.text(this, "Connect by address", 14, Ui.TEXT), Ui.fillWidth(this, 4));
         LinearLayout addrRow = Ui.row(this);
         addressField = new EditText(this);
@@ -204,7 +216,10 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             }
         });
         right.addView(forget, Ui.wrap(this, 4));
-        page.addView(right, Ui.weight(1f));
+        ScrollView rightScroll = new ScrollView(this);
+        rightScroll.setFillViewport(true);
+        rightScroll.addView(right);
+        page.addView(rightScroll, Ui.weight(1f));
         return page;
     }
 
@@ -309,39 +324,40 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         dock.setPadding(pad, pad, pad, pad);
 
         LinearLayout rail = Ui.column(this);
-        rail.setBackground(Ui.rounded(this, Ui.SURFACE, 14));
+        rail.setBackground(Ui.rounded(this, Ui.SURFACE, 18));
         rail.setPadding(pad, pad, pad, pad);
-        String[] names = {"Apps", "Now playing", "Touchpad", "Keys"};
+        String[] names = {"Apps", "Playing", "Touchpad", "Keys"};
+        Icon.Kind[] kinds = {Icon.Kind.APPS, Icon.Kind.MUSIC, Icon.Kind.TOUCHPAD, Icon.Kind.KEYBOARD};
         for (int i = 0; i < names.length; i++) {
             final int index = i;
-            Button b = Ui.button(this, names[i]);
-            b.setOnClickListener(new View.OnClickListener() {
+            LinearLayout item = Ui.railItem(this, kinds[i], names[i]);
+            item.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     select(index);
                 }
             });
-            tabs.add(b);
-            rail.addView(b, Ui.fillWidth(this, 3));
+            tabs.add(item);
+            rail.addView(item, Ui.fillWidth(this, 2));
         }
         rail.addView(Ui.spacer(this));
-        Button shot = Ui.button(this, "Screenshot");
+        LinearLayout shot = Ui.railItem(this, Icon.Kind.CAMERA, "Screenshot");
         shot.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 screenshot();
             }
         });
-        rail.addView(shot, Ui.fillWidth(this, 3));
-        recordButton = Ui.button(this, "Record");
+        rail.addView(shot, Ui.fillWidth(this, 2));
+        recordButton = Ui.railItem(this, Icon.Kind.RECORD, "Record");
         recordButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 toggleRecording();
             }
         });
-        rail.addView(recordButton, Ui.fillWidth(this, 3));
-        Button leave = Ui.button(this, "Disconnect");
+        rail.addView(recordButton, Ui.fillWidth(this, 2));
+        LinearLayout leave = Ui.railItem(this, Icon.Kind.POWER, "Disconnect");
         leave.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -350,8 +366,14 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 scan();
             }
         });
-        rail.addView(leave, Ui.fillWidth(this, 3));
-        dock.addView(rail, new LinearLayout.LayoutParams(Ui.dp(this, 132), LinearLayout.LayoutParams.MATCH_PARENT));
+        rail.addView(leave, Ui.fillWidth(this, 2));
+        // The rail scrolls on short screens so its bottom items never get cut off.
+        android.widget.ScrollView railScroll = new android.widget.ScrollView(this);
+        railScroll.setFillViewport(true);
+        railScroll.setVerticalScrollBarEnabled(false);
+        railScroll.addView(rail, new android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT, android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
+        dock.addView(railScroll, new LinearLayout.LayoutParams(Ui.dp(this, 92), LinearLayout.LayoutParams.MATCH_PARENT));
 
         LinearLayout main = Ui.column(this);
         dockBanner = Ui.text(this, "", 14, Ui.TEXT);
@@ -390,7 +412,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private void select(int index) {
         for (int i = 0; i < panels.size(); i++) {
             panels.get(i).setVisibility(i == index ? View.VISIBLE : View.GONE);
-            tabs.get(i).setSelected(i == index);
+            Ui.setRailSelected(tabs.get(i), i == index);
         }
         media.setActive(index == 1);
     }
@@ -422,9 +444,10 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private void setRecording(boolean on) {
         recording = on;
         if (recordButton == null) return;
-        recordButton.setText(on ? "Stop recording" : "Record");
-        recordButton.setBackground(on ? Ui.pressable(this, Ui.DANGER, 0xFFB83A3E, 10)
-                : Ui.pressable(this, Ui.SURFACE_HI, 0xFF343A46, 10));
+        ImageView icon = (ImageView) recordButton.getChildAt(0);
+        icon.setImageDrawable(new Icon(on ? Icon.Kind.STOP : Icon.Kind.RECORD, on ? Ui.DANGER : Ui.MUTED));
+        ((TextView) recordButton.getChildAt(1)).setText(on ? "Stop" : "Record");
+        ((TextView) recordButton.getChildAt(1)).setTextColor(on ? Ui.DANGER : Ui.MUTED);
     }
 
     private void toast(String s) {

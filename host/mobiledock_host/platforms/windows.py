@@ -11,6 +11,7 @@ import asyncio
 import ctypes
 import hashlib
 import json
+import os
 import subprocess
 import time
 import uuid
@@ -22,6 +23,7 @@ from .base import KEYS, MEDIA_ACTIONS, MODIFIERS, MOUSE_BUTTONS, Platform, Platf
 from .png import encode_png, write_png
 
 CREATE_NO_WINDOW = 0x08000000
+LNK_PREFIX = "lnk:"
 
 INPUT_MOUSE, INPUT_KEYBOARD = 0, 1
 KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_UNICODE = 0x1, 0x2, 0x4
@@ -138,6 +140,7 @@ class WindowsPlatform(Platform):
             self.user32.SetProcessDPIAware()
         self._apps: list[dict] = []
         self._apps_time = 0.0
+        self._apps_error = ""
         self._icons: dict[str, bytes | None] = {}
         self._icon_thread = ThreadPoolExecutor(max_workers=1, thread_name_prefix="icons")
 
@@ -151,21 +154,64 @@ class WindowsPlatform(Platform):
     def list_apps(self) -> list[dict]:
         if self._apps and time.time() - self._apps_time < 60:
             return self._apps
-        out = subprocess.run(
-            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
-             "Get-StartApps | Select-Object Name, AppID | ConvertTo-Json -Compress"],
-            capture_output=True, text=True, encoding="utf-8", timeout=30, creationflags=CREATE_NO_WINDOW,
-        ).stdout
-        items = json.loads(out or "[]")
-        if isinstance(items, dict):
-            items = [items]
-        apps = {i["AppID"]: i["Name"] for i in items if i.get("AppID") and i.get("Name")}
+        apps = self._start_apps()
+        if not apps:
+            apps = self._start_menu_links()  # fallback when PowerShell is blocked or broken
+        if not apps:
+            raise PlatformError("Found no apps in the Start menu. " + (self._apps_error or ""))
         self._apps = sorted(({"id": k, "name": v} for k, v in apps.items()), key=lambda a: a["name"].lower())
         self._apps_time = time.time()
         return self._apps
 
+    def _start_apps(self) -> dict[str, str]:
+        """Every Start menu entry, including Store apps, from the built-in Get-StartApps."""
+        # PowerShell writes in the legacy console code page unless told otherwise. One accented
+        # app name then broke decoding of the whole list, so force UTF-8 on both ends.
+        script = ("[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; "
+                  "Get-StartApps | Select-Object Name, AppID | ConvertTo-Json -Compress")
+        try:
+            result = subprocess.run(
+                ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script],
+                stdin=subprocess.DEVNULL, capture_output=True, timeout=45, creationflags=CREATE_NO_WINDOW,
+            )
+            out = result.stdout.decode("utf-8", errors="replace").lstrip("\ufeff").strip()
+            items = json.loads(out or "[]")
+        except (OSError, subprocess.TimeoutExpired, ValueError) as exc:
+            self._apps_error = f"PowerShell failed: {exc}"
+            return {}
+        if isinstance(items, dict):
+            items = [items]
+        if not items and result.stderr:
+            self._apps_error = result.stderr.decode("utf-8", errors="replace").strip()[:200]
+        return {str(i["AppID"]): str(i["Name"]) for i in items
+                if isinstance(i, dict) and i.get("AppID") and i.get("Name")}
+
+    @staticmethod
+    def _menu_roots() -> list[Path]:
+        roots = []
+        for var in ("ProgramData", "APPDATA"):
+            base = os.environ.get(var)
+            if base:
+                roots.append(Path(base) / "Microsoft" / "Windows" / "Start Menu" / "Programs")
+        return roots
+
+    def _start_menu_links(self) -> dict[str, str]:
+        apps = {}
+        for root in self._menu_roots():
+            if root.is_dir():
+                for link in root.rglob("*.lnk"):
+                    if "uninstall" not in link.stem.lower():
+                        apps.setdefault(LNK_PREFIX + str(link), link.stem)
+        return apps
+
     def launch(self, app_id: str) -> None:
         # app_id was validated against list_apps() by the server.
+        if app_id.startswith(LNK_PREFIX):
+            path = Path(app_id[len(LNK_PREFIX):]).resolve()
+            if not any(root.resolve() in path.parents for root in self._menu_roots()):
+                raise PlatformError("App not found")
+            os.startfile(str(path))  # noqa: S606 - a Start menu shortcut found by list_apps
+            return
         subprocess.Popen(["explorer.exe", "shell:AppsFolder\\" + app_id], creationflags=CREATE_NO_WINDOW)
 
     # Media ----------------------------------------------------------------
@@ -319,7 +365,8 @@ class WindowsPlatform(Platform):
             shell32.SHCreateItemFromParsingName.restype = ctypes.HRESULT
             item = ctypes.c_void_p()
             iid = GUID.from_uuid("bcc18b79-ba16-442f-80c4-8a59c30c463b")  # IShellItemImageFactory
-            shell32.SHCreateItemFromParsingName("shell:AppsFolder\\" + app_id, None, ctypes.byref(iid),
+            target = app_id[len(LNK_PREFIX):] if app_id.startswith(LNK_PREFIX) else "shell:AppsFolder\\" + app_id
+            shell32.SHCreateItemFromParsingName(target, None, ctypes.byref(iid),
                                                 ctypes.byref(item))
             vtable = ctypes.cast(item, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))).contents
             get_image = ctypes.WINFUNCTYPE(ctypes.HRESULT, ctypes.c_void_p, SIZE, ctypes.c_int,

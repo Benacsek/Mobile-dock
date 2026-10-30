@@ -9,6 +9,7 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -117,6 +118,57 @@ final class Ui {
         View v = new View(c);
         v.setLayoutParams(new LinearLayout.LayoutParams(0, 0, 1f));
         return v;
+    }
+
+    /** Round or rounded icon button. Use a radius of half the size for a circle. */
+    static ImageView iconButton(Context c, Icon.Kind kind, int sizeDp, int bg, int pressed, int iconColor) {
+        ImageView b = new ImageView(c);
+        b.setImageDrawable(new Icon(kind, iconColor));
+        b.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        int pad = dp(c, sizeDp * 0.22f);
+        b.setPadding(pad, pad, pad, pad);
+        b.setBackground(pressable(c, bg, pressed, sizeDp / 2f));
+        b.setClickable(true);
+        b.setFocusable(true);
+        b.setLayoutParams(new LinearLayout.LayoutParams(dp(c, sizeDp), dp(c, sizeDp)));
+        return b;
+    }
+
+    /** Plain icon button with no fill until pressed. */
+    static ImageView flatIcon(Context c, Icon.Kind kind, int sizeDp) {
+        return iconButton(c, kind, sizeDp, 0x00000000, 0x33FFFFFF, TEXT);
+    }
+
+    /** Side rail entry: icon over a short label. Shows an accent pill when selected. */
+    static LinearLayout railItem(Context c, Icon.Kind kind, String label) {
+        LinearLayout item = column(c);
+        item.setGravity(Gravity.CENTER);
+        int p = dp(c, 6);
+        item.setPadding(p, p, p, p);
+        StateListDrawable bg = new StateListDrawable();
+        bg.addState(new int[] {android.R.attr.state_selected}, rounded(c, 0x334F8CFF, 14));
+        bg.addState(new int[] {android.R.attr.state_pressed}, rounded(c, SURFACE_HI, 14));
+        bg.addState(new int[] {}, rounded(c, 0x00000000, 14));
+        item.setBackground(bg);
+        item.setClickable(true);
+        ImageView icon = new ImageView(c);
+        icon.setImageDrawable(new Icon(kind, MUTED));
+        item.addView(icon, new LinearLayout.LayoutParams(dp(c, 26), dp(c, 26)));
+        TextView t = text(c, label, 11, MUTED);
+        t.setGravity(Gravity.CENTER);
+        t.setSingleLine(true);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(c, 3);
+        item.addView(t, lp);
+        return item;
+    }
+
+    static void setRailSelected(LinearLayout item, boolean selected) {
+        item.setSelected(selected);
+        int color = selected ? ACCENT : MUTED;
+        ((Icon) ((ImageView) item.getChildAt(0)).getDrawable()).setColor(color);
+        ((TextView) item.getChildAt(1)).setTextColor(selected ? TEXT : MUTED);
     }
 
     static String initials(String name) {

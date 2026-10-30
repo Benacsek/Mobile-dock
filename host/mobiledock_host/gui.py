@@ -63,6 +63,58 @@ def _autostart_set(enabled: bool) -> None:
                 pass
 
 
+BG, CARD, CARD_HI, ACCENT, TEXT, MUTED = "#0F1115", "#1A1D23", "#262A33", "#4F8CFF", "#E8EAED", "#9AA0A6"
+
+
+def apply_theme(root: tk.Tk) -> None:
+    """Dark theme that matches the phone app."""
+    from tkinter import font as tkfont
+
+    root.configure(background=BG)
+    base = tkfont.nametofont("TkDefaultFont")
+    title = base.copy()
+    title.configure(size=base.cget("size") + 8, weight="bold")
+    pin = base.copy()
+    pin.configure(size=base.cget("size") + 20, weight="bold")
+    bold = base.copy()
+    bold.configure(weight="bold")
+    root._fonts = (title, pin, bold)  # keep references alive
+
+    style = ttk.Style(root)
+    style.theme_use("clam")
+    style.configure(".", background=BG, foreground=TEXT, fieldbackground=CARD_HI, bordercolor=BG,
+                    lightcolor=BG, darkcolor=BG, troughcolor=CARD, focuscolor=ACCENT)
+    style.configure("TFrame", background=BG)
+    style.configure("Card.TFrame", background=CARD)
+    style.configure("TLabel", background=BG, foreground=TEXT)
+    style.configure("Title.TLabel", font=title)
+    style.configure("Status.TLabel", foreground=MUTED)
+    style.configure("Footer.TLabel", foreground=MUTED)
+    style.configure("CardTitle.TLabel", background=CARD, font=bold)
+    style.configure("Muted.TLabel", background=CARD, foreground=MUTED)
+    style.configure("Pin.TLabel", background=CARD, foreground=ACCENT, font=pin)
+    style.configure("TButton", background=CARD_HI, foreground=TEXT, padding=(14, 7), borderwidth=0)
+    style.map("TButton", background=[("active", "#343A46"), ("pressed", "#343A46")])
+    style.configure("Accent.TButton", background=ACCENT, foreground="#FFFFFF")
+    style.map("Accent.TButton", background=[("active", "#3A6FD0"), ("pressed", "#3A6FD0")])
+    style.configure("TCheckbutton", background=BG, foreground=TEXT, indicatorbackground=CARD_HI,
+                    indicatorforeground=TEXT)
+    style.map("TCheckbutton", background=[("active", BG)], indicatorbackground=[("selected", ACCENT)])
+    style.configure("TEntry", fieldbackground=CARD_HI, foreground=TEXT, insertcolor=TEXT, padding=6)
+
+
+def card(parent, title: str, expand: bool = False) -> ttk.Frame:
+    box = ttk.Frame(parent, style="Card.TFrame", padding=14)
+    box.pack(fill="both" if expand else "x", expand=expand, pady=(0, 12))
+    ttk.Label(box, text=title, style="CardTitle.TLabel").pack(anchor="w", pady=(0, 8))
+    return box
+
+
+def themed_listbox(parent, **kw) -> tk.Listbox:
+    return tk.Listbox(parent, background=CARD_HI, foreground=TEXT, selectbackground=ACCENT,
+                      selectforeground="#FFFFFF", highlightthickness=0, borderwidth=0, activestyle="none", **kw)
+
+
 class App:
     def __init__(self, server: DockServer, events: "queue.Queue[tuple[str, str]]", minimized: bool = False,
                  updater=None, restart: threading.Event | None = None):
@@ -72,57 +124,64 @@ class App:
         self.restart = restart or threading.Event()
         self.root = tk.Tk()
         self.root.title("Mobile Dock")
-        self.root.minsize(420, 360)
         self.pin_job = None
 
-        pad = {"padx": 12, "pady": 6}
-        frame = ttk.Frame(self.root, padding=12)
-        frame.pack(fill="both", expand=True)
+        apply_theme(self.root)
+        self.root.minsize(720, 460)
 
+        outer = ttk.Frame(self.root, padding=16)
+        outer.pack(fill="both", expand=True)
+
+        header = ttk.Frame(outer)
+        header.pack(fill="x", pady=(0, 12))
+        ttk.Label(header, text="Mobile Dock", style="Title.TLabel").pack(side="left")
+        self.status = ttk.Label(header, text="Waiting for your phone", style="Status.TLabel")
+        self.status.pack(side="right")
+
+        columns = ttk.Frame(outer)
+        columns.pack(fill="both", expand=True)
+        left = ttk.Frame(columns)
+        left.pack(side="left", fill="both", expand=True, padx=(0, 8))
+        right = ttk.Frame(columns)
+        right.pack(side="left", fill="both", expand=True, padx=(8, 0))
+
+        conn = card(left, "Connect a phone")
         addrs = ", ".join(local_addresses()) or "no network"
-        ttk.Label(frame, text=f"PC name: {server.config.data['host_name']}").pack(anchor="w")
-        ttk.Label(frame, text=f"Address: {addrs}  port {server.port}").pack(anchor="w")
-        self.status = ttk.Label(frame, text="Waiting for your phone")
-        self.status.pack(anchor="w", pady=(0, 8))
+        ttk.Label(conn, text=f"{server.config.data['host_name']}   {addrs}   port {server.port}",
+                  style="Muted.TLabel").pack(anchor="w")
+        self.pin_label = ttk.Label(conn, text="No active PIN", style="Pin.TLabel")
+        self.pin_label.pack(anchor="w", pady=(10, 10))
+        row = ttk.Frame(conn, style="Card.TFrame")
+        row.pack(fill="x")
+        ttk.Button(row, text="Pair new phone", style="Accent.TButton", command=self.start_pairing).pack(side="left")
+        ttk.Button(row, text="Enable USB", command=self.usb).pack(side="left", padx=8)
 
-        pin_box = ttk.LabelFrame(frame, text="Pairing", padding=8)
-        pin_box.pack(fill="x", pady=6)
-        self.pin_label = ttk.Label(pin_box, text="No active PIN")
-        self.pin_label.pack(anchor="w")
-        row = ttk.Frame(pin_box)
-        row.pack(fill="x", pady=(6, 0))
-        ttk.Button(row, text="Pair new phone", command=self.start_pairing).pack(side="left")
-        ttk.Button(row, text="Enable USB", command=self.usb).pack(side="left", padx=6)
-
-        dev_box = ttk.LabelFrame(frame, text="Paired phones", padding=8)
-        dev_box.pack(fill="both", expand=True, pady=6)
-        self.devices = tk.Listbox(dev_box, height=5)
+        dev = card(left, "Paired phones", expand=True)
+        self.devices = themed_listbox(dev, height=4)
         self.devices.pack(fill="both", expand=True)
-        ttk.Button(dev_box, text="Remove selected", command=self.remove_device).pack(anchor="e", pady=(6, 0))
+        ttk.Button(dev, text="Remove selected", command=self.remove_device).pack(anchor="e", pady=(8, 0))
 
-        apps_box = ttk.LabelFrame(frame, text="Pinned apps (shown on the phone)", padding=8)
-        apps_box.pack(fill="both", expand=True, pady=6)
-        self.pinned = tk.Listbox(apps_box, height=6)
-        self.pinned.pack(side="left", fill="both", expand=True)
-        buttons = ttk.Frame(apps_box)
-        buttons.pack(side="left", fill="y", padx=(8, 0))
-        ttk.Button(buttons, text="Add apps", command=self.add_apps).pack(fill="x")
-        ttk.Button(buttons, text="Move up", command=lambda: self.move_pinned(-1)).pack(fill="x", pady=(6, 0))
-        ttk.Button(buttons, text="Move down", command=lambda: self.move_pinned(1)).pack(fill="x", pady=(6, 0))
-        ttk.Button(buttons, text="Unpin", command=self.unpin).pack(fill="x", pady=(6, 0))
+        apps = card(right, "Pinned apps on the phone", expand=True)
+        self.pinned = themed_listbox(apps, height=10)
+        self.pinned.pack(fill="both", expand=True)
+        buttons = ttk.Frame(apps, style="Card.TFrame")
+        buttons.pack(fill="x", pady=(8, 0))
+        ttk.Button(buttons, text="Add apps", style="Accent.TButton", command=self.add_apps).pack(side="left")
+        ttk.Button(buttons, text="Up", command=lambda: self.move_pinned(-1)).pack(side="left", padx=(8, 0))
+        ttk.Button(buttons, text="Down", command=lambda: self.move_pinned(1)).pack(side="left", padx=(8, 0))
+        ttk.Button(buttons, text="Unpin", command=self.unpin).pack(side="right")
 
-        if updater is not None:
-            upd = ttk.Frame(frame)
-            upd.pack(fill="x", pady=6)
-            self.update_label = ttk.Label(upd, text=updater.status)
-            self.update_label.pack(side="left")
-            ttk.Button(upd, text="Check for updates", command=self.check_updates).pack(side="right")
-            ttk.Button(upd, text="GitHub token", command=self.set_token).pack(side="right", padx=6)
-
+        footer = ttk.Frame(outer)
+        footer.pack(fill="x", pady=(12, 0))
         if sys.platform == "win32":
             self.autostart = tk.BooleanVar(value=_autostart_get())
-            ttk.Checkbutton(frame, text="Start with Windows", variable=self.autostart,
-                            command=lambda: _autostart_set(self.autostart.get())).pack(anchor="w", **pad)
+            ttk.Checkbutton(footer, text="Start with Windows", variable=self.autostart,
+                            command=lambda: _autostart_set(self.autostart.get())).pack(side="left")
+        if updater is not None:
+            ttk.Button(footer, text="Check for updates", command=self.check_updates).pack(side="right")
+            ttk.Button(footer, text="GitHub token", command=self.set_token).pack(side="right", padx=8)
+            self.update_label = ttk.Label(footer, text=updater.status, style="Footer.TLabel")
+            self.update_label.pack(side="right", padx=8)
 
         self.refresh_devices()
         self.refresh_pinned()
@@ -135,7 +194,8 @@ class App:
 
     def start_pairing(self) -> None:
         pin = self.server.pairing.start()
-        self.pin_label.config(text=f"PIN  {pin[:3]} {pin[3:]}   (valid 3 minutes)")
+        self.pin_label.config(text=f"{pin[:3]} {pin[3:]}")
+        self.status.config(text="Type this PIN on your phone. It works for 3 minutes.")
         if self.pin_job:
             self.root.after_cancel(self.pin_job)
         self.pin_job = self.root.after(1000, self.check_pin)
@@ -146,6 +206,7 @@ class App:
         else:
             self.pin_label.config(text="No active PIN")
             self.pin_job = None
+            self.refresh_devices()
 
     def usb(self) -> None:
         def work():
@@ -200,20 +261,22 @@ class App:
     def add_apps(self) -> None:
         win = tk.Toplevel(self.root)
         win.title("Add apps")
-        win.minsize(360, 420)
-        ttk.Label(win, text="Search").pack(anchor="w", padx=12, pady=(12, 0))
+        win.minsize(420, 480)
+        win.configure(background=BG)
+        ttk.Label(win, text="Search your apps. Select one or more, then click Pin selected.").pack(
+            anchor="w", padx=16, pady=(16, 6))
         query = tk.StringVar()
         entry = ttk.Entry(win, textvariable=query)
-        entry.pack(fill="x", padx=12)
-        listbox = tk.Listbox(win, selectmode="extended")
-        listbox.pack(fill="both", expand=True, padx=12, pady=8)
+        entry.pack(fill="x", padx=16)
+        listbox = themed_listbox(win, selectmode="extended")
+        listbox.pack(fill="both", expand=True, padx=16, pady=10)
         shown: list[dict] = []
         apps: list[dict] = []
 
         def fill(*_):
             shown.clear()
             listbox.delete(0, "end")
-            q = query.get().lower()
+            q = query.get().lower().strip()
             pinned_ids = {a["id"] for a in self.server.config.pinned()}
             for app in apps:
                 if q in app["name"].lower() and app["id"] not in pinned_ids:
@@ -235,12 +298,22 @@ class App:
             fill()
 
         query.trace_add("write", fill)
-        ttk.Button(win, text="Pin selected", command=add).pack(anchor="e", padx=12, pady=(0, 12))
+        ttk.Button(win, text="Pin selected", style="Accent.TButton", command=add).pack(anchor="e", padx=16, pady=(0, 16))
         listbox.insert("end", "Loading apps...")
         entry.focus_set()
 
+        def failed(message):
+            listbox.delete(0, "end")
+            listbox.insert("end", "Could not list apps:")
+            listbox.insert("end", message)
+
         def work():
-            result = self.server.platform.list_apps()
+            try:
+                result = self.server.platform.list_apps()
+            except Exception as exc:  # noqa: BLE001 - show the reason instead of an empty list
+                message = str(exc) or type(exc).__name__
+                self.root.after(0, lambda: failed(message))
+                return
             self.root.after(0, lambda: loaded(result))
 
         threading.Thread(target=work, daemon=True).start()

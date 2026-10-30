@@ -9,7 +9,6 @@ import android.graphics.drawable.GradientDrawable;
 import android.util.Base64;
 import android.view.Gravity;
 import android.view.View;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
@@ -26,7 +25,7 @@ final class MediaPanel extends LinearLayout {
     private final DockClient client;
     private final Runnable onBack;
     private final TextView title, artist, album, source, elapsed, remaining;
-    private final Button play, shuffle, repeat;
+    private final ImageView play, shuffle, repeat;
     private final SeekBar seek;
     private final ImageView art;
     private boolean active, playing, dragging;
@@ -56,15 +55,15 @@ final class MediaPanel extends LinearLayout {
         this.onBack = onBack;
         setOrientation(HORIZONTAL);
         setGravity(Gravity.CENTER_VERTICAL);
-        int pad = Ui.dp(c, 16);
-        setPadding(pad, Ui.dp(c, 8), pad, Ui.dp(c, 8));
-        setBackground(Ui.rounded(c, Ui.SURFACE, 16));
+        int pad = Ui.dp(c, 18);
+        setPadding(pad, Ui.dp(c, 10), pad, Ui.dp(c, 10));
+        setBackground(Ui.rounded(c, Ui.SURFACE, 18));
 
         LinearLayout left = Ui.column(c);
         left.setGravity(Gravity.CENTER_HORIZONTAL);
 
         LinearLayout top = Ui.row(c);
-        Button back = Ui.button(c, "Back");
+        ImageView back = Ui.flatIcon(c, Icon.Kind.BACK, 40);
         back.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -72,30 +71,32 @@ final class MediaPanel extends LinearLayout {
             }
         });
         top.addView(back);
+        TextView heading = Ui.text(c, "Now playing", 14, Ui.MUTED);
+        top.addView(heading);
         top.addView(Ui.spacer(c));
-        source = Ui.text(c, "", 13, Ui.MUTED);
+        source = Ui.text(c, "", 13, Ui.ACCENT);
         top.addView(source);
         left.addView(top, Ui.fillWidth(c, 0));
 
-        title = centered(c, "Nothing playing", 24, Ui.TEXT);
+        title = centered(c, "Nothing playing", 22, Ui.TEXT);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         left.addView(title, Ui.fillWidth(c, 2));
-        artist = centered(c, "Start music on the PC", 16, Ui.TEXT);
+        artist = centered(c, "Start music on the PC", 15, Ui.TEXT);
         left.addView(artist, Ui.fillWidth(c, 0));
-        album = centered(c, "", 15, Ui.ACCENT);
+        album = centered(c, "", 14, Ui.ACCENT);
         left.addView(album, Ui.fillWidth(c, 0));
 
+        // Fixed, compact sizes: 52 + 68 + 52 dp plus gaps always fits next to the cover.
         LinearLayout transport = Ui.row(c);
         transport.setGravity(Gravity.CENTER);
-        transport.addView(action(c, "Previous", "media", "prev"), size(c, 110, 56));
-        play = action(c, "Play", "media", "play_pause");
-        play.setBackground(Ui.pressable(c, Ui.ACCENT, 0xFF3A6FD0, 28));
-        transport.addView(play, size(c, 120, 64));
-        transport.addView(action(c, "Next", "media", "next"), size(c, 110, 56));
+        transport.addView(control(c, Icon.Kind.PREV, 52, "media", "prev", false));
+        play = control(c, Icon.Kind.PLAY, 68, "media", "play_pause", true);
+        transport.addView(play);
+        transport.addView(control(c, Icon.Kind.NEXT, 52, "media", "next", false));
         left.addView(transport, Ui.fillWidth(c, 6));
 
         LinearLayout progress = Ui.row(c);
-        elapsed = Ui.text(c, "0:00", 13, Ui.TEXT);
+        elapsed = Ui.text(c, "", 12, Ui.TEXT);
         progress.addView(elapsed);
         seek = new SeekBar(c);
         seek.setMax(1000);
@@ -121,29 +122,66 @@ final class MediaPanel extends LinearLayout {
             }
         });
         progress.addView(seek, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
-        remaining = Ui.text(c, "", 13, Ui.TEXT);
+        remaining = Ui.text(c, "", 12, Ui.TEXT);
         progress.addView(remaining);
         left.addView(progress, Ui.fillWidth(c, 2));
 
         LinearLayout extras = Ui.row(c);
         extras.setGravity(Gravity.CENTER);
-        shuffle = action(c, "Shuffle", "media.shuffle", null);
-        extras.addView(shuffle, Ui.wrap(c, 3));
-        repeat = action(c, "Repeat", "media.repeat", null);
-        extras.addView(repeat, Ui.wrap(c, 3));
-        extras.addView(action(c, "Vol -", "media", "vol_down"), Ui.wrap(c, 3));
-        extras.addView(action(c, "Mute", "media", "mute"), Ui.wrap(c, 3));
-        extras.addView(action(c, "Vol +", "media", "vol_up"), Ui.wrap(c, 3));
+        shuffle = control(c, Icon.Kind.SHUFFLE, 42, "media.shuffle", null, false);
+        extras.addView(shuffle);
+        repeat = control(c, Icon.Kind.REPEAT, 42, "media.repeat", null, false);
+        extras.addView(repeat);
+        extras.addView(control(c, Icon.Kind.VOL_DOWN, 42, "media", "vol_down", false));
+        extras.addView(control(c, Icon.Kind.MUTE, 42, "media", "mute", false));
+        extras.addView(control(c, Icon.Kind.VOL_UP, 42, "media", "vol_up", false));
         left.addView(extras, Ui.fillWidth(c, 0));
 
-        addView(left, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1.5f));
+        addView(left, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
 
         art = new ImageView(c);
-        art.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        art.setAdjustViewBounds(true);
-        LayoutParams alp = new LayoutParams(0, LayoutParams.MATCH_PARENT, 1f);
+        art.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        art.setBackground(Ui.rounded(c, Ui.SURFACE_HI, 14));
+        LayoutParams alp = new LayoutParams(0, 0);
         alp.leftMargin = pad;
         addView(art, alp);
+    }
+
+    /** The cover is a square that fills the height but always leaves room for the controls. */
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+        int controls = Ui.dp(getContext(), 300);
+        int side = Math.min(h - getPaddingTop() - getPaddingBottom(),
+                w - getPaddingLeft() - getPaddingRight() - controls - Ui.dp(getContext(), 18));
+        final int size = Math.max(0, side);
+        post(new Runnable() {
+            @Override
+            public void run() {
+                LayoutParams lp = (LayoutParams) art.getLayoutParams();
+                lp.width = size;
+                lp.height = size;
+                art.setVisibility(size < Ui.dp(getContext(), 80) ? GONE : VISIBLE);
+                art.setLayoutParams(lp);
+            }
+        });
+    }
+
+    private ImageView control(Context c, Icon.Kind kind, int size, final String cmd, final String action,
+                              boolean primary) {
+        ImageView b = primary
+                ? Ui.iconButton(c, kind, size, Ui.ACCENT, 0xFF3A6FD0, 0xFFFFFFFF)
+                : Ui.iconButton(c, kind, size, 0x00000000, 0x33FFFFFF, Ui.TEXT);
+        LayoutParams lp = (LayoutParams) b.getLayoutParams();
+        int m = Ui.dp(c, primary ? 12 : 4);
+        lp.setMargins(m, 0, m, 0);
+        b.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                send(cmd, action == null ? null : DockClient.args("action", action));
+            }
+        });
+        return b;
     }
 
     private static TextView centered(Context c, String s, float sp, int color) {
@@ -152,24 +190,6 @@ final class MediaPanel extends LinearLayout {
         t.setSingleLine(true);
         t.setEllipsize(android.text.TextUtils.TruncateAt.END);
         return t;
-    }
-
-    private static LayoutParams size(Context c, int w, int h) {
-        LayoutParams lp = new LayoutParams(Ui.dp(c, w), Ui.dp(c, h));
-        int m = Ui.dp(c, 6);
-        lp.setMargins(m, 0, m, 0);
-        return lp;
-    }
-
-    private Button action(Context c, String label, final String cmd, final String mediaAction) {
-        Button b = Ui.button(c, label);
-        b.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                send(cmd, mediaAction == null ? null : DockClient.args("action", mediaAction));
-            }
-        });
-        return b;
     }
 
     private void send(String cmd, JSONObject args) {
@@ -198,7 +218,7 @@ final class MediaPanel extends LinearLayout {
         album.setText(r.optString("album"));
         source.setText(appLabel(r.optString("app")));
         playing = r.optBoolean("playing");
-        play.setText(playing ? "Pause" : "Play");
+        play.setImageDrawable(new Icon(playing ? Icon.Kind.PAUSE : Icon.Kind.PLAY, 0xFFFFFFFF));
         if (r.has("shuffle")) {
             shuffle.setVisibility(VISIBLE);
             shuffle.setSelected(r.optBoolean("shuffle"));
@@ -209,7 +229,7 @@ final class MediaPanel extends LinearLayout {
             String mode = r.optString("repeat");
             repeat.setVisibility(VISIBLE);
             repeat.setSelected(!"none".equals(mode));
-            repeat.setText("track".equals(mode) ? "Repeat one" : "list".equals(mode) ? "Repeat all" : "Repeat");
+            repeat.setImageDrawable(new Icon("track".equals(mode) ? Icon.Kind.REPEAT_ONE : Icon.Kind.REPEAT, Ui.TEXT));
         } else {
             repeat.setVisibility(GONE);
         }

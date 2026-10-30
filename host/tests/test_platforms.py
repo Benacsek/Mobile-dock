@@ -61,3 +61,13 @@ def test_media_status_never_raises():
     if sys.platform == "win32":
         pf.app_icon(pf.list_apps()[0]["id"])  # icons first, so a COM apartment clash would show up here
     assert isinstance(pf.media_status(), dict)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
+def test_windows_finds_start_menu_apps():
+    pf = get_platform()
+    assert len(pf._start_apps()) > 5, pf._apps_error
+    links = pf._start_menu_links()
+    assert links, "Start menu shortcut fallback found nothing"
+    some = next(iter(links))
+    assert pf.app_icon(some) is None or pf.app_icon(some).startswith(b"\x89PNG")

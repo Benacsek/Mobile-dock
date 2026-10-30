@@ -69,18 +69,22 @@ final class AppsPanel extends LinearLayout {
         FrameLayout top = new FrameLayout(c);
         header = Ui.row(c);
         header.addView(Ui.title(c, "Pinned apps"));
-        TextView hint = Ui.text(c, "   Long press to move", 13, Ui.MUTED);
+        TextView hint = Ui.text(c, "   Long press a tile to move it", 13, Ui.MUTED);
         header.addView(hint);
         header.addView(Ui.spacer(c));
-        Button refresh = Ui.button(c, "Refresh");
+        ImageView refresh = Ui.flatIcon(c, Icon.Kind.REFRESH, 44);
         refresh.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
                 load();
             }
         });
-        header.addView(refresh, Ui.wrap(c, 4));
-        Button add = Ui.accentButton(c, "+ Add app");
+        header.addView(refresh);
+        Button add = Ui.accentButton(c, "Add app");
+        add.setCompoundDrawablePadding(Ui.dp(c, 6));
+        Icon plus = new Icon(Icon.Kind.PLUS, 0xFFFFFFFF);
+        plus.setBounds(0, 0, Ui.dp(c, 18), Ui.dp(c, 18));
+        add.setCompoundDrawables(plus, null, null, null);
         add.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -129,7 +133,7 @@ final class AppsPanel extends LinearLayout {
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
-        int cols = Math.max(3, w / Ui.dp(getContext(), 112));
+        int cols = Math.max(3, w / Ui.dp(getContext(), 118));
         if (cols != columns) {
             columns = cols;
             post(new Runnable() {
@@ -177,7 +181,7 @@ final class AppsPanel extends LinearLayout {
         for (int i = 0; i < apps.size(); i++) {
             if (i % columns == 0) {
                 row = Ui.row(c);
-                grid.addView(row, new LayoutParams(LayoutParams.MATCH_PARENT, Ui.dp(c, 104)));
+                grid.addView(row, new LayoutParams(LayoutParams.MATCH_PARENT, Ui.dp(c, 116)));
             }
             row.addView(tile(apps.get(i), i), cell(c));
         }
@@ -197,21 +201,21 @@ final class AppsPanel extends LinearLayout {
         final Context c = getContext();
         LinearLayout t = Ui.column(c);
         t.setGravity(Gravity.CENTER);
-        t.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.SURFACE_HI, 14));
+        t.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.SURFACE_HI, 18));
         t.setPadding(Ui.dp(c, 4), Ui.dp(c, 6), Ui.dp(c, 4), Ui.dp(c, 6));
 
         FrameLayout iconBox = new FrameLayout(c);
         TextView letters = Ui.text(c, Ui.initials(app.name), 20, Ui.TEXT);
         letters.setGravity(Gravity.CENTER);
-        letters.setBackground(Ui.rounded(c, Ui.colorFor(app.id), 12));
-        iconBox.addView(letters, new FrameLayout.LayoutParams(Ui.dp(c, 48), Ui.dp(c, 48)));
+        letters.setBackground(Ui.rounded(c, Ui.colorFor(app.id), 14));
+        iconBox.addView(letters, new FrameLayout.LayoutParams(Ui.dp(c, 56), Ui.dp(c, 56)));
         ImageView image = new ImageView(c);
         image.setScaleType(ImageView.ScaleType.FIT_CENTER);
         image.setBackgroundColor(Ui.SURFACE);
         image.setVisibility(GONE);
-        iconBox.addView(image, new FrameLayout.LayoutParams(Ui.dp(c, 48), Ui.dp(c, 48)));
+        iconBox.addView(image, new FrameLayout.LayoutParams(Ui.dp(c, 56), Ui.dp(c, 56)));
         icons.load(app.id, image);
-        t.addView(iconBox, new LayoutParams(Ui.dp(c, 48), Ui.dp(c, 48)));
+        t.addView(iconBox, new LayoutParams(Ui.dp(c, 56), Ui.dp(c, 56)));
 
         TextView label = Ui.text(c, app.name, 12, Ui.TEXT);
         label.setGravity(Gravity.CENTER);
@@ -254,17 +258,17 @@ final class AppsPanel extends LinearLayout {
                     case DragEvent.ACTION_DRAG_STARTED:
                         return dragged instanceof App;
                     case DragEvent.ACTION_DRAG_ENTERED:
-                        if (dragged != app) v.setBackground(Ui.rounded(c, Ui.ACCENT, 14));
+                        if (dragged != app) v.setBackground(Ui.rounded(c, Ui.ACCENT, 18));
                         return true;
                     case DragEvent.ACTION_DRAG_EXITED:
-                        v.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.SURFACE_HI, 14));
+                        v.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.SURFACE_HI, 18));
                         return true;
                     case DragEvent.ACTION_DROP:
                         move((App) dragged, index);
                         return true;
                     case DragEvent.ACTION_DRAG_ENDED:
                         v.setAlpha(1f);
-                        v.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.SURFACE_HI, 14));
+                        v.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.SURFACE_HI, 18));
                         dragEnded();
                         return true;
                     default:
@@ -350,8 +354,38 @@ final class AppsPanel extends LinearLayout {
         box.addView(search, Ui.fillWidth(c, 0));
         final ListView list = new ListView(c);
         final ArrayAdapter<App> adapter = new ArrayAdapter<App>(c, android.R.layout.simple_list_item_1,
-                new ArrayList<App>(all));
+                new ArrayList<App>(all)) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                LinearLayout row = convertView instanceof LinearLayout ? (LinearLayout) convertView : null;
+                if (row == null) {
+                    row = Ui.row(c);
+                    int p = Ui.dp(c, 8);
+                    row.setPadding(p, p, p, p);
+                    ImageView img = new ImageView(c);
+                    row.addView(img, new LayoutParams(Ui.dp(c, 32), Ui.dp(c, 32)));
+                    TextView name = new TextView(c);
+                    name.setTextSize(16);
+                    name.setPadding(Ui.dp(c, 12), 0, 0, 0);
+                    name.setSingleLine(true);
+                    row.addView(name, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
+                }
+                App a = getItem(position);
+                ImageView img = (ImageView) row.getChildAt(0);
+                img.setImageDrawable(null);
+                img.setVisibility(INVISIBLE);
+                icons.load(a.id, img);
+                ((TextView) row.getChildAt(1)).setText(a.name);
+                return row;
+            }
+        };
         list.setAdapter(adapter);
+        TextView none = new TextView(c);
+        none.setText("No apps match your search.");
+        none.setGravity(Gravity.CENTER);
+        none.setPadding(0, Ui.dp(c, 24), 0, Ui.dp(c, 24));
+        box.addView(none, Ui.fillWidth(c, 0));
+        list.setEmptyView(none);
         box.addView(list, new LayoutParams(LayoutParams.MATCH_PARENT, Ui.dp(c, 260)));
         search.addTextChangedListener(new TextWatcher() {
             @Override
