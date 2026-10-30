@@ -1,0 +1,238 @@
+package dev.mobiledock;
+
+import android.app.Notification;
+import android.app.PendingIntent;
+import android.app.Service;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
+import android.net.wifi.WifiManager;
+import android.os.BatteryManager;
+import android.os.Build;
+import android.os.IBinder;
+import android.os.PowerManager;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketTimeoutException;
+
+import dev.mobiledock.proto.Crypto;
+
+/**
+ * Optional background watcher. When a paired PC comes online, it wakes the screen and opens
+ * the dock, which then connects on its own. It only sends the same small discovery probe the
+ * connect page uses, and only to your network.
+ *
+ * It checks every 6 seconds while the phone charges and every 60 seconds on battery.
+ */
+public final class WatchService extends Service {
+    static final String PREF_ENABLED = "wake_on_pc";
+    static final String PREF_LOCKSCREEN = "show_on_lockscreen";
+    private static final int NOTIFICATION_ID = 7;
+
+    /** Set while the dock is on screen, so the watcher stays quiet. */
+    static volatile boolean dockVisible;
+    /** Set when you tap Disconnect. The watcher waits until the PC goes off and on again. */
+    static volatile boolean quietUntilOffline;
+
+    private volatile boolean running;
+    private Thread thread;
+    private PowerManager.WakeLock cpuLock;
+    private WifiManager.WifiLock wifiLock;
+
+    static SharedPreferences prefs(Context c) {
+        return c.getSharedPreferences("dock", Context.MODE_PRIVATE);
+    }
+
+    static boolean enabled(Context c) {
+        return prefs(c).getBoolean(PREF_ENABLED, false);
+    }
+
+    static void sync(Context c) {
+        Intent i = new Intent(c, WatchService.class);
+        if (!enabled(c)) {
+            c.stopService(i);
+        } else if (Build.VERSION.SDK_INT >= 26) {
+            WatchCompat.startForegroundService(c, i);
+        } else {
+            c.startService(i);
+        }
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        Notification n = notification("Waiting for your PC", "Mobile Dock opens when your PC starts.", false);
+        if (Build.VERSION.SDK_INT >= 29) {
+            WatchCompat.startForeground(this, NOTIFICATION_ID, n);
+        } else {
+            startForeground(NOTIFICATION_ID, n);
+        }
+        if (!running) {
+            running = true;
+            thread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    loop();
+                }
+            }, "dock-watch");
+            thread.start();
+        }
+        return START_STICKY;
+    }
+
+    @Override
+    public void onDestroy() {
+        running = false;
+        if (thread != null) thread.interrupt();
+        holdLocks(false);
+        super.onDestroy();
+    }
+
+    @SuppressWarnings("deprecation")
+    Notification notification(String title, String text, boolean tapToOpen) {
+        Notification.Builder b = Build.VERSION.SDK_INT >= 26
+                ? WatchCompat.builder(this, tapToOpen) : new Notification.Builder(this);
+        b.setSmallIcon(getApplicationInfo().icon).setContentTitle(title).setContentText(text).setOngoing(!tapToOpen);
+        Intent open = new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                .putExtra(MainActivity.EXTRA_WAKE, true);
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? 0x04000000 : 0); // IMMUTABLE
+        b.setContentIntent(PendingIntent.getActivity(this, tapToOpen ? 1 : 0, open, flags));
+        if (tapToOpen) {
+            b.setAutoCancel(true);
+            b.setPriority(Notification.PRIORITY_HIGH);
+        } else {
+            b.setPriority(Notification.PRIORITY_MIN);
+        }
+        return b.build();
+    }
+
+    private boolean charging() {
+        Intent battery = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        return battery != null && battery.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0;
+    }
+
+    /** CPU and Wi-Fi stay awake only while charging, so the watcher costs no battery otherwise. */
+    @SuppressWarnings("deprecation")
+    private synchronized void holdLocks(boolean hold) {
+        try {
+            if (hold && cpuLock == null) {
+                PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                cpuLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MobileDock:watch");
+                cpuLock.setReferenceCounted(false);
+                cpuLock.acquire(10 * 60 * 1000L);
+                WifiManager wifi = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+                if (wifi != null) {
+                    wifiLock = wifi.createWifiLock(WifiManager.WIFI_MODE_FULL, "MobileDock:watch");
+                    wifiLock.setReferenceCounted(false);
+                    wifiLock.acquire();
+                }
+            } else if (hold) {
+                cpuLock.acquire(10 * 60 * 1000L);  // renew the timeout
+            } else {
+                if (cpuLock != null && cpuLock.isHeld()) cpuLock.release();
+                if (wifiLock != null && wifiLock.isHeld()) wifiLock.release();
+                cpuLock = null;
+                wifiLock = null;
+            }
+        } catch (RuntimeException ignored) {
+            // A missing lock only makes the watcher slower, never broken.
+        }
+    }
+
+    private void loop() {
+        Store store = new Store(this);
+        boolean online = false;
+        int misses = 0;
+        while (running) {
+            boolean plugged = charging();
+            holdLocks(plugged);
+            if (dockVisible) {
+                online = true;
+                misses = 0;
+            } else if (probe(store)) {
+                misses = 0;
+                if (!online && !quietUntilOffline) wake();
+                online = true;
+            } else if (++misses >= 3) {
+                online = false;
+                quietUntilOffline = false;
+            }
+            try {
+                Thread.sleep(plugged ? 6000 : 60000);
+            } catch (InterruptedException e) {
+                return;
+            }
+        }
+    }
+
+    /** True when a PC this phone is paired with answers the discovery probe. */
+    private boolean probe(Store store) {
+        DatagramSocket socket = null;
+        try {
+            socket = new DatagramSocket();
+            socket.setBroadcast(true);
+            socket.setSoTimeout(1500);
+            byte[] msg = Crypto.utf8("MDOCK1?");
+            String last = store.lastHost();
+            if (last.length() > 0 && !last.startsWith("127.")) {
+                socket.send(new DatagramPacket(msg, msg.length, InetAddress.getByName(last), Discovery.UDP_PORT));
+            }
+            socket.send(new DatagramPacket(msg, msg.length, InetAddress.getByName("255.255.255.255"),
+                    Discovery.UDP_PORT));
+            byte[] buf = new byte[2048];
+            long end = System.currentTimeMillis() + 1500;
+            while (System.currentTimeMillis() < end) {
+                DatagramPacket p = new DatagramPacket(buf, buf.length);
+                socket.receive(p);
+                JSONObject o = new JSONObject(new String(p.getData(), 0, p.getLength(), Crypto.UTF8));
+                if ("mdock".equals(o.optString("t")) && store.isPaired(o.optString("host_id"))) {
+                    store.setLast(p.getAddress().getHostAddress(), o.optInt("port", 47800));
+                    return true;
+                }
+            }
+        } catch (SocketTimeoutException e) {
+            return false;
+        } catch (IOException | JSONException e) {
+            return false;
+        } finally {
+            if (socket != null) socket.close();
+        }
+        return false;
+    }
+
+    @SuppressWarnings("deprecation")
+    private void wake() {
+        try {
+            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            PowerManager.WakeLock screen = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK
+                    | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE, "MobileDock:wake");
+            screen.acquire(10000);
+        } catch (RuntimeException ignored) {
+        }
+        Intent open = new Intent(this, MainActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra(MainActivity.EXTRA_WAKE, true);
+        // Android 10 and newer only lets an app open itself from the background when it may
+        // draw over other apps. Without that, a notification asks you to tap.
+        if (Build.VERSION.SDK_INT >= 29 && !WatchCompat.canDrawOverlays(this)) {
+            WatchCompat.notify(this, 8, notification("Your PC is on", "Tap to open Mobile Dock", true));
+            return;
+        }
+        try {
+            startActivity(open);
+        } catch (RuntimeException e) {
+            WatchCompat.notify(this, 8, notification("Your PC is on", "Tap to open Mobile Dock", true));
+        }
+    }
+}

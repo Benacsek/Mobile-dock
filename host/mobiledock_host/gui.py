@@ -64,6 +64,7 @@ def _autostart_set(enabled: bool) -> None:
 
 
 BG, CARD, CARD_HI, ACCENT, TEXT, MUTED = "#0F1115", "#1A1D23", "#262A33", "#4F8CFF", "#E8EAED", "#9AA0A6"
+GREEN, GREEN_BG = "#3DDC84", "#16352A"
 
 
 def apply_theme(root: tk.Tk) -> None:
@@ -136,8 +137,22 @@ class App:
         header = ttk.Frame(outer)
         header.pack(fill="x", pady=(0, 12))
         ttk.Label(header, text="Mobile Dock", style="Title.TLabel").pack(side="left")
-        self.status = ttk.Label(header, text="Waiting for your phone", style="Status.TLabel")
+        self.status = ttk.Label(header, text="", style="Status.TLabel")
         self.status.pack(side="right")
+
+        # Big connection banner: green with the phone name when connected, grey when not.
+        self.banner = tk.Frame(outer, background=CARD, padx=16, pady=12)
+        self.banner.pack(fill="x", pady=(0, 12))
+        self.banner_dot = tk.Canvas(self.banner, width=18, height=18, background=CARD, highlightthickness=0)
+        self.banner_dot.pack(side="left", padx=(0, 12))
+        texts = tk.Frame(self.banner, background=CARD)
+        texts.pack(side="left", fill="x", expand=True)
+        self.banner_title = tk.Label(texts, text="", background=CARD, foreground=TEXT, anchor="w",
+                                     font=self.root._fonts[2])
+        self.banner_title.pack(fill="x")
+        self.banner_sub = tk.Label(texts, text="", background=CARD, foreground=MUTED, anchor="w")
+        self.banner_sub.pack(fill="x")
+        self._banner_widgets = (self.banner, self.banner_dot, texts, self.banner_title, self.banner_sub)
 
         columns = ttk.Frame(outer)
         columns.pack(fill="both", expand=True)
@@ -207,6 +222,7 @@ class App:
         else:
             self.pin_label.config(text="No active PIN")
             self.pin_job = None
+            self.status.config(text="")
             self.refresh_devices()
 
     def usb(self) -> None:
@@ -218,10 +234,35 @@ class App:
     def refresh_devices(self) -> None:
         self.device_ids = list(self.server.config.devices().items())
         self.devices.delete(0, "end")
-        for _, name in self.device_ids:
-            self.devices.insert("end", name)
-        connected = self.server.connected_names()
-        self.status.config(text="Connected: " + ", ".join(connected) if connected else "Waiting for your phone")
+        live = self.server.connected_sessions()
+        live_ids = {s["id"] for s in live}
+        for device_id, name in self.device_ids:
+            self.devices.insert("end", f"{name}    ●  connected" if device_id in live_ids else name)
+            if device_id in live_ids:
+                self.devices.itemconfig("end", foreground=GREEN)
+        self.show_connection(live)
+
+    def show_connection(self, live: list[dict]) -> None:
+        import time as _time
+
+        if live:
+            bg, fg = GREEN_BG, GREEN
+            names = ", ".join(s["name"] for s in live)
+            title = f"Connected to {names}"
+            first = live[0]
+            sub = f"{first['via']}   since {_time.strftime('%H:%M', _time.localtime(first['since']))}"
+            self.root.title(f"Mobile Dock  ●  {names}")
+        else:
+            bg, fg = CARD, MUTED
+            title = "No phone connected"
+            sub = "Open Mobile Dock on your phone. It connects on its own once paired."
+            self.root.title("Mobile Dock")
+        for w in self._banner_widgets:
+            w.configure(background=bg)
+        self.banner_title.configure(text=title, foreground=fg if live else TEXT)
+        self.banner_sub.configure(text=sub, foreground=fg if live else MUTED)
+        self.banner_dot.delete("all")
+        self.banner_dot.create_oval(2, 2, 16, 16, fill=fg, outline="")
 
     def remove_device(self) -> None:
         sel = self.devices.curselection()
@@ -362,6 +403,7 @@ class App:
                 kind, text = self.events.get_nowait()
                 if kind == "paired":
                     self.pin_label.config(text=f"Paired with {text}")
+                    self.status.config(text="")
                 elif kind == "info":
                     messagebox.showinfo("Mobile Dock", text)
                 elif kind in ("update", "update_status") and self.updater is not None:

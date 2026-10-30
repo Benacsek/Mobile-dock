@@ -19,6 +19,9 @@ It works on your local network or over USB. There is no account, no cloud servic
 - Start and stop screen recording. Videos save in Videos/Mobile Dock.
 - Use the touchpad. Tap to click. Use two fingers to scroll or to right click.
 - Type on the PC. Use Ctrl, Alt, Shift and Win keys, arrows, F1 to F12 and common shortcuts.
+- Optional: turn on "Wake up and connect when my PC turns on". When your PC starts, the phone turns its screen on, opens the dock and connects. It works best while the phone charges.
+
+The PC window shows a green banner with the phone's name, how it connects and since when.
 
 ## Quick start
 

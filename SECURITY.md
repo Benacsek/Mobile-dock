@@ -25,6 +25,7 @@ Mobile Dock lets a phone type and click on your PC. Treat a paired phone like a 
 - Discovery answers anyone on the network with the PC name and port. Turn it off with `"discovery": false` in the config.
 - The host listens on all interfaces by default. Set `"bind": "127.0.0.1"` to accept USB connections only.
 - Anyone who unlocks your paired phone can control your PC while the host runs.
+- With "Show the dock over the lock screen" on, the phone does not even need unlocking. It is off by default.
 - Updates trust whoever can publish releases in this repository. Protect your GitHub account with two-factor authentication. Keep the APK signing key and its password only in the repository secrets.
 - The Windows .exe is not code-signed, so SmartScreen warns on the first run.
 - For a private repository, the host stores a GitHub token in its config file. Give it read-only access to Contents of this repository and nothing else. The token goes only to api.github.com. It is removed before GitHub redirects a download to its storage servers.

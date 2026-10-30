@@ -71,6 +71,7 @@ class Session:
         self.addr = addr
         self.device_id = ""
         self.device_name = ""
+        self.connected_at = 0.0
         self.channel: p.SecureChannel | None = None
         self.send_lock = threading.Lock()
         self.closed = False
@@ -255,6 +256,7 @@ class DockServer:
     # Sessions -------------------------------------------------------------
 
     def session_started(self, session: Session) -> None:
+        session.connected_at = time.time()
         with self.lock:
             self.sessions.append(session)
         self.notify("connected", session.device_name)
@@ -302,6 +304,13 @@ class DockServer:
                 s.send({"t": "event", "e": "apps"})
             except OSError:
                 s.close()
+
+    def connected_sessions(self) -> list[dict]:
+        """Name, how it connects, and since when, for every phone connected right now."""
+        with self.lock:
+            sessions = list(self.sessions)
+        return [{"id": s.device_id, "name": s.device_name, "since": s.connected_at,
+                 "via": "USB" if s.addr[0].startswith("127.") else f"Wi-Fi {s.addr[0]}"} for s in sessions]
 
     def connected_names(self) -> list[str]:
         with self.lock:

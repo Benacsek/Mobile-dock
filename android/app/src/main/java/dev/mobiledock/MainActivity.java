@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.InputType;
@@ -12,6 +13,8 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -29,6 +32,7 @@ import dev.mobiledock.proto.Connection;
 
 /** Single screen app: a connect page, then the dock with a side rail and four panels. */
 public final class MainActivity extends Activity implements DockClient.Listener {
+    static final String EXTRA_WAKE = "wake";
     private Store store;
     private DockClient client;
     private FrameLayout root;
@@ -71,11 +75,44 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         String last = store.lastHost();
         if (last.length() > 0 && store.hasAnyPairing()) client.connect(last, store.lastPort());
         else scan();
+        handleWake(getIntent());
+        WatchService.sync(this);
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleWake(intent);
+    }
+
+    /** Opened by the PC watcher: turn the screen on and connect to the PC that just started. */
+    @SuppressWarnings("deprecation")
+    private void handleWake(Intent intent) {
+        if (intent == null || !intent.getBooleanExtra(EXTRA_WAKE, false)) return;
+        boolean overLock = WatchService.prefs(this).getBoolean(WatchService.PREF_LOCKSCREEN, false);
+        if (Build.VERSION.SDK_INT >= 27) {
+            WatchCompat.wakeActivity(this, overLock);
+        } else {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                    | (overLock ? WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED : 0));
+        }
+        String last = store.lastHost();
+        if (!client.isConnected() && last.length() > 0 && store.hasAnyPairing()) {
+            client.connect(last, store.lastPort());
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        WatchService.dockVisible = false;
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        WatchService.dockVisible = true;
         immersive();
     }
 
@@ -199,6 +236,33 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         });
         right.addView(usb, Ui.wrap(this, 4));
 
+        right.addView(Ui.text(this, "Start with your PC", 14, Ui.TEXT), Ui.fillWidth(this, 4));
+        final CheckBox wakeBox = new CheckBox(this);
+        wakeBox.setText("Wake up and connect when my PC turns on");
+        wakeBox.setTextColor(Ui.TEXT);
+        wakeBox.setChecked(WatchService.enabled(this));
+        wakeBox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton b, boolean on) {
+                WatchService.prefs(MainActivity.this).edit().putBoolean(WatchService.PREF_ENABLED, on).commit();
+                WatchService.sync(MainActivity.this);
+                if (on) explainWakePermissions();
+            }
+        });
+        right.addView(wakeBox, Ui.fillWidth(this, 2));
+        final CheckBox lockBox = new CheckBox(this);
+        lockBox.setText("Show the dock over the lock screen");
+        lockBox.setTextColor(Ui.TEXT);
+        lockBox.setChecked(WatchService.prefs(this).getBoolean(WatchService.PREF_LOCKSCREEN, false));
+        lockBox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton b, boolean on) {
+                WatchService.prefs(MainActivity.this).edit().putBoolean(WatchService.PREF_LOCKSCREEN, on).commit();
+            }
+        });
+        right.addView(lockBox, Ui.fillWidth(this, 2));
+        right.addView(Ui.text(this, "Works best while the phone charges. Over the lock screen, anyone near the phone can control your PC.", 12, Ui.MUTED), Ui.fillWidth(this, 4));
+
         Button forget = Ui.button(this, "Forget paired PCs");
         forget.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -221,6 +285,24 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         rightScroll.addView(right);
         page.addView(rightScroll, Ui.weight(1f));
         return page;
+    }
+
+    /** Android 10 and newer need extra permissions before an app may open itself. */
+    private void explainWakePermissions() {
+        if (Build.VERSION.SDK_INT >= 33) WatchCompat.askNotifications(this);
+        if (Build.VERSION.SDK_INT < 29 || WatchCompat.canDrawOverlays(this)) {
+            if (Build.VERSION.SDK_INT >= 26) WatchCompat.askBatteryExemption(this);
+            return;
+        }
+        new AlertDialog.Builder(this).setTitle("One more permission")
+                .setMessage("To open by itself when your PC starts, Android needs you to allow Mobile Dock to "
+                        + "display over other apps. Without it, you get a notification to tap instead.")
+                .setPositiveButton("Open settings", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface d, int w) {
+                        WatchCompat.askOverlay(MainActivity.this);
+                    }
+                }).setNegativeButton("Use notification", null).show();
     }
 
     private void connectTyped() {
@@ -361,6 +443,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         leave.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                WatchService.quietUntilOffline = true;  // do not reopen until the PC restarts
                 client.disconnect();
                 showConnect();
                 scan();

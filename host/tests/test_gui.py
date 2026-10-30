@@ -31,6 +31,9 @@ def test_window_builds(tmp_path):
 
     app = App(server, queue.Queue(), updater=FakeUpdater())
     app.start_pairing()
+    app.show_connection([{"id": "x", "name": "Test phone", "since": 0, "via": "USB"}])
+    assert "Test phone" in app.banner_title.cget("text")
+    app.show_connection([])
     app.add_apps()
     import time
 
