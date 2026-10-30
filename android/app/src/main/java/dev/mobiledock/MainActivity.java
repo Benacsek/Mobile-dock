@@ -1,5 +1,6 @@
 package dev.mobiledock;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
@@ -52,6 +53,14 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         root = new FrameLayout(this);
         root.setBackgroundColor(Ui.BG);
         setContentView(root);
+        if (Build.VERSION.SDK_INT >= 33) {
+            BackCompat.register(this, new Runnable() {
+                @Override
+                public void run() {
+                    handleBack();
+                }
+            });
+        }
         showConnect();
         String last = store.lastHost();
         if (last.length() > 0 && store.hasAnyPairing()) client.connect(last, store.lastPort());
@@ -86,14 +95,21 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         super.onDestroy();
     }
 
-    @Override
-    public void onBackPressed() {
+    /** Back returns to the Apps panel first, then leaves the app. */
+    private void handleBack() {
         if (dockView != null && dockView.getVisibility() == View.VISIBLE && panels.size() > 0
                 && panels.get(0).getVisibility() != View.VISIBLE) {
             select(0);
             return;
         }
-        super.onBackPressed();
+        finish();
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    @SuppressLint("GestureBackNavigation") // Android 13+ uses BackCompat instead.
+    public void onBackPressed() {
+        handleBack();
     }
 
     // Connect page -----------------------------------------------------------
