@@ -52,6 +52,12 @@ final class WatchCompat {
         ((NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE)).notify(id, n);
     }
 
+    @TargetApi(23)
+    static android.app.PendingIntent openIntent(Context c, int request, Intent i) {
+        return android.app.PendingIntent.getActivity(c, request, i,
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_IMMUTABLE);
+    }
+
     /** Charging state without registering a receiver (Android 6 and newer). */
     @TargetApi(23)
     static boolean charging(Context c) {

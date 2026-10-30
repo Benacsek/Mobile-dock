@@ -106,8 +106,9 @@ public final class WatchService extends Service {
         b.setSmallIcon(getApplicationInfo().icon).setContentTitle(title).setContentText(text).setOngoing(!tapToOpen);
         Intent open = new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 .putExtra(MainActivity.EXTRA_WAKE, true);
-        int flags = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? 0x04000000 : 0); // IMMUTABLE
-        b.setContentIntent(PendingIntent.getActivity(this, tapToOpen ? 1 : 0, open, flags));
+        b.setContentIntent(Build.VERSION.SDK_INT >= 23
+                ? WatchCompat.openIntent(this, tapToOpen ? 1 : 0, open)
+                : PendingIntent.getActivity(this, tapToOpen ? 1 : 0, open, PendingIntent.FLAG_UPDATE_CURRENT));
         if (tapToOpen) {
             b.setAutoCancel(true);
             b.setPriority(Notification.PRIORITY_HIGH);
