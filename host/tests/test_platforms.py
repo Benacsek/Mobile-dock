@@ -57,4 +57,7 @@ def test_windows_screenshot(tmp_path):
 
 def test_media_status_never_raises():
     # No player runs in CI. The call must still return a dict, which exercises the optional imports.
-    assert isinstance(get_platform().media_status(), dict)
+    pf = get_platform()
+    if sys.platform == "win32":
+        pf.app_icon(pf.list_apps()[0]["id"])  # icons first, so a COM apartment clash would show up here
+    assert isinstance(pf.media_status(), dict)

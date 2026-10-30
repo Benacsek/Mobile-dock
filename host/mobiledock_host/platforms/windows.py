@@ -14,6 +14,7 @@ import json
 import subprocess
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from ctypes import wintypes
 from pathlib import Path
 
@@ -138,6 +139,7 @@ class WindowsPlatform(Platform):
         self._apps: list[dict] = []
         self._apps_time = 0.0
         self._icons: dict[str, bytes | None] = {}
+        self._icon_thread = ThreadPoolExecutor(max_workers=1, thread_name_prefix="icons")
 
     def _send(self, *inputs: INPUT) -> None:
         arr = (INPUT * len(inputs))(*inputs)
@@ -299,10 +301,18 @@ class WindowsPlatform(Platform):
         """
         if app_id in self._icons:
             return self._icons[app_id]
+        # The shell needs a single-threaded COM apartment, while the media API needs the
+        # multithreaded one. Icons run on their own thread so the two never share a thread.
+        png = self._icon_thread.submit(self._render_icon, app_id).result(timeout=15)
+        self._icons[app_id] = png
+        return png
+
+    def _render_icon(self, app_id: str) -> bytes | None:
         png = None
         try:
-            ole32 = ctypes.WinDLL("ole32")
-            ole32.CoInitializeEx(None, 2)
+            if not getattr(self, "_icon_com_ready", False):
+                ctypes.WinDLL("ole32").CoInitializeEx(None, 2)  # COINIT_APARTMENTTHREADED
+                self._icon_com_ready = True
             shell32 = ctypes.WinDLL("shell32")
             shell32.SHCreateItemFromParsingName.argtypes = (
                 wintypes.LPCWSTR, ctypes.c_void_p, ctypes.POINTER(GUID), ctypes.POINTER(ctypes.c_void_p))
@@ -326,7 +336,6 @@ class WindowsPlatform(Platform):
                 self.gdi32.DeleteObject(hbm)
         except (OSError, ValueError):
             png = None
-        self._icons[app_id] = png
         return png
 
     def _hbitmap_png(self, hbm) -> bytes | None:
