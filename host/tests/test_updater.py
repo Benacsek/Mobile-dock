@@ -107,3 +107,8 @@ def test_redirect_drops_token():
     req = urllib.request.Request("https://api.github.com/x", headers={"Authorization": "Bearer t"})
     new = up._DropAuthOnRedirect().redirect_request(req, None, 302, "Found", {}, "https://storage.example/x")
     assert not new.has_header("Authorization")
+
+
+def test_restart_env_drops_pyinstaller_state():
+    env = up.clean_env({"PATH": "x", "_PYI_APPLICATION_HOME_DIR": "C:\\\\Temp\\\\_MEI1", "_MEIPASS2": "y"})
+    assert env == {"PATH": "x", "PYINSTALLER_RESET_ENVIRONMENT": "1"}

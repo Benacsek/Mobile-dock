@@ -72,6 +72,18 @@ def _fetch(url: str, limit: int = MAX_DOWNLOAD, token: str = "", accept: str = "
     return data
 
 
+def clean_env(environ=None) -> dict:
+    """Environment for the restarted .exe.
+
+    A PyInstaller app passes its own unpack folder to child processes. The new .exe would then
+    look for python3XX.dll in the old copy's temp folder, which is deleted when the old copy exits.
+    """
+    env = {k: v for k, v in (environ if environ is not None else os.environ).items()
+           if not k.upper().startswith(("_PYI_", "_MEIPASS"))}
+    env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+    return env
+
+
 class Updater:
     def __init__(self, config: Config, on_restart: Callable[[], None] | None = None,
                  notify: Callable[[str, str], None] | None = None):
@@ -227,7 +239,7 @@ class Updater:
         fd, path = tempfile.mkstemp(suffix=".cmd", prefix="mobiledock-update-")
         with os.fdopen(fd, "w", encoding="ascii") as fh:
             fh.write(script)
-        subprocess.Popen(["cmd.exe", "/c", path], creationflags=0x08000000, close_fds=True)
+        subprocess.Popen(["cmd.exe", "/c", path], creationflags=0x08000000, close_fds=True, env=clean_env())
         self.notify("update", f"Updating to {version}. The dock restarts in a few seconds.")
         if self.on_restart:
             self.on_restart()
