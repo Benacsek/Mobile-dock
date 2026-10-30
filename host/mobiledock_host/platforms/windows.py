@@ -38,6 +38,8 @@ VK = {
     "ctrl": 0x11, "alt": 0x12, "shift": 0x10, "meta": 0x5B,
     **{f"f{i}": 0x6F + i for i in range(1, 13)},
     **{c: ord(c.upper()) for c in "abcdefghijklmnopqrstuvwxyz0123456789"},
+    "minus": 0xBD, "equal": 0xBB, "bracketleft": 0xDB, "bracketright": 0xDD, "backslash": 0xDC,
+    "semicolon": 0xBA, "quote": 0xDE, "comma": 0xBC, "period": 0xBE, "slash": 0xBF, "grave": 0xC0,
 }
 EXTENDED = {0x2E, 0x2D, 0x26, 0x28, 0x25, 0x27, 0x24, 0x23, 0x21, 0x22, 0x5B}
 MEDIA_VK = {"play_pause": 0xB3, "next": 0xB0, "prev": 0xB1, "vol_up": 0xAF, "vol_down": 0xAE, "mute": 0xAD}
@@ -337,6 +339,77 @@ class WindowsPlatform(Platform):
 
         if not self._media_run(repeat):
             raise PlatformError("This player does not allow repeat")
+
+    # Foreground app and clipboard ------------------------------------------
+
+    def foreground(self) -> dict:
+        u, wt = self.user32, wintypes
+        if not getattr(self, "_fg_ready", False):
+            u.GetForegroundWindow.restype = wt.HWND
+            u.GetWindowThreadProcessId.argtypes = (wt.HWND, ctypes.POINTER(wt.DWORD))
+            u.GetWindowTextW.argtypes = (wt.HWND, wt.LPWSTR, ctypes.c_int)
+            self._fg_ready = True
+        hwnd = u.GetForegroundWindow()
+        if not hwnd:
+            return {}
+        pid = wt.DWORD()
+        u.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        title = ctypes.create_unicode_buffer(256)
+        u.GetWindowTextW(hwnd, title, 256)
+        try:
+            import psutil
+
+            app = psutil.Process(pid.value).name()
+        except Exception:  # noqa: BLE001 - protected processes hide their name
+            app = ""
+        return {"app": app, "title": title.value}
+
+    def set_clipboard_image(self, png: bytes) -> None:
+        """Puts the picture on the clipboard as a bitmap and as PNG, so Figma, Office and browsers can paste it."""
+        import io
+
+        from PIL import Image
+
+        try:
+            img = Image.open(io.BytesIO(png))
+            img.load()
+        except Exception as exc:  # noqa: BLE001
+            raise PlatformError("That file is not a picture") from exc
+        bmp = io.BytesIO()
+        img.convert("RGB").save(bmp, "BMP")
+        dib = bmp.getvalue()[14:]  # CF_DIB is a BMP without its file header
+        png_out = io.BytesIO()
+        img.save(png_out, "PNG")
+
+        k32, u, wt = ctypes.WinDLL("kernel32"), self.user32, wintypes
+        k32.GlobalAlloc.argtypes, k32.GlobalAlloc.restype = (wt.UINT, ctypes.c_size_t), wt.HGLOBAL
+        k32.GlobalLock.argtypes, k32.GlobalLock.restype = (wt.HGLOBAL,), ctypes.c_void_p
+        k32.GlobalUnlock.argtypes = (wt.HGLOBAL,)
+        k32.GlobalFree.argtypes = (wt.HGLOBAL,)
+        u.OpenClipboard.argtypes = (wt.HWND,)
+        u.SetClipboardData.argtypes, u.SetClipboardData.restype = (wt.UINT, wt.HANDLE), wt.HANDLE
+        u.RegisterClipboardFormatW.argtypes, u.RegisterClipboardFormatW.restype = (wt.LPCWSTR,), wt.UINT
+
+        def put(fmt: int, data: bytes) -> None:
+            handle = k32.GlobalAlloc(0x0002, len(data))  # GMEM_MOVEABLE
+            ptr = k32.GlobalLock(handle)
+            ctypes.memmove(ptr, data, len(data))
+            k32.GlobalUnlock(handle)
+            if not u.SetClipboardData(fmt, handle):
+                k32.GlobalFree(handle)
+
+        for _ in range(10):  # another app may hold the clipboard for a moment
+            if u.OpenClipboard(None):
+                break
+            time.sleep(0.05)
+        else:
+            raise PlatformError("The clipboard is busy. Try again.")
+        try:
+            u.EmptyClipboard()
+            put(8, dib)  # CF_DIB
+            put(u.RegisterClipboardFormatW("PNG"), png_out.getvalue())
+        finally:
+            u.CloseClipboard()
 
     # Icons ----------------------------------------------------------------
 

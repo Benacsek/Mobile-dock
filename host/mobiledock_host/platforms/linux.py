@@ -45,6 +45,9 @@ KEY_NAMES = {
     "ctrl": "LEFTCTRL", "alt": "LEFTALT", "shift": "LEFTSHIFT", "meta": "LEFTMETA",
     **{f"f{i}": f"F{i}" for i in range(1, 13)},
     **{c: c.upper() for c in "abcdefghijklmnopqrstuvwxyz0123456789"},
+    "minus": "MINUS", "equal": "EQUAL", "bracketleft": "LEFTBRACE", "bracketright": "RIGHTBRACE",
+    "backslash": "BACKSLASH", "semicolon": "SEMICOLON", "quote": "APOSTROPHE", "comma": "COMMA",
+    "period": "DOT", "slash": "SLASH", "grave": "GRAVE",
 }
 
 
@@ -208,6 +211,32 @@ class LinuxPlatform(Platform):
     def media_repeat(self) -> None:
         current = _run([*PLAYERCTL, "loop"]).strip()
         _run([*PLAYERCTL, "loop", {"None": "Playlist", "Playlist": "Track"}.get(current, "None")])
+
+    # Foreground app and clipboard ------------------------------------------
+
+    def foreground(self) -> dict:
+        if not (os.environ.get("HYPRLAND_INSTANCE_SIGNATURE") and shutil.which("hyprctl")):
+            return {}
+        try:
+            win = json.loads(_run(["hyprctl", "activewindow", "-j"]) or "{}")
+        except (ValueError, PlatformError):
+            return {}
+        return {"app": str(win.get("class", "")), "title": str(win.get("title", ""))}
+
+    def set_clipboard_image(self, png: bytes) -> None:
+        import io
+
+        from PIL import Image
+
+        if not shutil.which("wl-copy"):
+            raise PlatformError("Install wl-clipboard to paste pictures")
+        try:
+            img = Image.open(io.BytesIO(png))
+            out = io.BytesIO()
+            img.save(out, "PNG")
+        except Exception as exc:  # noqa: BLE001
+            raise PlatformError("That file is not a picture") from exc
+        subprocess.run(["wl-copy", "--type", "image/png"], input=out.getvalue(), timeout=10, check=False)
 
     # Icons ----------------------------------------------------------------
 

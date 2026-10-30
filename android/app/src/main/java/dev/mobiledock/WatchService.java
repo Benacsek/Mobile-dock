@@ -29,7 +29,7 @@ import dev.mobiledock.proto.Crypto;
  * the dock, which then connects on its own. It only sends the same small discovery probe the
  * connect page uses, and only to your network.
  *
- * It checks every 6 seconds while the phone charges and every 60 seconds on battery.
+ * It checks every 5 seconds while the phone charges and every 60 seconds on battery.
  */
 public final class WatchService extends Service {
     static final String PREF_ENABLED = "wake_on_pc";
@@ -156,31 +156,35 @@ public final class WatchService extends Service {
     private void loop() {
         Store store = new Store(this);
         boolean online = false;
+        String lastBoot = null;
         int misses = 0;
         while (running) {
             boolean plugged = charging();
             holdLocks(plugged);
-            if (dockVisible) {
-                online = true;
+            String boot = probe(store);
+            if (boot != null) {
                 misses = 0;
-            } else if (probe(store)) {
-                misses = 0;
-                if (!online && !quietUntilOffline) wake();
+                // A new boot id means the PC app started again: after a PC restart, or when you
+                // closed and reopened the app. Both should bring the dock up and connect.
+                boolean restarted = !online || !boot.equals(lastBoot);
+                if (restarted) quietUntilOffline = false;
+                if (restarted && !quietUntilOffline) wake(!dockVisible);
                 online = true;
+                lastBoot = boot;
             } else if (++misses >= 3) {
                 online = false;
                 quietUntilOffline = false;
             }
             try {
-                Thread.sleep(plugged ? 6000 : 60000);
+                Thread.sleep(plugged ? 5000 : 60000);
             } catch (InterruptedException e) {
                 return;
             }
         }
     }
 
-    /** True when a PC this phone is paired with answers the discovery probe. */
-    private boolean probe(Store store) {
+    /** The boot id of a paired PC that answers the discovery probe, or null when none answers. */
+    private String probe(Store store) {
         DatagramSocket socket = null;
         try {
             socket = new DatagramSocket();
@@ -201,34 +205,37 @@ public final class WatchService extends Service {
                 JSONObject o = new JSONObject(new String(p.getData(), 0, p.getLength(), Crypto.UTF8));
                 if ("mdock".equals(o.optString("t")) && store.isPaired(o.optString("host_id"))) {
                     store.setLast(p.getAddress().getHostAddress(), o.optInt("port", 47800));
-                    return true;
+                    return o.optString("boot", "unknown");
                 }
             }
         } catch (SocketTimeoutException e) {
-            return false;
+            return null;
         } catch (IOException | JSONException e) {
-            return false;
+            return null;
         } finally {
             if (socket != null) socket.close();
         }
-        return false;
+        return null;
     }
 
     @SuppressWarnings("deprecation")
-    private void wake() {
-        try {
-            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-            PowerManager.WakeLock screen = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK
-                    | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE, "MobileDock:wake");
-            screen.acquire(10000);
-        } catch (RuntimeException ignored) {
+    private void wake(boolean turnScreenOn) {
+        if (turnScreenOn) {
+            try {
+                PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                PowerManager.WakeLock screen = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK
+                        | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE, "MobileDock:wake");
+                screen.acquire(10000);
+            } catch (RuntimeException ignored) {
+                // The dock still opens, the screen just stays as it is.
+            }
         }
         Intent open = new Intent(this, MainActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 .putExtra(MainActivity.EXTRA_WAKE, true);
         // Android 10 and newer only lets an app open itself from the background when it may
         // draw over other apps. Without that, a notification asks you to tap.
-        if (Build.VERSION.SDK_INT >= 29 && !WatchCompat.canDrawOverlays(this)) {
+        if (Build.VERSION.SDK_INT >= 29 && !dockVisible && !WatchCompat.canDrawOverlays(this)) {
             WatchCompat.notify(this, 8, notification("Your PC is on", "Tap to open Mobile Dock", true));
             return;
         }

@@ -15,6 +15,9 @@ KEYS = (
     "up", "down", "left", "right", "home", "end", "pgup", "pgdn",
     *(f"f{i}" for i in range(1, 13)),
     *"abcdefghijklmnopqrstuvwxyz0123456789",
+    # Punctuation keys by their position on a US keyboard.
+    "minus", "equal", "bracketleft", "bracketright", "backslash", "semicolon", "quote", "comma", "period",
+    "slash", "grave",
 )
 
 
@@ -59,6 +62,13 @@ class Platform:
 
     def media_repeat(self) -> None:
         raise PlatformError("Repeat is not supported here")
+
+    def foreground(self) -> dict:
+        """The app in front: {"app": exe name or window class, "title": window title}."""
+        return {}
+
+    def set_clipboard_image(self, png: bytes) -> None:
+        raise PlatformError("Clipboard images are not supported here")
 
     def app_icon(self, app_id: str) -> bytes | None:
         """PNG icon for an app from list_apps(), or None."""

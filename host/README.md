@@ -28,6 +28,12 @@ The `windows-media` extra powers Now playing on the phone: album art, progress, 
 4. Type that PIN in the phone app.
 5. Tick Start with Windows if you want the dock ready after every login.
 
+### Shortcut pads
+
+Click Edit shortcut pads in the window. Each pad has a name, the programs it belongs to (for example `Figma.exe`) and its tiles. Write a shortcut like `Ctrl+Shift+G`. Separate steps with commas, like `Win+Left, Enter`. The Windows pad is used when no other pad matches.
+
+Shortcuts with punctuation, such as `Ctrl+backslash`, use the key's position on a US keyboard. On another layout, such as Hungarian, pick the shortcut your app shows in its own menus.
+
 ### Optional tools
 
 - Screen recording needs ffmpeg. Install it with `winget install ffmpeg`.
@@ -92,6 +98,8 @@ Prefer a window? Run `mobile-dock-host` without flags. It uses Tk through XWayla
 | grim | Screenshots |
 | wf-recorder or wl-screenrec | Screen recording of the focused monitor |
 | notify-send | PIN and pairing notifications |
+| wl-clipboard | Pictures sent from the phone to the clipboard |
+| hyprctl | Shortcuts page follows the focused window |
 
 Without wtype, typing falls back to the US layout and ASCII only.
 
@@ -132,6 +140,7 @@ mobile-dock-host [--headless] [--pair] [--usb] [--minimized] [--port N] [--verbo
 | Settings and pairing keys | `%APPDATA%\MobileDock\config.json` | `~/.config/mobile-dock/config.json` |
 | Screenshots | `Pictures\Mobile Dock` | `~/Pictures/Mobile Dock` |
 | Recordings | `Videos\Mobile Dock` | `~/Videos/Mobile Dock` |
+| Files from the phone | `Downloads\Mobile Dock` | `~/Downloads/Mobile Dock` |
 
 On Linux the config file is mode 600 and its folder is mode 700. You can change `bind`, `port`, `discovery`, `screenshots_dir` and `recordings_dir` in the file. Set `bind` to `127.0.0.1` to allow USB only.
 

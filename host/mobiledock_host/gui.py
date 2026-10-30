@@ -102,6 +102,8 @@ def apply_theme(root: tk.Tk) -> None:
                     indicatorforeground=TEXT)
     style.map("TCheckbutton", background=[("active", BG)], indicatorbackground=[("selected", ACCENT)])
     style.configure("TEntry", fieldbackground=CARD_HI, foreground=TEXT, insertcolor=TEXT, padding=6)
+    style.configure("TCombobox", fieldbackground=CARD_HI, foreground=TEXT, background=CARD_HI, arrowcolor=TEXT)
+    style.map("TCombobox", fieldbackground=[("readonly", CARD_HI)], foreground=[("readonly", TEXT)])
 
 
 def card(parent, title: str, expand: bool = False) -> ttk.Frame:
@@ -186,6 +188,10 @@ class App:
         ttk.Button(buttons, text="Up", command=lambda: self.move_pinned(-1)).pack(side="left", padx=(8, 0))
         ttk.Button(buttons, text="Down", command=lambda: self.move_pinned(1)).pack(side="left", padx=(8, 0))
         ttk.Button(buttons, text="Unpin", command=self.unpin).pack(side="right")
+
+        pads_card = card(right, "Shortcut pads")
+        ttk.Label(pads_card, text="Buttons the phone shows for the app in front.", style="Muted.TLabel").pack(anchor="w")
+        ttk.Button(pads_card, text="Edit shortcut pads", command=self.edit_pads).pack(anchor="w", pady=(8, 0))
 
         footer = ttk.Frame(outer)
         footer.pack(fill="x", pady=(12, 0))
@@ -360,6 +366,201 @@ class App:
 
         threading.Thread(target=work, daemon=True).start()
 
+    # Shortcut pads --------------------------------------------------------
+
+    def edit_pads(self) -> None:
+        from . import pads as padlib
+        import copy
+
+        data = copy.deepcopy(self.server.config.data["pads"])
+        win = tk.Toplevel(self.root)
+        win.title("Shortcut pads")
+        win.minsize(760, 480)
+        win.configure(background=BG)
+        body = ttk.Frame(win, padding=16)
+        body.pack(fill="both", expand=True)
+
+        left = ttk.Frame(body)
+        left.pack(side="left", fill="y")
+        ttk.Label(left, text="Pads").pack(anchor="w")
+        pad_list = themed_listbox(left, width=18, exportselection=False)
+        pad_list.pack(fill="y", expand=True, pady=6)
+        lbtn = ttk.Frame(left)
+        lbtn.pack(fill="x")
+
+        mid = ttk.Frame(body)
+        mid.pack(side="left", fill="both", expand=True, padx=(16, 0))
+        name_var, apps_var = tk.StringVar(), tk.StringVar()
+        ttk.Label(mid, text="Name").pack(anchor="w")
+        ttk.Entry(mid, textvariable=name_var).pack(fill="x")
+        ttk.Label(mid, text="Apps (program names, comma separated, for example Figma.exe)").pack(anchor="w", pady=(8, 0))
+        apps_row = ttk.Frame(mid)
+        apps_row.pack(fill="x")
+        ttk.Entry(apps_row, textvariable=apps_var).pack(side="left", fill="x", expand=True)
+        running = ttk.Combobox(apps_row, width=22, state="readonly")
+        running.pack(side="left", padx=(8, 0))
+        ttk.Label(mid, text="Tiles").pack(anchor="w", pady=(8, 0))
+        tile_list = themed_listbox(mid, height=10, exportselection=False)
+        tile_list.pack(fill="both", expand=True)
+        label_var, keys_var = tk.StringVar(), tk.StringVar()
+        edit_row = ttk.Frame(mid)
+        edit_row.pack(fill="x", pady=(8, 0))
+        ttk.Label(edit_row, text="Label").pack(side="left")
+        ttk.Entry(edit_row, textvariable=label_var, width=16).pack(side="left", padx=(6, 12))
+        ttk.Label(edit_row, text="Shortcut").pack(side="left")
+        ttk.Entry(edit_row, textvariable=keys_var, width=22).pack(side="left", padx=(6, 0))
+        ttk.Label(mid, text="Write shortcuts like Ctrl+Shift+G. Separate steps with commas: Win+Left, Enter",
+                  style="Footer.TLabel").pack(anchor="w", pady=(4, 0))
+        tbtn = ttk.Frame(mid)
+        tbtn.pack(fill="x", pady=(8, 0))
+        state = {"pad": 0}
+
+        def current():
+            return data[state["pad"]] if data else None
+
+        def show_pads(select=0):
+            pad_list.delete(0, "end")
+            for d in data:
+                pad_list.insert("end", d["name"])
+            if data:
+                state["pad"] = max(0, min(select, len(data) - 1))
+                pad_list.selection_clear(0, "end")
+                pad_list.selection_set(state["pad"])
+                show_pad()
+
+        def show_pad():
+            d = current()
+            name_var.set(d["name"] if d else "")
+            apps_var.set(", ".join(d["apps"]) if d else "")
+            tile_list.delete(0, "end")
+            for t in (d["tiles"] if d else []):
+                tile_list.insert("end", f"{t['label']}    {t['keys']}")
+
+        def keep_fields():
+            d = current()
+            if d:
+                d["name"] = name_var.get().strip() or d["name"]
+                d["apps"] = [a.strip() for a in apps_var.get().split(",") if a.strip()]
+
+        def pick_pad(_):
+            sel = pad_list.curselection()
+            if sel and sel[0] != state["pad"]:
+                keep_fields()
+                state["pad"] = sel[0]
+                show_pad()
+
+        def pick_tile(_):
+            sel = tile_list.curselection()
+            if sel:
+                t = current()["tiles"][sel[0]]
+                label_var.set(t["label"])
+                keys_var.set(t["keys"])
+
+        def checked_tile():
+            try:
+                padlib.parse(keys_var.get())
+            except ValueError as exc:
+                messagebox.showerror("Shortcut pads", str(exc), parent=win)
+                return None
+            if not label_var.get().strip():
+                messagebox.showerror("Shortcut pads", "Give the tile a label", parent=win)
+                return None
+            return {"label": label_var.get().strip()[:24], "keys": keys_var.get().strip()}
+
+        def add_tile():
+            t = checked_tile()
+            if t and current() is not None:
+                current()["tiles"].append(t)
+                show_pad()
+                tile_list.selection_set("end")
+
+        def update_tile():
+            sel, t = tile_list.curselection(), checked_tile()
+            if sel and t:
+                current()["tiles"][sel[0]] = t
+                show_pad()
+                tile_list.selection_set(sel[0])
+
+        def remove_tile():
+            sel = tile_list.curselection()
+            if sel:
+                del current()["tiles"][sel[0]]
+                show_pad()
+
+        def move_tile(step):
+            sel = tile_list.curselection()
+            if not sel:
+                return
+            i, tiles = sel[0], current()["tiles"]
+            j = i + step
+            if 0 <= j < len(tiles):
+                tiles[i], tiles[j] = tiles[j], tiles[i]
+                show_pad()
+                tile_list.selection_set(j)
+
+        def new_pad():
+            keep_fields()
+            n = 1
+            while any(d["id"] == f"custom{n}" for d in data):
+                n += 1
+            data.append({"id": f"custom{n}", "name": f"My pad {n}", "apps": [], "tiles": []})
+            show_pads(len(data) - 1)
+
+        def delete_pad():
+            d = current()
+            if d and d["id"] != padlib.FALLBACK and messagebox.askyesno("Shortcut pads", f"Delete {d['name']}?",
+                                                                         parent=win):
+                del data[state["pad"]]
+                show_pads(0)
+
+        def reset():
+            if messagebox.askyesno("Shortcut pads", "Replace all pads with the built-in ones?", parent=win):
+                data[:] = padlib.defaults()
+                show_pads(0)
+
+        def save():
+            keep_fields()
+            try:
+                self.server.set_pads(data)
+            except ValueError as exc:
+                messagebox.showerror("Shortcut pads", str(exc), parent=win)
+                return
+            win.destroy()
+
+        def add_running(_):
+            name = running.get()
+            if name:
+                apps = [a.strip() for a in apps_var.get().split(",") if a.strip()]
+                if name not in apps:
+                    apps.append(name)
+                apps_var.set(", ".join(apps))
+
+        def load_running():
+            try:
+                import psutil
+
+                names = sorted({p.info["name"] for p in psutil.process_iter(["name"]) if p.info["name"]},
+                               key=str.lower)
+            except Exception:  # noqa: BLE001
+                names = []
+            self.later(lambda: running.configure(values=names))
+
+        ttk.Button(lbtn, text="New", command=new_pad).pack(side="left")
+        ttk.Button(lbtn, text="Delete", command=delete_pad).pack(side="left", padx=6)
+        ttk.Button(left, text="Reset to built-in", command=reset).pack(fill="x", pady=(6, 0))
+        ttk.Button(tbtn, text="Add", style="Accent.TButton", command=add_tile).pack(side="left")
+        ttk.Button(tbtn, text="Update", command=update_tile).pack(side="left", padx=6)
+        ttk.Button(tbtn, text="Remove", command=remove_tile).pack(side="left")
+        ttk.Button(tbtn, text="Up", command=lambda: move_tile(-1)).pack(side="left", padx=(12, 0))
+        ttk.Button(tbtn, text="Down", command=lambda: move_tile(1)).pack(side="left", padx=6)
+        ttk.Button(tbtn, text="Save", style="Accent.TButton", command=save).pack(side="right")
+        pad_list.bind("<<ListboxSelect>>", pick_pad)
+        tile_list.bind("<<ListboxSelect>>", pick_tile)
+        running.bind("<<ComboboxSelected>>", add_running)
+        running.set("Add a running app")
+        show_pads(0)
+        threading.Thread(target=load_running, daemon=True).start()
+
     # Updates --------------------------------------------------------------
 
     def set_token(self) -> None:
@@ -406,6 +607,8 @@ class App:
                     self.status.config(text="")
                 elif kind == "info":
                     messagebox.showinfo("Mobile Dock", text)
+                elif kind == "file":
+                    self.status.config(text=text)
                 elif kind in ("update", "update_status") and self.updater is not None:
                     self.update_label.config(text=text)
                 self.refresh_devices()

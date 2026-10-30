@@ -80,6 +80,13 @@ Requests are JSON with `t` and an optional numeric `id`. If `id` is present, the
 | media.seek | position (seconds) | same as media.status |
 | media.shuffle | | same as media.status |
 | media.repeat | | same as media.status. Cycles off, all, one. |
+| perf | | cpu, cores, cpu_name, cpu_mhz, ram_used, ram_total, gpu, gpu_name, vram_used, vram_total, gpu_temp, net_down, net_up, disk_read, disk_write (bytes per second), procs: [{name, cpu, mem}]. Missing keys are not available. |
+| context | | app, title, pad |
+| pads.list | | pads: [{id, name, tiles: [{label}]}], context |
+| pad.run | pad, index | |
+| file.begin | name, size, mode: clipboard or downloads | |
+| file.chunk | data (base64, at most 256 KiB decoded) | got |
+| file.end | sha256 | where: "clipboard" or the saved path |
 | update.check | code (installed versionCode) | available, version, code, size, sha256 |
 | update.chunk | offset | data (base64, up to 256 KiB), total |
 | screenshot | | path |
@@ -93,4 +100,10 @@ Requests are JSON with `t` and an optional numeric `id`. If `id` is present, the
 
 Mouse and keyboard messages are usually sent without `id`, so the PC does not reply.
 
-The PC may also send events on its own. `{"t":"event","e":"apps"}` means the pinned apps changed. The phone reloads them.
+The PC may also send events on its own:
+
+- `{"t":"event","e":"apps"}`: pinned apps changed. The phone reloads them.
+- `{"t":"event","e":"pads"}`: shortcut pads changed.
+- `{"t":"event","e":"context","app":"Figma.exe","title":"...","pad":"figma"}`: another app came to the front.
+
+Discovery replies and challenges also carry `boot`, a random id that changes each time the host starts. The phone's watcher uses it to notice that the PC app restarted.

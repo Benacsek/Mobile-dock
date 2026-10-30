@@ -13,6 +13,7 @@ Mobile Dock lets a phone type and click on your PC. Treat a paired phone like a 
 | Replaying old messages | Each message carries an implicit sequence number in its MAC. A replay or a gap closes the connection. |
 | Running commands on the PC | The phone sends app IDs only. The PC launches an ID only if it found that app itself. |
 | Brute force on reconnect | 8 failed attempts from one address in 5 minutes block that address for 5 minutes. |
+| Files sent from the phone | Only paired phones can send. Up to 200 MB. The file name is cut down to a plain name, so it cannot point outside Downloads/Mobile Dock. A SHA-256 check rejects damaged files. |
 | Oversized messages | Frames over 1 MiB close the connection. Text, mouse and scroll values are clamped. |
 | A fake update | Updates come only from this repository's GitHub releases over HTTPS. Every file must match the SHA-256 in that release's latest.json. Android refuses an APK signed with a different key. |
 | Stolen phone | Click Remove selected in the host window. The key stops working at once, and any open session closes. |

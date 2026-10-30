@@ -16,7 +16,8 @@ import android.graphics.drawable.Drawable;
 final class Icon extends Drawable {
     enum Kind {
         PLAY, PAUSE, PREV, NEXT, SHUFFLE, REPEAT, REPEAT_ONE, VOL_DOWN, VOL_UP, MUTE,
-        APPS, MUSIC, TOUCHPAD, KEYBOARD, CAMERA, RECORD, STOP, POWER, BACK, PLUS, REFRESH
+        APPS, MUSIC, TOUCHPAD, KEYBOARD, CAMERA, RECORD, STOP, POWER, BACK, PLUS, REFRESH,
+        SHORTCUTS, CHART, SEND, FOLLOW
     }
 
     private final Kind kind;
@@ -162,6 +163,33 @@ final class Icon extends Drawable {
             case PLUS:
                 seg(c, 0.5f, 0.2f, 0.5f, 0.8f);
                 seg(c, 0.2f, 0.5f, 0.8f, 0.5f);
+                break;
+            case SHORTCUTS:
+                for (int i = 0; i < 9; i++) {
+                    float l = 0.16f + (i % 3) * 0.24f, t = 0.16f + (i / 3) * 0.24f;
+                    c.drawRoundRect(box(l, t, l + 0.18f, t + 0.18f), r * 0.6f, r * 0.6f, fill);
+                }
+                break;
+            case CHART:
+                seg(c, 0.16f, 0.82f, 0.86f, 0.82f);
+                Path p = new Path();
+                p.moveTo(x(0.18f), y(0.66f));
+                p.lineTo(x(0.38f), y(0.46f));
+                p.lineTo(x(0.54f), y(0.58f));
+                p.lineTo(x(0.82f), y(0.24f));
+                c.drawPath(p, line);
+                break;
+            case SEND:
+                seg(c, 0.5f, 0.66f, 0.5f, 0.18f);
+                seg(c, 0.32f, 0.36f, 0.5f, 0.18f);
+                seg(c, 0.68f, 0.36f, 0.5f, 0.18f);
+                seg(c, 0.2f, 0.62f, 0.2f, 0.82f);
+                seg(c, 0.2f, 0.82f, 0.8f, 0.82f);
+                seg(c, 0.8f, 0.82f, 0.8f, 0.62f);
+                break;
+            case FOLLOW:
+                c.drawCircle(x(0.5f), y(0.5f), s * 0.3f, line);
+                c.drawCircle(x(0.5f), y(0.5f), s * 0.1f, fill);
                 break;
             case REFRESH:
             default:

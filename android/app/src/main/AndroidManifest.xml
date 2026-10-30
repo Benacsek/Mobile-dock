@@ -41,6 +41,16 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- "Share to Mobile Dock" from the gallery or any app sends it to the PC. -->
+            <intent-filter android:label="Send to PC">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="application/*" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
         </activity>
         <service
             android:name=".WatchService"

@@ -15,11 +15,14 @@ It works on your local network or over USB. There is no account, no cloud servic
 - Long press a tile and drag it to a new spot. Drop it on the red bar to unpin it.
 - Add apps from a searchable list of everything installed on the PC. Pin them from the phone or from the PC window.
 - Open Spotify or another music app and the phone switches to Now playing. You see the album art, title, artist and album, a progress bar you can drag, and buttons for play, skip, shuffle, repeat and volume. It reads Windows media controls or MPRIS on Linux, so it needs no Spotify account.
+- Shortcuts: tiles for the app in front on the PC. Pads for Figma, VS Code, browsers and Windows are built in. The page switches by itself when you switch apps. Edit pads and add your own in the PC window.
+- Stats: live graphs for CPU, GPU, memory, network and disk, plus the busiest apps, like Task Manager. GPU load works for AMD, NVIDIA and Intel.
+- Send: share a photo to Mobile Dock from any app, or tap Send in the dock. Pictures go to the PC clipboard, so Ctrl+V pastes them into Figma. Other files land in Downloads/Mobile Dock.
 - Take a screenshot. It saves on the PC in Pictures/Mobile Dock.
 - Start and stop screen recording. Videos save in Videos/Mobile Dock.
 - Use the touchpad. Tap to click. Use two fingers to scroll or to right click.
 - Type on the PC. Use Ctrl, Alt, Shift and Win keys, arrows, F1 to F12 and common shortcuts.
-- Optional: turn on "Wake up and connect when my PC turns on". When your PC starts, the phone turns its screen on, opens the dock and connects. It works best while the phone charges.
+- Optional: turn on "Wake up and connect when my PC turns on". When your PC starts, or when you close and reopen the PC app, the phone turns its screen on, opens the dock and connects. It works best while the phone charges.
 
 The PC window shows a green banner with the phone's name, how it connects and since when.
 

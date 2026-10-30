@@ -162,3 +162,61 @@ def test_pin_change_notifies_other_phones(server):
     assert call(a, "apps.pin", app="code.desktop")["ok"]
     b.sock.settimeout(3)
     assert b.recv() == {"t": "event", "e": "apps"}
+
+
+def test_pads_parse_and_run(server):
+    from mobiledock_host import pads
+
+    assert pads.parse("Ctrl+Shift+G") == [{"key": "g", "mods": ["ctrl", "shift"]}]
+    assert pads.parse("Win+Left, Enter")[1] == {"key": "enter", "mods": []}
+    assert pads.parse("Ctrl+grave")[0]["key"] == "grave"
+    for bad in ("Hyper+X", "Ctrl+Nope", ""):
+        with pytest.raises(ValueError):
+            pads.parse(bad)
+    assert pads.match(pads.defaults(), "Figma.exe") == "figma"
+    assert pads.match(pads.defaults(), "notepad.exe") == "windows"
+
+    keys = []
+    server.platform.key = lambda k, m: keys.append((k, tuple(m)))
+    channel, _ = pair(server, server.pairing.start())
+    listed = call(channel, "pads.list")
+    figma = next(p for p in listed["pads"] if p["id"] == "figma")
+    index = [t["label"] for t in figma["tiles"]].index("Group")
+    assert call(channel, "pad.run", 2, pad="figma", index=index)["ok"]
+    assert keys == [("g", ("ctrl",))]
+    assert not call(channel, "pad.run", 3, pad="figma", index=999)["ok"]
+
+
+def test_file_upload_to_downloads(server, tmp_path):
+    import base64
+    import hashlib
+
+    server.config.data["downloads_dir"] = str(tmp_path / "dl")
+    channel, _ = pair(server, server.pairing.start())
+    data = b"hello from the phone" * 1000
+    assert call(channel, "file.begin", 1, name="../../evil/notes.txt", size=len(data), mode="downloads")["ok"]
+    assert call(channel, "file.chunk", 2, data=base64.b64encode(data[:7000]).decode())["got"] == 7000
+    call(channel, "file.chunk", 3, data=base64.b64encode(data[7000:]).decode())
+    done = call(channel, "file.end", 4, sha256=hashlib.sha256(data).hexdigest())
+    assert done["ok"] and Path(done["where"]).name == "notes.txt"
+    assert Path(done["where"]).parent == tmp_path / "dl" and Path(done["where"]).read_bytes() == data
+
+    assert call(channel, "file.begin", 5, name="x.bin", size=10, mode="downloads")["ok"]
+    assert not call(channel, "file.chunk", 6, data=base64.b64encode(b"0" * 11).decode())["ok"]  # oversize
+    assert not call(channel, "file.begin", 7, name="big", size=10**10, mode="downloads")["ok"]
+
+
+def test_safe_names():
+    from mobiledock_host.server import safe_name
+
+    assert safe_name("C:\\Windows\\system32\\x.dll") == "x.dll"
+    assert safe_name("CON.txt") == "file-from-phone"
+    assert safe_name("..") == "file-from-phone"
+    assert safe_name('a<b>:"c".png') == "abc.png"
+
+
+def test_perf_and_boot_id(server):
+    channel, paired = pair(server, server.pairing.start())
+    assert paired["boot"] == server.boot
+    first = call(channel, "perf")
+    assert first["ok"]

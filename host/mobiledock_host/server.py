@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import hmac
 import logging
 import os
@@ -15,8 +16,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable
 
+from . import pads
 from . import protocol as p
-from .config import Config
+from .config import Config, config_dir
+from .perf import PerfMonitor
 from .platforms import Platform, PlatformError
 
 log = logging.getLogger("mobiledock")
@@ -28,6 +31,31 @@ PIN_LIFETIME = 180
 PIN_ATTEMPTS = 5
 FAIL_WINDOW = 300
 FAIL_LIMIT = 8
+
+
+MAX_UPLOAD = 200 * 1024 * 1024
+
+
+def safe_name(name: str) -> str:
+    """Keeps a plain file name. No folders, no device names, no control characters."""
+    name = name.replace("\\", "/").split("/")[-1]
+    name = "".join(ch for ch in name if ch.isprintable() and ch not in '<>:"|?*').strip(" .")
+    stem = name.rsplit(".", 1)[0].upper() if name else ""
+    if not name or stem in {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(10)),
+                            *(f"LPT{i}" for i in range(10))}:
+        name = "file-from-phone"
+    return name[:120]
+
+
+def unique_path(path: Path) -> Path:
+    if not path.exists():
+        return path
+    stem, suffix = path.stem, path.suffix
+    for i in range(2, 1000):
+        candidate = path.with_name(f"{stem} ({i}){suffix}")
+        if not candidate.exists():
+            return candidate
+    return path.with_name(f"{stem} {secrets.token_hex(3)}{suffix}")
 
 
 class Pairing:
@@ -75,6 +103,7 @@ class Session:
         self.channel: p.SecureChannel | None = None
         self.send_lock = threading.Lock()
         self.closed = False
+        self.upload: dict | None = None
 
     # Handshake ------------------------------------------------------------
 
@@ -205,6 +234,10 @@ class Session:
         if self.closed:
             return
         self.closed = True
+        if self.upload:  # drop a half-received file
+            self.upload["fh"].close()
+            self.upload["tmp"].unlink(missing_ok=True)
+            self.upload = None
         try:
             self.sock.shutdown(socket.SHUT_RDWR)
         except OSError:
@@ -229,6 +262,11 @@ class DockServer:
         self._sockets: list[socket.socket] = []
         self.port = int(config.data["port"])
         self.updater = None  # set by the entry point when auto updates are on
+        self.boot = secrets.token_hex(6)
+        self.perf = PerfMonitor()
+        if not isinstance(config.data.get("pads"), list) or not config.data["pads"]:
+            config.data["pads"] = pads.defaults()
+        self.context = {"app": "", "title": "", "pad": pads.match(config.data["pads"], "")}
 
     def notify(self, kind: str, text: str) -> None:
         try:
@@ -237,8 +275,9 @@ class DockServer:
             log.exception("notify failed")
 
     def identity(self) -> dict:
+        # "boot" changes every time the host starts, so a phone can tell the PC app was restarted.
         return {"host_id": self.config.data["host_id"], "host_name": self.config.data["host_name"],
-                "os": self.platform.name}
+                "os": self.platform.name, "boot": self.boot}
 
     # Abuse limits ---------------------------------------------------------
 
@@ -415,7 +454,114 @@ class DockServer:
         if cmd == "mouse.scroll":
             pf.scroll(_clamp(msg.get("dx", 0), 200), _clamp(msg.get("dy", 0), 200))
             return None
+        if cmd == "perf":
+            return self.perf.snapshot()
+        if cmd == "context":
+            return dict(self.context)
+        if cmd == "pads.list":
+            return {"pads": [{"id": d["id"], "name": d["name"], "tiles": [{"label": t["label"]} for t in d["tiles"]]}
+                             for d in self.config.data["pads"]], "context": dict(self.context)}
+        if cmd == "pad.run":
+            pad = next((d for d in self.config.data["pads"] if d["id"] == str(msg["pad"])), None)
+            index = int(msg["index"])
+            if pad is None or not 0 <= index < len(pad["tiles"]):
+                raise PlatformError("That shortcut no longer exists")
+            for n, step in enumerate(pads.parse(pad["tiles"][index]["keys"])):
+                if n:
+                    time.sleep(0.05)
+                pf.key(step["key"], step["mods"])
+            return None
+        if cmd.startswith("file."):
+            if origin is None:
+                raise PlatformError("No session")
+            return self._file(cmd, msg, origin)
         raise PlatformError(f"Unknown command {cmd[:32]}")
+
+    # Pads and the app in front --------------------------------------------
+
+    def set_pads(self, new: list[dict]) -> None:
+        self.config.data["pads"] = pads.validate(new)
+        self.config.save()
+        self.context["pad"] = pads.match(self.config.data["pads"], self.context["app"])
+        self.broadcast({"t": "event", "e": "pads"})
+
+    def _watch_foreground(self) -> None:
+        """Tells phones which app is in front, so their Shortcuts page can follow it."""
+        while not self._stop.wait(0.7):
+            with self.lock:
+                if not self.sessions:
+                    continue
+            try:
+                fg = self.platform.foreground()
+            except Exception:  # noqa: BLE001
+                continue
+            app = fg.get("app", "")
+            if not app or app == self.context["app"]:
+                continue
+            if app.lower() in ("mobiledockhost.exe", "explorer.exe") and self.context["app"]:
+                continue  # clicking our own window or the taskbar should not hide the pad you use
+            self.context = {"app": app, "title": fg.get("title", "")[:80],
+                            "pad": pads.match(self.config.data["pads"], app)}
+            self.broadcast({"t": "event", "e": "context", **self.context})
+
+    # Files from the phone -------------------------------------------------
+
+    def _file(self, cmd: str, msg: dict, session: "Session") -> dict:
+        if cmd == "file.begin":
+            size = int(msg["size"])
+            if not 0 < size <= MAX_UPLOAD:
+                raise PlatformError("Files up to 200 MB can be sent")
+            mode = str(msg.get("mode", "downloads"))
+            if mode not in ("clipboard", "downloads"):
+                raise PlatformError("Unknown destination")
+            if mode == "clipboard" and size > 40 * 1024 * 1024:
+                raise PlatformError("Pictures for the clipboard can be up to 40 MB")
+            incoming = config_dir() / "incoming"
+            incoming.mkdir(parents=True, exist_ok=True)
+            if session.upload:
+                session.upload["fh"].close()
+            tmp = incoming / f"{secrets.token_hex(8)}.part"
+            session.upload = {"fh": open(tmp, "wb"), "tmp": tmp, "size": size, "got": 0, "mode": mode,
+                              "name": safe_name(str(msg.get("name", "file"))), "sha": hashlib.sha256()}
+            return {"ok": True}
+        up = session.upload
+        if not up:
+            raise PlatformError("No file transfer in progress")
+        if cmd == "file.chunk":
+            data = base64.b64decode(str(msg["data"]))
+            if up["got"] + len(data) > up["size"]:
+                self._abort(session)
+                raise PlatformError("The file is bigger than announced")
+            up["fh"].write(data)
+            up["sha"].update(data)
+            up["got"] += len(data)
+            return {"got": up["got"]}
+        if cmd == "file.end":
+            up["fh"].close()
+            session.upload = None
+            if up["got"] != up["size"] or up["sha"].hexdigest() != str(msg.get("sha256", "")).lower():
+                up["tmp"].unlink(missing_ok=True)
+                raise PlatformError("The file arrived damaged. Try again.")
+            if up["mode"] == "clipboard":
+                try:
+                    self.platform.set_clipboard_image(up["tmp"].read_bytes())
+                finally:
+                    up["tmp"].unlink(missing_ok=True)
+                self.notify("file", "Picture from your phone is on the clipboard")
+                return {"where": "clipboard"}
+            folder = Path(self.config.data.get("downloads_dir") or Path.home() / "Downloads" / "Mobile Dock")
+            folder.mkdir(parents=True, exist_ok=True)
+            target = unique_path(folder / up["name"])
+            os.replace(up["tmp"], target)
+            self.notify("file", f"Saved {target}")
+            return {"where": str(target)}
+        raise PlatformError("Unknown file command")
+
+    def _abort(self, session: "Session") -> None:
+        up, session.upload = session.upload, None
+        if up:
+            up["fh"].close()
+            up["tmp"].unlink(missing_ok=True)
 
     # Network --------------------------------------------------------------
 
@@ -429,6 +575,7 @@ class DockServer:
         tcp.listen(8)
         self._sockets.append(tcp)
         threading.Thread(target=self._accept_loop, args=(tcp,), daemon=True, name="accept").start()
+        threading.Thread(target=self._watch_foreground, daemon=True, name="foreground").start()
         if self.config.data.get("discovery", True):
             udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             try:

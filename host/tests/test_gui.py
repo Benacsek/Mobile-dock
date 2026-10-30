@@ -35,6 +35,7 @@ def test_window_builds(tmp_path):
     assert "Test phone" in app.banner_title.cget("text")
     app.show_connection([])
     app.add_apps()
+    app.edit_pads()
     import time
 
     for _ in range(50):  # let the app list thread finish and hand its result to the Tk thread

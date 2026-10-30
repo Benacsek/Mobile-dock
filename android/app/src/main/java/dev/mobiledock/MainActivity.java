@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.InputType;
@@ -42,6 +43,12 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private EditText addressField;
     private FrameLayout content;
     private AppsPanel apps;
+    private ShortcutsPanel shortcuts;
+    private StatsPanel stats;
+    private FileSender sender;
+    private Uri pendingShare;
+    private String pendingMode;
+    private static final int PICK_PICTURE = 11, PICK_FILE = 12;
     private MediaPanel media;
     private final List<LinearLayout> tabs = new ArrayList<LinearLayout>();
     private final List<View> panels = new ArrayList<View>();
@@ -60,6 +67,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         store = new Store(this);
         client = new DockClient(store, this);
         updater = new PhoneUpdater(this, client);
+        sender = new FileSender(this, client);
         root = new FrameLayout(this);
         root.setBackgroundColor(Ui.BG);
         setContentView(root);
@@ -76,6 +84,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         if (last.length() > 0 && store.hasAnyPairing()) client.connect(last, store.lastPort());
         else scan();
         handleWake(getIntent());
+        handleShare(getIntent());
         WatchService.sync(this);
     }
 
@@ -84,6 +93,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         super.onNewIntent(intent);
         setIntent(intent);
         handleWake(intent);
+        handleShare(intent);
     }
 
     /** Opened by the PC watcher: turn the screen on and connect to the PC that just started. */
@@ -408,8 +418,9 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         LinearLayout rail = Ui.column(this);
         rail.setBackground(Ui.rounded(this, Ui.SURFACE, 18));
         rail.setPadding(pad, pad, pad, pad);
-        String[] names = {"Apps", "Playing", "Touchpad", "Keys"};
-        Icon.Kind[] kinds = {Icon.Kind.APPS, Icon.Kind.MUSIC, Icon.Kind.TOUCHPAD, Icon.Kind.KEYBOARD};
+        String[] names = {"Apps", "Playing", "Shortcuts", "Stats", "Touchpad", "Keys"};
+        Icon.Kind[] kinds = {Icon.Kind.APPS, Icon.Kind.MUSIC, Icon.Kind.SHORTCUTS, Icon.Kind.CHART,
+            Icon.Kind.TOUCHPAD, Icon.Kind.KEYBOARD};
         for (int i = 0; i < names.length; i++) {
             final int index = i;
             LinearLayout item = Ui.railItem(this, kinds[i], names[i]);
@@ -423,6 +434,14 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             rail.addView(item, Ui.fillWidth(this, 2));
         }
         rail.addView(Ui.spacer(this));
+        LinearLayout send = Ui.railItem(this, Icon.Kind.SEND, "Send");
+        send.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                chooseSend();
+            }
+        });
+        rail.addView(send, Ui.fillWidth(this, 2));
         LinearLayout shot = Ui.railItem(this, Icon.Kind.CAMERA, "Screenshot");
         shot.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -479,8 +498,12 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 select(0);
             }
         });
+        shortcuts = new ShortcutsPanel(this, client);
+        stats = new StatsPanel(this, client);
         panels.add(apps);
         panels.add(media);
+        panels.add(shortcuts);
+        panels.add(stats);
         panels.add(new PadPanel(this, client));
         panels.add(new KeysPanel(this, client));
         for (View p : panels) content.addView(p);
@@ -498,6 +521,8 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             Ui.setRailSelected(tabs.get(i), i == index);
         }
         media.setActive(index == 1);
+        stats.setActive(index == 3);
+        if (index == 2) shortcuts.load();
     }
 
     private void screenshot() {
@@ -550,6 +575,11 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             case DockClient.CONNECTED:
                 showDock();
                 updater.check();
+                shortcuts.load();
+                if (pendingShare != null) {
+                    sender.send(pendingShare, pendingMode);
+                    pendingShare = null;
+                }
                 break;
             case DockClient.DISCONNECTED:
                 if (docked) showBanner(message);
@@ -576,7 +606,62 @@ public final class MainActivity extends Activity implements DockClient.Listener 
 
     @Override
     public void onEvent(JSONObject event) {
-        if ("apps".equals(event.optString("e")) && apps != null) apps.load();
+        String e = event.optString("e");
+        if ("apps".equals(e) && apps != null) apps.load();
+        if ("pads".equals(e) && shortcuts != null) shortcuts.load();
+        if ("context".equals(e) && shortcuts != null) shortcuts.onContext(event);
+    }
+
+    // Sending to the PC ----------------------------------------------------------
+
+    private void chooseSend() {
+        new AlertDialog.Builder(this).setTitle("Send to PC")
+                .setItems(new String[] {"Picture to the clipboard (paste with Ctrl+V)", "File to Downloads"},
+                        new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface d, int which) {
+                                Intent pick = new Intent(Intent.ACTION_GET_CONTENT);
+                                pick.addCategory(Intent.CATEGORY_OPENABLE);
+                                pick.setType(which == 0 ? "image/*" : "*/*");
+                                try {
+                                    startActivityForResult(Intent.createChooser(pick, "Choose"),
+                                            which == 0 ? PICK_PICTURE : PICK_FILE);
+                                } catch (RuntimeException ex) {
+                                    toast("No file picker on this phone");
+                                }
+                            }
+                        }).show();
+    }
+
+    @Override
+    protected void onActivityResult(int request, int result, Intent data) {
+        super.onActivityResult(request, result, data);
+        if (result != RESULT_OK || data == null || data.getData() == null) return;
+        if (request == PICK_PICTURE || request == PICK_FILE) {
+            sender.send(data.getData(), request == PICK_PICTURE ? "clipboard" : "downloads");
+        }
+    }
+
+    /** Something shared to Mobile Dock from another app, for example a photo from the gallery. */
+    @SuppressWarnings("deprecation")
+    private void handleShare(Intent intent) {
+        if (intent == null || !Intent.ACTION_SEND.equals(intent.getAction())) return;
+        final Uri uri = (Uri) intent.getParcelableExtra(Intent.EXTRA_STREAM);
+        if (uri == null) {
+            toast("Only files and pictures can be sent");
+            return;
+        }
+        String type = intent.getType() == null ? "" : intent.getType();
+        final String mode = type.startsWith("image/") ? "clipboard" : "downloads";
+        if (client.isConnected()) {
+            sender.send(uri, mode);
+        } else {
+            pendingShare = uri;
+            pendingMode = mode;
+            toast("Connecting to your PC to send it");
+            String last = store.lastHost();
+            if (last.length() > 0) client.connect(last, store.lastPort());
+        }
     }
 
     @Override

@@ -32,6 +32,9 @@ Debug builds from the Actions tab are signed with a different key on every run. 
 - Now playing: album art, title, artist, album and a progress bar you can drag to seek. Play, skip, shuffle, repeat and volume. Opening Spotify or another music app from the Apps grid jumps here. Back returns to Apps.
 - Touchpad: one finger moves. Tap to click. Two finger tap is right click, three finger tap is middle click. Two fingers scroll. Hold Left and move to drag. Speed changes the pointer speed.
 - Keys: type in the box and the text goes to the PC as you type. Tap Ctrl, Alt, Shift or Win before a key to make a shortcut. The shortcut row has copy, paste, undo and more.
+- Shortcuts: tiles for the app in front on the PC. The target icon in the header turns Follow on or off. Tap the pad name to pick another pad.
+- Stats: CPU, GPU, memory, network and disk graphs for the last minute, plus the busiest apps.
+- Send: pick a picture for the PC clipboard or a file for Downloads. You can also use Share, then Mobile Dock, in any app.
 - Screenshot and Record sit at the bottom of the side rail. Files save on the PC.
 
 ## Start with your PC
@@ -39,11 +42,11 @@ Debug builds from the Actions tab are signed with a different key on every run. 
 Turn on "Wake up and connect when my PC turns on" on the connect page. Tap Disconnect in the rail to reach it.
 
 - A small background service sends the discovery probe every 6 seconds while charging and every 60 seconds on battery.
-- When a paired PC answers after being off, the phone turns its screen on, opens the dock and connects.
+- When a paired PC answers after being off, or after the PC app restarted, the phone turns its screen on, opens the dock and connects.
 - Android 10 and newer only let an app open itself when you allow "Display over other apps". The app asks for it. Without it, you get a "Your PC is on" notification to tap.
 - On Android 13 and newer, allow notifications, or the service's notification stays hidden.
 - Allow the battery exemption when asked, or Android may stop the service.
-- After you tap Disconnect, the phone stays quiet until the PC turns off and on again.
+- After you tap Disconnect, the phone stays quiet until the PC app starts again.
 - "Show the dock over the lock screen" is a separate switch and off by default. With it on, anyone near the phone can use the dock.
 
 ## Build

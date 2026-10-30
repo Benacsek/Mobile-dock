@@ -71,3 +71,18 @@ def test_windows_finds_start_menu_apps():
     assert links, "Start menu shortcut fallback found nothing"
     some = next(iter(links))
     assert pf.app_icon(some) is None or pf.app_icon(some).startswith(b"\x89PNG")
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
+def test_windows_clipboard_image_and_foreground():
+    import ctypes
+    import io
+
+    from PIL import Image
+
+    pf = get_platform()
+    buf = io.BytesIO()
+    Image.new("RGB", (4, 3), (255, 0, 0)).save(buf, "PNG")
+    pf.set_clipboard_image(buf.getvalue())
+    assert ctypes.windll.user32.IsClipboardFormatAvailable(8)  # CF_DIB
+    assert isinstance(pf.foreground(), dict)
