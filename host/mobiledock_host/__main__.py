@@ -16,6 +16,7 @@ from . import __version__
 from .config import Config
 from .platforms import get_platform
 from .server import DockServer
+from .updater import Updater
 
 
 def _pid_file():
@@ -67,6 +68,9 @@ def main(argv: list[str] | None = None) -> int:
             subprocess.run(["notify-send", "Mobile Dock", f"Paired with {text}"], check=False)
 
     server = DockServer(config, get_platform(), notify)
+    restart = threading.Event()
+    updater = Updater(config, on_restart=restart.set, notify=notify)
+    server.updater = updater
     try:
         server.start()
     except OSError as exc:
@@ -77,6 +81,8 @@ def main(argv: list[str] | None = None) -> int:
         from .usb import enable_usb
 
         print(enable_usb(server.port))
+
+    updater.start()
 
     def show_pin(*_):
         pin = server.pairing.start()
@@ -98,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
             with open(pid_path, "w", encoding="ascii") as fh:
                 fh.write(str(os.getpid()))
         try:
-            while not stop.wait(1):
+            while not stop.wait(1) and not restart.is_set():
                 pass
         finally:
             server.stop()
@@ -113,7 +119,7 @@ def main(argv: list[str] | None = None) -> int:
         print("Tk is not installed. Install it (python-tk or tk) or run with --headless.", file=sys.stderr)
         return 1
 
-    app = App(server, events, minimized=args.minimized)
+    app = App(server, events, minimized=args.minimized, updater=updater, restart=restart)
     if args.pair:
         app.start_pairing()
     app.run()

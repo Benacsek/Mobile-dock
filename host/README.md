@@ -6,7 +6,7 @@ This is the PC side. One Python program runs on Windows and on Linux with Hyprla
 
 ### Install
 
-Option A. Download `MobileDockHost.exe` from the latest GitHub Actions run or release. Put it anywhere and run it. No installer is needed.
+Option A. Download `MobileDockHost.exe` from the latest GitHub release. Put it in a folder you own, such as `Documents\MobileDock`, and run it. No installer is needed. It updates itself from then on.
 
 Option B. Run from source with Python 3.10 or newer:
 
@@ -18,14 +18,15 @@ pip install "./host[windows-media]"
 mobile-dock-host
 ```
 
-The `windows-media` extra shows the song title on the phone. Media keys work without it.
+The `windows-media` extra powers Now playing on the phone: album art, progress, seek, shuffle and repeat. The .exe includes it. Media keys work without it.
 
 ### First run
 
 1. Windows Firewall asks about network access. Allow it on private networks only.
 2. Click Pair new phone. A 6 digit PIN appears for 3 minutes.
-3. Type that PIN in the phone app.
-4. Tick Start with Windows if you want the dock ready after every login.
+3. Under Pinned apps, click Add apps to choose what the phone shows. You can also do this from the phone.
+4. Type that PIN in the phone app.
+5. Tick Start with Windows if you want the dock ready after every login.
 
 ### Optional tools
 
@@ -93,6 +94,15 @@ Prefer a window? Run `mobile-dock-host` without flags. It uses Tk through XWayla
 | notify-send | PIN and pairing notifications |
 
 Without wtype, typing falls back to the US layout and ASCII only.
+
+## Updates
+
+The host checks the latest GitHub release of this repository at start and every 6 hours. Check for updates in the window runs it now.
+
+- The Windows .exe replaces itself and restarts. Keep it in a folder you can write to, not Program Files.
+- Source installs on Windows or Linux do not replace themselves. Update them with `git pull` and `pipx install --force ./host`.
+- On every system, the host downloads new phone versions and serves them to the phone.
+- Set `"auto_update": false` in the config to stop all checks. Set `"update_repo"` to use a fork.
 
 ## Command line
 

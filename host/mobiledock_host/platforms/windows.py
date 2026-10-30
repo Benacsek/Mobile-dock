@@ -2,21 +2,23 @@
 
 Optional extras:
   ffmpeg on PATH          screen recording
-  winrt-Windows.Media.Control   now-playing title on the phone
+  winrt-Windows.Media.Control   now playing, album art, seek, shuffle and repeat
 """
 
 from __future__ import annotations
 
 import asyncio
 import ctypes
+import hashlib
 import json
 import subprocess
 import time
+import uuid
 from ctypes import wintypes
 from pathlib import Path
 
 from .base import KEYS, MEDIA_ACTIONS, MODIFIERS, MOUSE_BUTTONS, Platform, PlatformError
-from .png import write_png
+from .png import encode_png, write_png
 
 CREATE_NO_WINDOW = 0x08000000
 
@@ -50,6 +52,26 @@ class KEYBDINPUT(ctypes.Structure):
         ("wVk", wintypes.WORD), ("wScan", wintypes.WORD), ("dwFlags", wintypes.DWORD),
         ("time", wintypes.DWORD), ("dwExtraInfo", ctypes.c_size_t),
     ]
+
+
+class SIZE(ctypes.Structure):
+    _fields_ = [("cx", wintypes.LONG), ("cy", wintypes.LONG)]
+
+
+class BITMAP(ctypes.Structure):
+    _fields_ = [
+        ("bmType", wintypes.LONG), ("bmWidth", wintypes.LONG), ("bmHeight", wintypes.LONG),
+        ("bmWidthBytes", wintypes.LONG), ("bmPlanes", wintypes.WORD), ("bmBitsPixel", wintypes.WORD),
+        ("bmBits", ctypes.c_void_p),
+    ]
+
+
+class GUID(ctypes.Structure):
+    _fields_ = [("data", ctypes.c_ubyte * 16)]
+
+    @classmethod
+    def from_uuid(cls, text: str) -> "GUID":
+        return cls.from_buffer_copy(uuid.UUID(text).bytes_le)
 
 
 class HARDWAREINPUT(ctypes.Structure):
@@ -95,16 +117,27 @@ class WindowsPlatform(Platform):
         self.user32 = ctypes.WinDLL("user32", use_last_error=True)
         self.gdi32 = ctypes.WinDLL("gdi32", use_last_error=True)
         self.user32.SendInput.argtypes = (wintypes.UINT, ctypes.POINTER(INPUT), ctypes.c_int)
-        self.user32.GetDC.restype = wintypes.HDC
-        self.gdi32.CreateCompatibleDC.restype = wintypes.HDC
-        self.gdi32.CreateCompatibleBitmap.restype = wintypes.HBITMAP
-        self.gdi32.SelectObject.restype = wintypes.HGDIOBJ
+        # Explicit signatures. Without them ctypes passes handles as 32-bit ints on 64-bit Windows.
+        u, g, w = self.user32, self.gdi32, wintypes
+        u.GetDC.argtypes, u.GetDC.restype = (w.HWND,), w.HDC
+        u.ReleaseDC.argtypes = (w.HWND, w.HDC)
+        g.CreateCompatibleDC.argtypes, g.CreateCompatibleDC.restype = (w.HDC,), w.HDC
+        g.CreateCompatibleBitmap.argtypes = (w.HDC, ctypes.c_int, ctypes.c_int)
+        g.CreateCompatibleBitmap.restype = w.HBITMAP
+        g.SelectObject.argtypes, g.SelectObject.restype = (w.HDC, w.HGDIOBJ), w.HGDIOBJ
+        g.BitBlt.argtypes = (w.HDC, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, w.HDC,
+                             ctypes.c_int, ctypes.c_int, w.DWORD)
+        g.GetDIBits.argtypes = (w.HDC, w.HBITMAP, w.UINT, w.UINT, ctypes.c_void_p, ctypes.c_void_p, w.UINT)
+        g.DeleteObject.argtypes = (w.HGDIOBJ,)
+        g.DeleteDC.argtypes = (w.HDC,)
+        g.GetObjectW.argtypes = (w.HANDLE, ctypes.c_int, ctypes.c_void_p)
         try:
             ctypes.windll.shcore.SetProcessDpiAwareness(2)
         except (AttributeError, OSError):
             self.user32.SetProcessDPIAware()
         self._apps: list[dict] = []
         self._apps_time = 0.0
+        self._icons: dict[str, bytes | None] = {}
 
     def _send(self, *inputs: INPUT) -> None:
         arr = (INPUT * len(inputs))(*inputs)
@@ -134,35 +167,190 @@ class WindowsPlatform(Platform):
         subprocess.Popen(["explorer.exe", "shell:AppsFolder\\" + app_id], creationflags=CREATE_NO_WINDOW)
 
     # Media ----------------------------------------------------------------
+    # Uses the Windows media session API (the same one the volume flyout uses).
+    # It works with Spotify, browsers and most players, with no Spotify account.
 
-    def media(self, action: str) -> None:
-        if action not in MEDIA_ACTIONS:
-            raise PlatformError("Unknown media action")
-        vk = MEDIA_VK[action]
-        self._send(_key_input(vk, flags=KEYEVENTF_EXTENDEDKEY),
-                   _key_input(vk, flags=KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP))
-
-    def media_status(self) -> dict:
+    def _media_run(self, fn):
+        """Runs fn(session) in a fresh event loop. Returns None when the API or a session is missing."""
         try:
             from winrt.windows.media.control import (  # type: ignore
                 GlobalSystemMediaTransportControlsSessionManager as Manager,
             )
         except ImportError:
-            return {}
+            return None
 
-        async def query():
+        async def go():
             manager = await Manager.request_async()
-            session = manager.get_current_session()
-            if session is None:
-                return {}
-            props = await session.try_get_media_properties_async()
-            playing = session.get_playback_info().playback_status == 4
-            return {"title": props.title or "", "artist": props.artist or "", "playing": playing}
+            session = None
+            for s in manager.get_sessions():
+                if "spotify" in (s.source_app_user_model_id or "").lower():
+                    session = s
+                    break
+            session = session or manager.get_current_session()
+            return None if session is None else await fn(session)
 
         try:
-            return asyncio.run(asyncio.wait_for(query(), 3))
+            return asyncio.run(asyncio.wait_for(go(), 4))
         except Exception:  # noqa: BLE001 - optional feature, never fatal
-            return {}
+            return None
+
+    def media(self, action: str) -> None:
+        if action not in MEDIA_ACTIONS:
+            raise PlatformError("Unknown media action")
+        if action in ("play_pause", "next", "prev"):
+            async def control(s):
+                method = {"play_pause": s.try_toggle_play_pause_async, "next": s.try_skip_next_async,
+                          "prev": s.try_skip_previous_async}[action]
+                return await method()
+
+            if self._media_run(control):
+                time.sleep(0.3)  # let the player update its state before we report it
+                return
+        vk = MEDIA_VK[action]
+        self._send(_key_input(vk, flags=KEYEVENTF_EXTENDEDKEY),
+                   _key_input(vk, flags=KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP))
+
+    def media_status(self) -> dict:
+        async def query(s):
+            props = await s.try_get_media_properties_async()
+            info = s.get_playback_info()
+            playing = int(info.playback_status) == 4
+            status = {
+                "title": props.title or "", "artist": props.artist or "", "album": props.album_title or "",
+                "playing": playing, "app": (s.source_app_user_model_id or "").split("!")[0],
+            }
+            try:
+                tl = s.get_timeline_properties()
+                position = tl.position.total_seconds()
+                duration = (tl.end_time - tl.start_time).total_seconds()
+                if playing and tl.last_updated_time:
+                    from datetime import datetime, timezone
+
+                    position += (datetime.now(timezone.utc) - tl.last_updated_time).total_seconds()
+                if duration > 0:
+                    status["duration"] = duration
+                    status["position"] = max(0.0, min(position, duration))
+            except Exception:  # noqa: BLE001
+                pass
+            if info.is_shuffle_active is not None:
+                status["shuffle"] = bool(info.is_shuffle_active)
+            if info.auto_repeat_mode is not None:
+                status["repeat"] = {0: "none", 1: "track", 2: "list"}.get(int(info.auto_repeat_mode), "none")
+            if props.thumbnail is not None:
+                status["art_id"] = hashlib.sha1(
+                    f"{status['title']}|{status['artist']}|{status['album']}".encode()).hexdigest()[:16]
+            return status
+
+        return self._media_run(query) or {}
+
+    def media_art(self) -> bytes | None:
+        async def art(s):
+            from winrt.windows.storage.streams import Buffer, DataReader, InputStreamOptions  # type: ignore
+
+            props = await s.try_get_media_properties_async()
+            if props.thumbnail is None:
+                return None
+            stream = await props.thumbnail.open_read_async()
+            size = int(stream.size)
+            if not 0 < size <= 2_000_000:
+                return None
+            result = await stream.read_async(Buffer(size), size, InputStreamOptions.READ_AHEAD)
+            try:
+                return bytes(memoryview(result))
+            except TypeError:
+                data = bytearray(result.length)
+                DataReader.from_buffer(result).read_bytes(data)
+                return bytes(data)
+
+        return self._media_run(art)
+
+    def media_seek(self, seconds: float) -> None:
+        async def seek(s):
+            return await s.try_change_playback_position_async(int(seconds * 10_000_000))
+
+        if not self._media_run(seek):
+            raise PlatformError("This player does not allow seeking")
+
+    def media_shuffle(self) -> None:
+        async def shuffle(s):
+            current = s.get_playback_info().is_shuffle_active
+            return await s.try_change_shuffle_active_async(not bool(current))
+
+        if not self._media_run(shuffle):
+            raise PlatformError("This player does not allow shuffle")
+
+    def media_repeat(self) -> None:
+        async def repeat(s):
+            from winrt.windows.media import MediaPlaybackAutoRepeatMode as Mode  # type: ignore
+
+            current = int(s.get_playback_info().auto_repeat_mode or 0)
+            nxt = {0: 2, 2: 1, 1: 0}[current]  # off, repeat all, repeat one
+            return await s.try_change_auto_repeat_mode_async(Mode(nxt))
+
+        if not self._media_run(repeat):
+            raise PlatformError("This player does not allow repeat")
+
+    # Icons ----------------------------------------------------------------
+
+    def app_icon(self, app_id: str) -> bytes | None:
+        """Renders the Start menu icon through the shell, the same way Explorer does.
+
+        Works for desktop and Store apps. Returns a 64x64 PNG or None.
+        """
+        if app_id in self._icons:
+            return self._icons[app_id]
+        png = None
+        try:
+            ole32 = ctypes.WinDLL("ole32")
+            ole32.CoInitializeEx(None, 2)
+            shell32 = ctypes.WinDLL("shell32")
+            shell32.SHCreateItemFromParsingName.argtypes = (
+                wintypes.LPCWSTR, ctypes.c_void_p, ctypes.POINTER(GUID), ctypes.POINTER(ctypes.c_void_p))
+            shell32.SHCreateItemFromParsingName.restype = ctypes.HRESULT
+            item = ctypes.c_void_p()
+            iid = GUID.from_uuid("bcc18b79-ba16-442f-80c4-8a59c30c463b")  # IShellItemImageFactory
+            shell32.SHCreateItemFromParsingName("shell:AppsFolder\\" + app_id, None, ctypes.byref(iid),
+                                                ctypes.byref(item))
+            vtable = ctypes.cast(item, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))).contents
+            get_image = ctypes.WINFUNCTYPE(ctypes.HRESULT, ctypes.c_void_p, SIZE, ctypes.c_int,
+                                           ctypes.POINTER(wintypes.HBITMAP))(vtable[3])
+            release = ctypes.WINFUNCTYPE(ctypes.c_ulong, ctypes.c_void_p)(vtable[2])
+            hbm = wintypes.HBITMAP()
+            try:
+                get_image(item, SIZE(64, 64), 0x1 | 0x4, ctypes.byref(hbm))  # BIGGERSIZEOK | ICONONLY
+            finally:
+                release(item)
+            try:
+                png = self._hbitmap_png(hbm)
+            finally:
+                self.gdi32.DeleteObject(hbm)
+        except (OSError, ValueError):
+            png = None
+        self._icons[app_id] = png
+        return png
+
+    def _hbitmap_png(self, hbm) -> bytes | None:
+        bm = BITMAP()
+        if not self.gdi32.GetObjectW(hbm, ctypes.sizeof(BITMAP), ctypes.byref(bm)):
+            return None
+        width, height = bm.bmWidth, abs(bm.bmHeight)
+        if not (0 < width <= 256 and 0 < height <= 256):
+            return None
+        info = BITMAPINFOHEADER(biSize=ctypes.sizeof(BITMAPINFOHEADER), biWidth=width, biHeight=-height,
+                                biPlanes=1, biBitCount=32)
+        buf = ctypes.create_string_buffer(width * height * 4)
+        dc = self.user32.GetDC(None)
+        try:
+            if not self.gdi32.GetDIBits(dc, hbm, 0, height, buf, ctypes.byref(info), 0):
+                return None
+        finally:
+            self.user32.ReleaseDC(None, dc)
+        raw = buf.raw
+        rgba = bytearray(len(raw))
+        rgba[0::4], rgba[1::4], rgba[2::4], rgba[3::4] = raw[2::4], raw[1::4], raw[0::4], raw[3::4]
+        if not any(rgba[3::4]):
+            rgba[3::4] = b"\xff" * (width * height)  # bitmap had no alpha channel
+        return encode_png(width, height, bytes(rgba), alpha=True)
 
     # Capture --------------------------------------------------------------
 

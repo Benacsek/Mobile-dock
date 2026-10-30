@@ -42,6 +42,10 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private final List<View> panels = new ArrayList<View>();
     private Button recordButton;
     private boolean recording;
+    private PhoneUpdater updater;
+    private static final java.util.regex.Pattern MUSIC_APPS = java.util.regex.Pattern.compile(
+            "(?i)spotify|music|tidal|deezer|vlc|foobar|winamp|musicbee|aimp|youtube music|soundcloud|"
+            + "amazon music|rhythmbox|strawberry|clementine|audacious|lollypop|amberol|elisa|cider|plexamp");
 
     @Override
     protected void onCreate(Bundle state) {
@@ -50,6 +54,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         store = new Store(this);
         client = new DockClient(store, this);
+        updater = new PhoneUpdater(this, client);
         root = new FrameLayout(this);
         root.setBackgroundColor(Ui.BG);
         setContentView(root);
@@ -306,7 +311,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         LinearLayout rail = Ui.column(this);
         rail.setBackground(Ui.rounded(this, Ui.SURFACE, 14));
         rail.setPadding(pad, pad, pad, pad);
-        String[] names = {"Apps", "Media", "Touchpad", "Keys"};
+        String[] names = {"Apps", "Now playing", "Touchpad", "Keys"};
         for (int i = 0; i < names.length; i++) {
             final int index = i;
             Button b = Ui.button(this, names[i]);
@@ -356,8 +361,19 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         dockBanner.setVisibility(View.GONE);
         main.addView(dockBanner, Ui.fillWidth(this, 4));
         content = new FrameLayout(this);
-        apps = new AppsPanel(this, client);
-        media = new MediaPanel(this, client);
+        apps = new AppsPanel(this, client, new AppsPanel.LaunchListener() {
+            @Override
+            public void launched(String appName) {
+                // Opening a music app jumps to Now playing, like a car dashboard.
+                if (MUSIC_APPS.matcher(appName).find()) select(1);
+            }
+        });
+        media = new MediaPanel(this, client, new Runnable() {
+            @Override
+            public void run() {
+                select(0);
+            }
+        });
         panels.add(apps);
         panels.add(media);
         panels.add(new PadPanel(this, client));
@@ -427,6 +443,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 break;
             case DockClient.CONNECTED:
                 showDock();
+                updater.check();
                 break;
             case DockClient.DISCONNECTED:
                 if (docked) showBanner(message);
@@ -449,6 +466,11 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private void showBanner(String message) {
         dockBanner.setText(message);
         dockBanner.setVisibility(View.VISIBLE);
+    }
+
+    @Override
+    public void onEvent(JSONObject event) {
+        if ("apps".equals(event.optString("e")) && apps != null) apps.load();
     }
 
     @Override

@@ -14,6 +14,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ScrollView;
@@ -50,10 +51,19 @@ final class AppsPanel extends LinearLayout {
     private final TextView removeZone;
     private final TextView empty;
     private int columns = 5;
+    private final IconCache icons;
+    private final LaunchListener onLaunch;
 
-    AppsPanel(Context c, DockClient client) {
+    /** Lets the dock react to launches, for example by opening Now playing for music apps. */
+    interface LaunchListener {
+        void launched(String appName);
+    }
+
+    AppsPanel(Context c, DockClient client, LaunchListener onLaunch) {
         super(c);
         this.client = client;
+        this.onLaunch = onLaunch;
+        icons = new IconCache(c, client);
         setOrientation(VERTICAL);
 
         FrameLayout top = new FrameLayout(c);
@@ -190,10 +200,18 @@ final class AppsPanel extends LinearLayout {
         t.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.SURFACE_HI, 14));
         t.setPadding(Ui.dp(c, 4), Ui.dp(c, 6), Ui.dp(c, 4), Ui.dp(c, 6));
 
-        TextView icon = Ui.text(c, Ui.initials(app.name), 20, Ui.TEXT);
-        icon.setGravity(Gravity.CENTER);
-        icon.setBackground(Ui.rounded(c, Ui.colorFor(app.id), 12));
-        t.addView(icon, new LayoutParams(Ui.dp(c, 48), Ui.dp(c, 48)));
+        FrameLayout iconBox = new FrameLayout(c);
+        TextView letters = Ui.text(c, Ui.initials(app.name), 20, Ui.TEXT);
+        letters.setGravity(Gravity.CENTER);
+        letters.setBackground(Ui.rounded(c, Ui.colorFor(app.id), 12));
+        iconBox.addView(letters, new FrameLayout.LayoutParams(Ui.dp(c, 48), Ui.dp(c, 48)));
+        ImageView image = new ImageView(c);
+        image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        image.setBackgroundColor(Ui.SURFACE);
+        image.setVisibility(GONE);
+        iconBox.addView(image, new FrameLayout.LayoutParams(Ui.dp(c, 48), Ui.dp(c, 48)));
+        icons.load(app.id, image);
+        t.addView(iconBox, new LayoutParams(Ui.dp(c, 48), Ui.dp(c, 48)));
 
         TextView label = Ui.text(c, app.name, 12, Ui.TEXT);
         label.setGravity(Gravity.CENTER);
@@ -213,6 +231,7 @@ final class AppsPanel extends LinearLayout {
                     }
                 });
                 toast("Opening " + app.name);
+                if (onLaunch != null) onLaunch.launched(app.name);
             }
         });
         t.setOnLongClickListener(new OnLongClickListener() {

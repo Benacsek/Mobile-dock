@@ -13,7 +13,7 @@ Android 4.0 and older are not supported. The current Android build tools do not 
 
 ## Install
 
-1. Download `app-debug.apk` or a signed `app-release.apk` from the latest GitHub Actions run or release.
+1. Download `MobileDock-<version>.apk` from the latest GitHub release.
 2. Copy it to the phone and open it. Allow installs from this source when asked.
 
 You can also install over USB:
@@ -22,12 +22,14 @@ You can also install over USB:
 adb install -r app-debug.apk
 ```
 
-Each CI run signs debug builds with a fresh key. To update without uninstalling, use a release build signed with your own key. See below.
+After this first install the app updates itself through the PC. See Updates below.
+
+Debug builds from the Actions tab are signed with a different key on every run. They cannot update each other or the release build. If you installed one, uninstall it once before you install the release APK.
 
 ## Use
 
 - Apps: tap a tile to open it on the PC. Long press a tile to drag it. Drop it on another tile to move it there, or on the red bar to unpin. Tap + Add app to pin more.
-- Media: play, pause, skip and volume. The title updates every 3 seconds.
+- Now playing: album art, title, artist, album and a progress bar you can drag to seek. Play, skip, shuffle, repeat and volume. Opening Spotify or another music app from the Apps grid jumps here. Back returns to Apps.
 - Touchpad: one finger moves. Tap to click. Two finger tap is right click, three finger tap is middle click. Two fingers scroll. Hold Left and move to drag. Speed changes the pointer speed.
 - Keys: type in the box and the text goes to the PC as you type. Tap Ctrl, Alt, Shift or Win before a key to make a shortcut. The shortcut row has copy, paste, undo and more.
 - Screenshot and Record sit at the bottom of the side rail. Files save on the PC.
@@ -46,21 +48,35 @@ cd android
 
 The APK lands in `app/build/outputs/apk/debug/`.
 
+## Updates
+
+1. When the phone connects, it asks the PC for a newer version.
+2. The PC has already downloaded it from the latest GitHub release.
+3. The phone downloads it from the PC, checks its SHA-256 and shows Update ready.
+4. You tap Install. On Android 8 and newer, the first time, Android asks you to allow Mobile Dock to install apps.
+
 ## Release signing
+
+Phones accept an update only when it's signed with the same key as the installed app. So CI needs one fixed key.
 
 Create a key once and keep it safe:
 
 ```bash
-keytool -genkeypair -v -keystore mobiledock.jks -keyalg RSA -keysize 4096 -validity 10000 -alias mobiledock
+keytool -genkeypair -keystore mobiledock.jks -storetype PKCS12 -keyalg RSA -keysize 4096 -validity 10000 -alias mobiledock
 ```
 
-For a local build, set `MDOCK_KEYSTORE`, `MDOCK_KEYSTORE_PASSWORD`, `MDOCK_KEY_ALIAS` and `MDOCK_KEY_PASSWORD`, then run `./gradlew assembleRelease`.
+Add two repository secrets under Settings, Secrets and variables, Actions:
 
-For CI, add these repository secrets: `MDOCK_KEYSTORE_B64` (the .jks file in base64), `MDOCK_KEYSTORE_PASSWORD`, `MDOCK_KEY_ALIAS` and `MDOCK_KEY_PASSWORD`. Never commit the keystore. The `.gitignore` blocks `.jks` files.
+- `MDOCK_KEYSTORE_B64`: the .jks file in base64, on one line.
+- `MDOCK_KEYSTORE_PASSWORD`: its password.
+
+For a local build, set `MDOCK_KEYSTORE` to the file path and `MDOCK_KEYSTORE_PASSWORD`, then run `./gradlew assembleRelease`.
+
+If you lose the key, phones can't update anymore. You'd have to uninstall and reinstall with a new key. Never commit the keystore. The `.gitignore` blocks `.jks` files.
 
 ## Privacy
 
-- Permissions: Internet, to reach your PC, and Wi-Fi state, to find PCs on the subnet.
+- Permissions: Internet, to reach your PC. Wi-Fi state, to find PCs on the subnet. Install packages, to open the installer for updates. Storage on Android 4.1 to 4.3 only, to hand the update to the installer.
 - No analytics, no ads, no Google services.
 - Pairing keys stay in app private storage. Backup and device transfer are turned off for them.
 
@@ -73,4 +89,7 @@ For CI, add these repository secrets: `MDOCK_KEYSTORE_B64` (the .jks file in bas
 | `Discovery.java` | UDP broadcast to find PCs |
 | `MainActivity.java` | Connect page, side rail, panels |
 | `AppsPanel.java` | Pinned apps grid with drag and drop |
-| `MediaPanel.java`, `PadPanel.java`, `KeysPanel.java` | The other panels |
+| `MediaPanel.java` | Now playing with art, seek, shuffle and repeat |
+| `PadPanel.java`, `KeysPanel.java` | Touchpad and keyboard |
+| `IconCache.java` | App icons from the PC, cached on the phone |
+| `PhoneUpdater.java`, `ApkProvider.java` | Updates through the PC |

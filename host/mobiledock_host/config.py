@@ -34,6 +34,8 @@ class Config:
             "pinned": [],
             "screenshots_dir": "",
             "recordings_dir": "",
+            "auto_update": True,
+            "update_repo": "Benacsek/Mobile-dock",
         }
         self._load()
 

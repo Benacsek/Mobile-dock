@@ -73,8 +73,15 @@ Requests are JSON with `t` and an optional numeric `id`. If `id` is present, the
 | apps.unpin | app | apps |
 | apps.reorder | ids: [app ids] | apps |
 | apps.launch | app | |
+| apps.icon | app | png (base64, empty when there is none) |
 | media | action: play_pause, next, prev, vol_up, vol_down, mute | title, artist, playing |
-| media.status | | title, artist, playing |
+| media.status | | title, artist, album, playing, position, duration, shuffle, repeat, art_id, app |
+| media.art | | art (base64 PNG or JPEG) |
+| media.seek | position (seconds) | same as media.status |
+| media.shuffle | | same as media.status |
+| media.repeat | | same as media.status. Cycles off, all, one. |
+| update.check | code (installed versionCode) | available, version, code, size, sha256 |
+| update.chunk | offset | data (base64, up to 256 KiB), total |
 | screenshot | | path |
 | record.start | | recording |
 | record.stop | | recording, path |
@@ -85,3 +92,5 @@ Requests are JSON with `t` and an optional numeric `id`. If `id` is present, the
 | mouse.scroll | dx, dy. One unit is a third of a wheel notch. Positive dy scrolls up. | |
 
 Mouse and keyboard messages are usually sent without `id`, so the PC does not reply.
+
+The PC may also send events on its own. `{"t":"event","e":"apps"}` means the pinned apps changed. The phone reloads them.

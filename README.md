@@ -11,10 +11,10 @@ It works on your local network or over USB. There is no account, no cloud servic
 
 ## What you can do from the phone
 
-- Browse your pinned apps in a grid and tap one to open it on the PC.
+- Browse your pinned apps in a grid with their real icons. Tap one to open it on the PC.
 - Long press a tile and drag it to a new spot. Drop it on the red bar to unpin it.
-- Add apps from a searchable list of everything installed on the PC.
-- Play, pause, skip and change volume. See the song title and artist.
+- Add apps from a searchable list of everything installed on the PC. Pin them from the phone or from the PC window.
+- Open Spotify or another music app and the phone switches to Now playing. You see the album art, title, artist and album, a progress bar you can drag, and buttons for play, skip, shuffle, repeat and volume. It reads Windows media controls or MPRIS on Linux, so it needs no Spotify account.
 - Take a screenshot. It saves on the PC in Pictures/Mobile Dock.
 - Start and stop screen recording. Videos save in Videos/Mobile Dock.
 - Use the touchpad. Tap to click. Use two fingers to scroll or to right click.
@@ -41,9 +41,18 @@ This uses `adb reverse`, which needs Android 5.0 or newer. On Android 4.x, turn 
 
 ## Where to get the builds
 
-Every push builds the Windows .exe and the Android APK in GitHub Actions. Open the Actions tab, pick the latest run, and download the artifacts. Tags that start with v also create a GitHub release with the files attached.
+Every push to main creates a GitHub release with `MobileDockHost.exe` and the signed APK. Download both from the Releases page once. After that, they update themselves.
 
-You can also build them yourself. Each README explains how.
+## Automatic updates
+
+- The PC checks this repository's latest release every 6 hours and once at start.
+- The Windows .exe downloads the new version, checks its SHA-256, replaces itself and restarts. Your phone reconnects on its own.
+- The PC also downloads the new phone app and sends it to the phone over the encrypted link. Old Android versions often cannot reach GitHub over HTTPS, so the PC does it for them.
+- The phone shows Update ready. Tap Install and confirm. Android requires that tap for any app outside the Play Store.
+- Turn updates off with `"auto_update": false` in the host config.
+- Phone updates need a stable signing key in the repository secrets. See [android/README.md](android/README.md).
+
+You can also build everything yourself. Each README explains how.
 
 ## Security
 
@@ -52,6 +61,7 @@ You can also build them yourself. Each README explains how.
 - Every message is encrypted with AES-256 and signed with HMAC-SHA256. Replayed or changed messages close the connection.
 - The phone can only open apps the PC found on its own. It never sends a command line.
 - You can remove a phone at any time in the host window. Its key stops working at once.
+- Updates come only from this repository's GitHub releases over HTTPS. Each file must match the SHA-256 in the release. Android also checks that the APK carries the same signature as the app you have.
 
 Read [SECURITY.md](SECURITY.md) for the full threat model and [docs/PROTOCOL.md](docs/PROTOCOL.md) for the wire format.
 

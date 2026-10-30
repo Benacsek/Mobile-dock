@@ -15,7 +15,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-windows-media = ["winrt-Windows.Media.Control>=3.2; sys_platform == 'win32'", "winrt-runtime>=3.2; sys_platform == 'win32'"]
+windows-media = [
+    "winrt-runtime>=3.2; sys_platform == 'win32'",
+    "winrt-Windows.Foundation>=3.2; sys_platform == 'win32'",
+    "winrt-Windows.Media>=3.2; sys_platform == 'win32'",
+    "winrt-Windows.Media.Control>=3.2; sys_platform == 'win32'",
+    "winrt-Windows.Storage.Streams>=3.2; sys_platform == 'win32'",
+]
 dev = ["pytest>=8"]
 
 [project.scripts]

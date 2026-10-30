@@ -3,12 +3,16 @@ name: Build
 on:
   push:
     branches: ["**"]
-    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
+
+env:
+  # Every run gets a higher version, so the auto-updaters on PC and phone see it as newer.
+  VERSION: "1.1.${{ github.run_number }}"
+  MDOCK_VERSION_CODE: "${{ github.run_number }}"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -29,7 +33,7 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.13"
-      - run: python -m pip install -e "host[dev]"
+      - run: python -m pip install -e "host[dev,windows-media]"
       - name: Fetch org.json for the Java interop test
         if: runner.os == 'Linux'
         run: |
@@ -49,6 +53,9 @@ jobs:
         with:
           python-version: "3.13"
       - run: python -m pip install "./host[windows-media]" "pyinstaller>=6.22"
+      - name: Stamp version
+        shell: pwsh
+        run: Set-Content -Path host/mobiledock_host/__init__.py -Value "__version__ = `"$env:VERSION`""
       - name: Build
         working-directory: host
         run: pyinstaller --noconfirm --onefile --windowed --name MobileDockHost --collect-submodules winrt run_host.py
@@ -82,8 +89,7 @@ jobs:
         working-directory: android
         env:
           MDOCK_KEYSTORE_PASSWORD: ${{ secrets.MDOCK_KEYSTORE_PASSWORD }}
-          MDOCK_KEY_ALIAS: ${{ secrets.MDOCK_KEY_ALIAS }}
-          MDOCK_KEY_PASSWORD: ${{ secrets.MDOCK_KEY_PASSWORD }}
+          MDOCK_VERSION_NAME: ${{ env.VERSION }}
         run: ./gradlew --no-daemon lint assembleDebug assembleRelease
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -95,7 +101,8 @@ jobs:
 
   release:
     name: GitHub release
-    if: startsWith(github.ref, 'refs/tags/v')
+    # Every push to main becomes a release. The PC and phone updaters install from the latest one.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [windows-exe, android]
     runs-on: ubuntu-latest
     permissions:
@@ -108,10 +115,29 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          shopt -s nullglob
-          # Unsigned release APKs cannot be installed, so only signed ones are attached.
-          files=(dist/MobileDockHost-windows/MobileDockHost.exe dist/MobileDock-android/outputs/apk/debug/*.apk)
-          for apk in dist/MobileDock-android/outputs/apk/release/*.apk; do
-            [[ "$apk" == *unsigned* ]] || files+=("$apk")
-          done
-          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --generate-notes "${files[@]}"
+          set -euo pipefail
+          tag="v$VERSION"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag already exists"
+            exit 0
+          fi
+          mkdir out
+          cp dist/MobileDockHost-windows/MobileDockHost.exe out/
+          exe_sha=$(sha256sum out/MobileDockHost.exe | cut -d' ' -f1)
+          signed=dist/MobileDock-android/outputs/apk/release/app-release.apk
+          if [ -f "$signed" ]; then
+            cp "$signed" "out/MobileDock-$VERSION.apk"
+            apk_sha=$(sha256sum "out/MobileDock-$VERSION.apk" | cut -d' ' -f1)
+            android="{\"file\":\"MobileDock-$VERSION.apk\",\"code\":$MDOCK_VERSION_CODE,\"sha256\":\"$apk_sha\"}"
+          else
+            # Without the signing secrets each build has a different key, so phones could not update.
+            echo "::warning::No release signing key. Phones will not auto-update. See android/README.md."
+            cp dist/MobileDock-android/outputs/apk/debug/app-debug.apk "out/MobileDock-$VERSION-debug.apk"
+            android=null
+          fi
+          printf '{"version":"%s","windows":{"file":"MobileDockHost.exe","sha256":"%s"},"android":%s}\n' \
+            "$VERSION" "$exe_sha" "$android" > out/latest.json
+          cat out/latest.json
+          gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest \
+            --title "Mobile Dock $VERSION" --notes "Automatic build of $GITHUB_SHA. The apps update themselves." \
+            out/*

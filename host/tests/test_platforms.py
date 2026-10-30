@@ -35,3 +35,26 @@ def test_linux_unknown_app_rejected():
     pf = get_platform()
     with pytest.raises(PlatformError):
         pf.launch("does-not-exist.desktop")
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
+def test_windows_icons_render():
+    pf = get_platform()
+    icons = [pf.app_icon(a["id"]) for a in pf.list_apps()[:8]]
+    assert any(i and i.startswith(b"\x89PNG") for i in icons)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
+def test_windows_screenshot(tmp_path):
+    pf = get_platform()
+    path = tmp_path / "shot.png"
+    try:
+        pf.screenshot(path)
+    except PlatformError:
+        pytest.skip("no interactive desktop on this runner")
+    assert path.read_bytes().startswith(b"\x89PNG")
+
+
+def test_media_status_never_raises():
+    # No player runs in CI. The call must still return a dict, which exercises the optional imports.
+    assert isinstance(get_platform().media_status(), dict)

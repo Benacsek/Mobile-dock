@@ -26,6 +26,9 @@ final class DockClient {
         void onState(int state, String message);
 
         void onPing(JSONObject reply);
+
+        /** A message the PC sent without being asked, for example {"t":"event","e":"apps"}. */
+        void onEvent(JSONObject event);
     }
 
     interface Callback {
@@ -161,7 +164,15 @@ final class DockClient {
                 try {
                     while (true) {
                         final JSONObject msg = c.recv();
-                        if (!msg.has("re")) continue;
+                        if (!msg.has("re")) {
+                            main.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    listener.onEvent(msg);
+                                }
+                            });
+                            continue;
+                        }
                         final Callback cb;
                         synchronized (pending) {
                             cb = pending.remove(msg.optInt("re"));

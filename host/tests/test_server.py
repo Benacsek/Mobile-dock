@@ -154,3 +154,11 @@ def test_tampered_frame_rejected(server):
     channel.sock.settimeout(3)
     with pytest.raises((ConnectionError, OSError)):
         channel.recv()
+
+
+def test_pin_change_notifies_other_phones(server):
+    a, _ = pair(server, server.pairing.start())
+    b, _ = pair(server, server.pairing.start())
+    assert call(a, "apps.pin", app="code.desktop")["ok"]
+    b.sock.settimeout(3)
+    assert b.recv() == {"t": "event", "e": "apps"}

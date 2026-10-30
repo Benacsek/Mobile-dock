@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import hmac
 import logging
 import os
@@ -186,7 +187,7 @@ class Session:
 
     def _handle(self, req_id, cmd: str, msg: dict) -> None:
         try:
-            result = self.server.dispatch(cmd, msg)
+            result = self.server.dispatch(cmd, msg, self)
             response = {"ok": True, **(result or {})}
         except PlatformError as exc:
             response = {"ok": False, "error": str(exc)}
@@ -211,8 +212,8 @@ class Session:
 
 
 class DockServer:
-    SLOW = {"apps.available", "apps.launch", "apps.pin", "screenshot", "record.start", "record.stop", "media",
-            "media.status"}
+    SLOW = {"apps.available", "apps.launch", "apps.pin", "apps.icon", "screenshot", "record.start", "record.stop",
+            "media", "media.status", "media.art", "media.seek", "media.shuffle", "media.repeat", "update.chunk"}
 
     def __init__(self, config: Config, platform: Platform, notify: Callable[[str, str], None] | None = None):
         self.config = config
@@ -226,6 +227,7 @@ class DockServer:
         self._stop = threading.Event()
         self._sockets: list[socket.socket] = []
         self.port = int(config.data["port"])
+        self.updater = None  # set by the entry point when auto updates are on
 
     def notify(self, kind: str, text: str) -> None:
         try:
@@ -272,6 +274,35 @@ class DockServer:
         for s in victims:
             s.close()
 
+    def broadcast(self, obj: dict) -> None:
+        """Pushes an event to every connected phone, for example after pins change on the PC."""
+        with self.lock:
+            sessions = list(self.sessions)
+        for s in sessions:
+            try:
+                s.send(obj)
+            except OSError:
+                s.close()
+
+    def pin_app(self, app_id: str) -> list[dict]:
+        available = self._available()
+        if app_id not in available:
+            raise PlatformError("App not found")
+        pinned = [a for a in self.config.pinned() if a["id"] != app_id]
+        pinned.append({"id": app_id, "name": available[app_id]})
+        self.config.set_pinned(pinned)
+        return pinned
+
+    def set_pinned(self, pinned: list[dict], origin: "Session | None" = None) -> None:
+        self.config.set_pinned(pinned)
+        with self.lock:
+            sessions = [s for s in self.sessions if s is not origin]
+        for s in sessions:
+            try:
+                s.send({"t": "event", "e": "apps"})
+            except OSError:
+                s.close()
+
     def connected_names(self) -> list[str]:
         with self.lock:
             return [s.device_name for s in self.sessions]
@@ -287,7 +318,7 @@ class DockServer:
         base.mkdir(parents=True, exist_ok=True)
         return base / f"{datetime.now():%Y-%m-%d %H-%M-%S}.{ext}"
 
-    def dispatch(self, cmd: str, msg: dict) -> dict | None:
+    def dispatch(self, cmd: str, msg: dict, origin: "Session | None" = None) -> dict | None:
         pf = self.platform
         if cmd == "ping":
             return {"recording": pf.is_recording()}
@@ -296,23 +327,24 @@ class DockServer:
         if cmd == "apps.available":
             return {"apps": pf.list_apps()}
         if cmd == "apps.pin":
-            app_id = str(msg["app"])
-            available = self._available()
-            if app_id not in available:
-                raise PlatformError("App not found")
-            pinned = [a for a in self.config.pinned() if a["id"] != app_id]
-            pinned.append({"id": app_id, "name": available[app_id]})
-            self.config.set_pinned(pinned)
+            pinned = self.pin_app(str(msg["app"]))
+            self.set_pinned(pinned, origin)
             return {"apps": pinned}
+        if cmd == "apps.icon":
+            app_id = str(msg["app"])
+            if app_id not in self._available():
+                raise PlatformError("App not found")
+            png = pf.app_icon(app_id)
+            return {"png": base64.b64encode(png).decode() if png else ""}
         if cmd == "apps.unpin":
             pinned = [a for a in self.config.pinned() if a["id"] != str(msg["app"])]
-            self.config.set_pinned(pinned)
+            self.set_pinned(pinned, origin)
             return {"apps": pinned}
         if cmd == "apps.reorder":
             order = [str(i) for i in msg["ids"]]
             current = {a["id"]: a for a in self.config.pinned()}
             ordered = [current.pop(i) for i in order if i in current] + list(current.values())
-            self.config.set_pinned(ordered)
+            self.set_pinned(ordered, origin)
             return {"apps": ordered}
         if cmd == "apps.launch":
             app_id = str(msg["app"])
@@ -326,6 +358,27 @@ class DockServer:
             return pf.media_status()
         if cmd == "media.status":
             return pf.media_status()
+        if cmd == "media.art":
+            art = pf.media_art()
+            return {"art": base64.b64encode(art).decode() if art else ""}
+        if cmd == "media.seek":
+            pf.media_seek(max(0.0, float(msg["position"])))
+            return pf.media_status()
+        if cmd == "media.shuffle":
+            pf.media_shuffle()
+            return pf.media_status()
+        if cmd == "media.repeat":
+            pf.media_repeat()
+            return pf.media_status()
+        if cmd == "update.check":
+            if not self.updater:
+                return {"available": False}
+            return self.updater.phone_offer(int(msg.get("code", 0)))
+        if cmd == "update.chunk":
+            if not self.updater:
+                raise PlatformError("Updates are off on the PC")
+            chunk = self.updater.phone_chunk(int(msg.get("offset", 0)))
+            return {"data": base64.b64encode(chunk["data"]).decode(), "total": chunk["total"]}
         if cmd == "screenshot":
             path = self._output_path("screenshots_dir", "Pictures", "png")
             pf.screenshot(path)

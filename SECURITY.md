@@ -14,6 +14,7 @@ Mobile Dock lets a phone type and click on your PC. Treat a paired phone like a 
 | Running commands on the PC | The phone sends app IDs only. The PC launches an ID only if it found that app itself. |
 | Brute force on reconnect | 8 failed attempts from one address in 5 minutes block that address for 5 minutes. |
 | Oversized messages | Frames over 1 MiB close the connection. Text, mouse and scroll values are clamped. |
+| A fake update | Updates come only from this repository's GitHub releases over HTTPS. Every file must match the SHA-256 in that release's latest.json. Android refuses an APK signed with a different key. |
 | Stolen phone | Click Remove selected in the host window. The key stops working at once, and any open session closes. |
 
 ## Limits you should know
@@ -24,6 +25,8 @@ Mobile Dock lets a phone type and click on your PC. Treat a paired phone like a 
 - Discovery answers anyone on the network with the PC name and port. Turn it off with `"discovery": false` in the config.
 - The host listens on all interfaces by default. Set `"bind": "127.0.0.1"` to accept USB connections only.
 - Anyone who unlocks your paired phone can control your PC while the host runs.
+- Updates trust whoever can publish releases in this repository. Protect your GitHub account with two-factor authentication. Keep the APK signing key and its password only in the repository secrets.
+- The Windows .exe is not code-signed, so SmartScreen warns on the first run.
 
 ## Why custom crypto and not TLS
 
@@ -36,7 +39,7 @@ On Android 4.1 to 4.3, `SecureRandom` had a seeding bug. The app reads `/dev/ura
 - The Android app has zero third-party dependencies.
 - The host depends on `cryptography`, and `evdev` on Linux.
 - GitHub Actions are pinned to commit hashes. Dependabot opens update PRs weekly.
-- Workflows run with read-only tokens. Only the release job gets write access, and only on version tags.
+- Workflows run with read-only tokens. Only the release job gets write access, and only for pushes to main.
 
 ## Report a problem
 

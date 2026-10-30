@@ -11,8 +11,9 @@ android {
         // Android 4.1 Jelly Bean. The app uses no libraries, so it runs on very old phones.
         minSdk = 16
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        // CI sets these from the run number. Each release must have a higher code to update phones.
+        versionCode = (System.getenv("MDOCK_VERSION_CODE") ?: "1").toInt()
+        versionName = System.getenv("MDOCK_VERSION_NAME") ?: "1.0.0-dev"
     }
 
     signingConfigs {
@@ -21,8 +22,8 @@ android {
             if (path != null) {
                 storeFile = file(path)
                 storePassword = System.getenv("MDOCK_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("MDOCK_KEY_ALIAS")
-                keyPassword = System.getenv("MDOCK_KEY_PASSWORD")
+                keyAlias = System.getenv("MDOCK_KEY_ALIAS") ?: "mobiledock"
+                keyPassword = System.getenv("MDOCK_KEY_PASSWORD") ?: System.getenv("MDOCK_KEYSTORE_PASSWORD")
             }
         }
     }

@@ -12,6 +12,7 @@ Runtime tools:
 from __future__ import annotations
 
 import configparser
+import hashlib
 import json
 import os
 import re
@@ -21,10 +22,14 @@ import signal
 import subprocess
 import threading
 import time
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 from .base import KEYS, MEDIA_ACTIONS, MODIFIERS, MOUSE_BUTTONS, Platform, PlatformError
 
+# Prefer Spotify when several players run, like the Windows side does.
+PLAYERCTL = ["playerctl", "--player=spotify,%any"]
 FIELD_CODE = re.compile(r"%[fFuUdDnNickvm]")
 
 US_SHIFTED = dict(zip('~!@#$%^&*()_+{}|:"<>?', "`1234567890-=[]\\;',./"))
@@ -70,6 +75,8 @@ class LinuxPlatform(Platform):
         self._ui_error = ""
         self._ui_lock = threading.Lock()
         self._scroll = [0.0, 0.0]
+        self._art_cache: dict[str, bytes | None] = {}
+        self._art_url = ""
 
     # Apps -----------------------------------------------------------------
 
@@ -93,6 +100,7 @@ class LinuxPlatform(Platform):
                     "name": entry.get("Name", app_id),
                     "exec": entry.get("Exec", ""),
                     "terminal": entry.get("Terminal", "false").lower() == "true",
+                    "icon": entry.get("Icon", ""),
                     "hidden": entry.get("Type") != "Application"
                     or entry.get("NoDisplay", "false").lower() == "true"
                     or entry.get("Hidden", "false").lower() == "true",
@@ -130,7 +138,7 @@ class LinuxPlatform(Platform):
         if action not in MEDIA_ACTIONS:
             raise PlatformError("Unknown media action")
         if action in ("play_pause", "next", "prev"):
-            _run(["playerctl", {"play_pause": "play-pause", "next": "next", "prev": "previous"}[action]])
+            _run([*PLAYERCTL, {"play_pause": "play-pause", "next": "next", "prev": "previous"}[action]])
             return
         if shutil.which("wpctl"):
             sink = "@DEFAULT_AUDIO_SINK@"
@@ -146,11 +154,83 @@ class LinuxPlatform(Platform):
     def media_status(self) -> dict:
         if not shutil.which("playerctl"):
             return {}
-        out = _run(["playerctl", "metadata", "--format", "{{status}}\t{{artist}}\t{{title}}"]).strip()
-        parts = out.split("\t")
-        if len(parts) != 3:
+        fmt = "\t".join(["{{status}}", "{{artist}}", "{{title}}", "{{album}}", "{{mpris:artUrl}}",
+                         "{{mpris:length}}", "{{position}}", "{{playerName}}"])
+        parts = _run([*PLAYERCTL, "metadata", "--format", fmt]).rstrip("\n").split("\t")
+        if len(parts) != 8:
             return {}
-        return {"playing": parts[0] == "Playing", "artist": parts[1], "title": parts[2]}
+        status, artist, title, album, art, length, position, player = parts
+        out = {"playing": status == "Playing", "artist": artist, "title": title, "album": album, "app": player}
+        try:
+            if length:
+                out["duration"] = int(length) / 1e6
+                out["position"] = int(position or 0) / 1e6
+        except ValueError:
+            pass
+        shuffle = _run([*PLAYERCTL, "shuffle"]).strip()
+        if shuffle in ("On", "Off"):
+            out["shuffle"] = shuffle == "On"
+        loop = _run([*PLAYERCTL, "loop"]).strip()
+        if loop in ("None", "Track", "Playlist"):
+            out["repeat"] = {"None": "none", "Track": "track", "Playlist": "list"}[loop]
+        if art:
+            self._art_url = art
+            out["art_id"] = hashlib.sha1(art.encode()).hexdigest()[:16]
+        return out
+
+    def media_art(self) -> bytes | None:
+        url = getattr(self, "_art_url", "")
+        if url in self._art_cache:
+            return self._art_cache[url]
+        data = None
+        try:
+            if url.startswith("file://"):
+                path = Path(urllib.parse.unquote(url[7:]))
+                if path.is_file() and path.stat().st_size <= 2_000_000:
+                    data = path.read_bytes()
+            elif url.startswith("https://"):
+                # Players such as Spotify point at their own image server. Nothing else is sent.
+                with urllib.request.urlopen(url, timeout=5) as resp:  # noqa: S310 - https only
+                    data = resp.read(2_000_001)
+                if len(data) > 2_000_000:
+                    data = None
+        except (OSError, ValueError):
+            data = None
+        self._art_cache = {url: data}
+        return data
+
+    def media_seek(self, seconds: float) -> None:
+        _run([*PLAYERCTL, "position", f"{max(0.0, seconds):.1f}"])
+
+    def media_shuffle(self) -> None:
+        _run([*PLAYERCTL, "shuffle", "Toggle"])
+
+    def media_repeat(self) -> None:
+        current = _run([*PLAYERCTL, "loop"]).strip()
+        _run([*PLAYERCTL, "loop", {"None": "Playlist", "Playlist": "Track"}.get(current, "None")])
+
+    # Icons ----------------------------------------------------------------
+
+    def app_icon(self, app_id: str) -> bytes | None:
+        app = self._apps.get(app_id)
+        name = app.get("icon", "") if app else ""
+        if not name:
+            return None
+        candidates = []
+        if name.startswith("/"):
+            candidates.append(Path(name))
+        else:
+            bases = [Path.home() / ".local/share/icons", Path.home() / ".icons",
+                     *(d / "icons" for d in _data_dirs())]
+            for base in bases:
+                for size in ("128x128", "96x96", "64x64", "48x48", "256x256"):
+                    candidates.append(base / "hicolor" / size / "apps" / f"{name}.png")
+            candidates += [d / "pixmaps" / f"{name}.png" for d in _data_dirs()]
+        for path in candidates:
+            # Android 4 cannot draw SVG without a library, so only PNG icons are sent.
+            if path.suffix == ".png" and path.is_file() and path.stat().st_size <= 300_000:
+                return path.read_bytes()
+        return None
 
     # Capture --------------------------------------------------------------
 

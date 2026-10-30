@@ -5,6 +5,12 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Reads the Wi-Fi subnet to find PCs by broadcast. -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- Opens the system installer for updates that the PC downloaded. You confirm each install. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Android 4.1 to 4.3 only: hands the update file to the installer through shared storage. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="18" />
 
     <application
         android:allowBackup="false"
@@ -26,5 +32,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <provider
+            android:name=".ApkProvider"
+            android:authorities="dev.mobiledock.apk"
+            android:exported="false"
+            android:grantUriPermissions="true" />
     </application>
 </manifest>

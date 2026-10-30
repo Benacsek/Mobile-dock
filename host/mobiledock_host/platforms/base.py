@@ -41,7 +41,28 @@ class Platform:
         raise NotImplementedError
 
     def media_status(self) -> dict:
+        """title, artist, album, playing, position, duration (seconds), shuffle, repeat, art_id.
+
+        Missing keys mean the player does not report them.
+        """
         return {}
+
+    def media_art(self) -> bytes | None:
+        """Album art of the current track as PNG or JPEG bytes."""
+        return None
+
+    def media_seek(self, seconds: float) -> None:
+        raise PlatformError("Seeking is not supported here")
+
+    def media_shuffle(self) -> None:
+        raise PlatformError("Shuffle is not supported here")
+
+    def media_repeat(self) -> None:
+        raise PlatformError("Repeat is not supported here")
+
+    def app_icon(self, app_id: str) -> bytes | None:
+        """PNG icon for an app from list_apps(), or None."""
+        return None
 
     # Capture
     def screenshot(self, path: Path) -> None:

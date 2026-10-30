@@ -64,9 +64,12 @@ def _autostart_set(enabled: bool) -> None:
 
 
 class App:
-    def __init__(self, server: DockServer, events: "queue.Queue[tuple[str, str]]", minimized: bool = False):
+    def __init__(self, server: DockServer, events: "queue.Queue[tuple[str, str]]", minimized: bool = False,
+                 updater=None, restart: threading.Event | None = None):
         self.server = server
         self.events = events
+        self.updater = updater
+        self.restart = restart or threading.Event()
         self.root = tk.Tk()
         self.root.title("Mobile Dock")
         self.root.minsize(420, 360)
@@ -97,12 +100,31 @@ class App:
         self.devices.pack(fill="both", expand=True)
         ttk.Button(dev_box, text="Remove selected", command=self.remove_device).pack(anchor="e", pady=(6, 0))
 
+        apps_box = ttk.LabelFrame(frame, text="Pinned apps (shown on the phone)", padding=8)
+        apps_box.pack(fill="both", expand=True, pady=6)
+        self.pinned = tk.Listbox(apps_box, height=6)
+        self.pinned.pack(side="left", fill="both", expand=True)
+        buttons = ttk.Frame(apps_box)
+        buttons.pack(side="left", fill="y", padx=(8, 0))
+        ttk.Button(buttons, text="Add apps", command=self.add_apps).pack(fill="x")
+        ttk.Button(buttons, text="Move up", command=lambda: self.move_pinned(-1)).pack(fill="x", pady=(6, 0))
+        ttk.Button(buttons, text="Move down", command=lambda: self.move_pinned(1)).pack(fill="x", pady=(6, 0))
+        ttk.Button(buttons, text="Unpin", command=self.unpin).pack(fill="x", pady=(6, 0))
+
+        if updater is not None:
+            upd = ttk.Frame(frame)
+            upd.pack(fill="x", pady=6)
+            self.update_label = ttk.Label(upd, text=updater.status)
+            self.update_label.pack(side="left")
+            ttk.Button(upd, text="Check for updates", command=self.check_updates).pack(side="right")
+
         if sys.platform == "win32":
             self.autostart = tk.BooleanVar(value=_autostart_get())
             ttk.Checkbutton(frame, text="Start with Windows", variable=self.autostart,
                             command=lambda: _autostart_set(self.autostart.get())).pack(anchor="w", **pad)
 
         self.refresh_devices()
+        self.refresh_pinned()
         if minimized:
             self.root.iconify()
         self.root.after(200, self.poll_events)
@@ -147,7 +169,95 @@ class App:
             self.server.revoke(device_id)
             self.refresh_devices()
 
+    # Pinned apps ----------------------------------------------------------
+
+    def refresh_pinned(self) -> None:
+        self.pinned_items = self.server.config.pinned()
+        self.pinned.delete(0, "end")
+        for app in self.pinned_items:
+            self.pinned.insert("end", app["name"])
+
+    def move_pinned(self, step: int) -> None:
+        sel = self.pinned.curselection()
+        if not sel:
+            return
+        i, items = sel[0], list(self.pinned_items)
+        j = i + step
+        if not 0 <= j < len(items):
+            return
+        items[i], items[j] = items[j], items[i]
+        self.server.set_pinned(items)
+        self.refresh_pinned()
+        self.pinned.selection_set(j)
+
+    def unpin(self) -> None:
+        sel = self.pinned.curselection()
+        if sel:
+            self.server.set_pinned([a for k, a in enumerate(self.pinned_items) if k != sel[0]])
+            self.refresh_pinned()
+
+    def add_apps(self) -> None:
+        win = tk.Toplevel(self.root)
+        win.title("Add apps")
+        win.minsize(360, 420)
+        ttk.Label(win, text="Search").pack(anchor="w", padx=12, pady=(12, 0))
+        query = tk.StringVar()
+        entry = ttk.Entry(win, textvariable=query)
+        entry.pack(fill="x", padx=12)
+        listbox = tk.Listbox(win, selectmode="extended")
+        listbox.pack(fill="both", expand=True, padx=12, pady=8)
+        shown: list[dict] = []
+        apps: list[dict] = []
+
+        def fill(*_):
+            shown.clear()
+            listbox.delete(0, "end")
+            q = query.get().lower()
+            pinned_ids = {a["id"] for a in self.server.config.pinned()}
+            for app in apps:
+                if q in app["name"].lower() and app["id"] not in pinned_ids:
+                    shown.append(app)
+                    listbox.insert("end", app["name"])
+
+        def add():
+            pinned = self.server.config.pinned()
+            have = {a["id"] for a in pinned}
+            for i in listbox.curselection():
+                if shown[i]["id"] not in have:
+                    pinned.append(dict(shown[i]))
+            self.server.set_pinned(pinned)
+            self.refresh_pinned()
+            fill()
+
+        def loaded(result):
+            apps.extend(result)
+            fill()
+
+        query.trace_add("write", fill)
+        ttk.Button(win, text="Pin selected", command=add).pack(anchor="e", padx=12, pady=(0, 12))
+        listbox.insert("end", "Loading apps...")
+        entry.focus_set()
+
+        def work():
+            result = self.server.platform.list_apps()
+            self.root.after(0, lambda: loaded(result))
+
+        threading.Thread(target=work, daemon=True).start()
+
+    # Updates --------------------------------------------------------------
+
+    def check_updates(self) -> None:
+        self.update_label.config(text="Checking for updates...")
+
+        def work():
+            self.events.put(("update_status", self.updater.check()))
+
+        threading.Thread(target=work, daemon=True).start()
+
     def poll_events(self) -> None:
+        if self.restart.is_set():
+            self.root.destroy()
+            return
         try:
             while True:
                 kind, text = self.events.get_nowait()
@@ -155,6 +265,8 @@ class App:
                     self.pin_label.config(text=f"Paired with {text}")
                 elif kind == "info":
                     messagebox.showinfo("Mobile Dock", text)
+                elif kind in ("update", "update_status") and self.updater is not None:
+                    self.update_label.config(text=text)
                 self.refresh_devices()
         except queue.Empty:
             pass
