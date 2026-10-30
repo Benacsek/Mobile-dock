@@ -122,6 +122,7 @@ class App:
         self.events = events
         self.updater = updater
         self.restart = restart or threading.Event()
+        self.calls: "queue.Queue" = queue.Queue()  # work handed from threads to the Tk thread
         self.root = tk.Tk()
         self.root.title("Mobile Dock")
         self.pin_job = None
@@ -312,9 +313,9 @@ class App:
                 result = self.server.platform.list_apps()
             except Exception as exc:  # noqa: BLE001 - show the reason instead of an empty list
                 message = str(exc) or type(exc).__name__
-                self.root.after(0, lambda: failed(message))
+                self.later(lambda: failed(message))
                 return
-            self.root.after(0, lambda: loaded(result))
+            self.later(lambda: loaded(result))
 
         threading.Thread(target=work, daemon=True).start()
 
@@ -343,10 +344,19 @@ class App:
 
         threading.Thread(target=work, daemon=True).start()
 
+    def later(self, fn) -> None:
+        """Runs fn on the Tk thread. Tk must never be touched from other threads."""
+        self.calls.put(fn)
+
     def poll_events(self) -> None:
         if self.restart.is_set():
             self.root.destroy()
             return
+        while True:
+            try:
+                self.calls.get_nowait()()
+            except queue.Empty:
+                break
         try:
             while True:
                 kind, text = self.events.get_nowait()

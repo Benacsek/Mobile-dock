@@ -32,5 +32,10 @@ def test_window_builds(tmp_path):
     app = App(server, queue.Queue(), updater=FakeUpdater())
     app.start_pairing()
     app.add_apps()
-    app.root.update()
+    import time
+
+    for _ in range(50):  # let the app list thread finish and hand its result to the Tk thread
+        app.poll_events()
+        app.root.update()
+        time.sleep(0.05)
     app.root.destroy()
