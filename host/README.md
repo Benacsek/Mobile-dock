@@ -104,6 +104,17 @@ The host checks the latest GitHub release of this repository at start and every 
 - On every system, the host downloads new phone versions and serves them to the phone.
 - Set `"auto_update": false` in the config to stop all checks. Set `"update_repo"` to use a fork.
 
+### Private repository
+
+GitHub hides releases of a private repository from anyone who isn't signed in. The host then needs a token:
+
+1. On GitHub, open Settings, Developer settings, Personal access tokens, Fine-grained tokens, and click Generate new token.
+2. Under Repository access, pick Only select repositories and choose Mobile-dock.
+3. Under Permissions, set Contents to Read-only. Leave everything else at No access.
+4. Copy the token. In the host window, click GitHub token and paste it.
+
+The token is saved in the host config file. It can only read this one repository. On Linux you can set `MDOCK_GITHUB_TOKEN` instead.
+
 ## Command line
 
 ```

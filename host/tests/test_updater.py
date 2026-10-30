@@ -21,7 +21,7 @@ def make(tmp_path, monkeypatch, apk=APK, sha=None):
         "https://github.com/Benacsek/Mobile-dock/releases/latest/download/latest.json": json.dumps(manifest).encode(),
         "https://github.com/Benacsek/Mobile-dock/releases/download/v1.1.7/MobileDock-1.1.7.apk": apk,
     }
-    monkeypatch.setattr(up, "_fetch", lambda url, limit=0: served[url])
+    monkeypatch.setattr(up, "_fetch", lambda url, limit=0, token="", accept="": served[url])
     u = up.Updater(Config(tmp_path / "config.json"))
     u.dir = tmp_path / "updates"
     return u
@@ -77,3 +77,33 @@ def test_server_serves_update(tmp_path, monkeypatch):
         assert call(channel, "media.seek", 3, position=10)["ok"] is False  # fake player cannot seek
     finally:
         server.stop()
+
+
+def test_private_repo_uses_token_and_api(tmp_path, monkeypatch):
+    manifest = {"version": "1.1.8", "android": {"file": "a.apk", "code": 8, "sha256": hashlib.sha256(APK).hexdigest()}}
+    api = "https://api.github.com/repos/Benacsek/Mobile-dock/releases"
+    release = {"assets": [{"name": "latest.json", "url": f"{api}/assets/1"}, {"name": "a.apk", "url": f"{api}/assets/2"}]}
+    served = {f"{api}/latest": json.dumps(release).encode(), f"{api}/assets/1": json.dumps(manifest).encode(),
+              f"{api}/assets/2": APK}
+    seen = []
+
+    def fake(url, limit=0, token="", accept=""):
+        seen.append(token)
+        return served[url]
+
+    monkeypatch.setattr(up, "_fetch", fake)
+    config = Config(tmp_path / "config.json")
+    config.data["github_token"] = "secret-token"
+    u = up.Updater(config)
+    u.dir = tmp_path / "updates"
+    assert u.check().startswith("Up to date")
+    assert u.phone_offer(1)["code"] == 8
+    assert seen and all(t == "secret-token" for t in seen)
+
+
+def test_redirect_drops_token():
+    import urllib.request
+
+    req = urllib.request.Request("https://api.github.com/x", headers={"Authorization": "Bearer t"})
+    new = up._DropAuthOnRedirect().redirect_request(req, None, 302, "Found", {}, "https://storage.example/x")
+    assert not new.has_header("Authorization")

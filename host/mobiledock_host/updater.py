@@ -5,7 +5,7 @@ from the PC over the encrypted link, because old Android versions often cannot
 open modern HTTPS connections to GitHub.
 
 Checks:
-  every file comes over HTTPS from github.com
+  every file comes over HTTPS from github.com (with a read-only token for private repositories)
   every file must match the SHA-256 listed in latest.json of the same release
   Android also refuses an APK that is not signed with the same key as the installed app
 """
@@ -21,6 +21,7 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Callable
@@ -43,11 +44,26 @@ def parse_version(text: str) -> tuple[int, ...]:
         return (0,)
 
 
-def _fetch(url: str, limit: int = MAX_DOWNLOAD) -> bytes:
+class _DropAuthOnRedirect(urllib.request.HTTPRedirectHandler):
+    """GitHub redirects asset downloads to a signed storage URL. The token must not follow."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new is not None:
+            new.remove_header("Authorization")
+        return new
+
+
+def _fetch(url: str, limit: int = MAX_DOWNLOAD, token: str = "", accept: str = "") -> bytes:
     if not url.startswith("https://"):
         raise ValueError("refusing non-HTTPS URL")
     req = urllib.request.Request(url, headers={"User-Agent": f"MobileDockHost/{__version__}"})
-    with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310 - https enforced above
+    if token:
+        req.add_header("Authorization", f"Bearer {token}")
+    if accept:
+        req.add_header("Accept", accept)
+    opener = urllib.request.build_opener(_DropAuthOnRedirect)
+    with opener.open(req, timeout=60) as resp:
         if not resp.geturl().startswith("https://"):
             raise ValueError("redirected to non-HTTPS URL")
         data = resp.read(limit + 1)
@@ -65,6 +81,7 @@ class Updater:
         self.dir = config_dir() / "updates"
         self.status = "Not checked yet"
         self.apk: dict | None = None
+        self._release: dict | None = None
         self._lock = threading.Lock()
         self._load_apk_meta()
 
@@ -88,17 +105,37 @@ class Updater:
 
     # Release data ---------------------------------------------------------
 
-    def _latest(self) -> dict:
-        manifest = json.loads(_fetch(f"https://github.com/{self.repo}/releases/latest/download/latest.json", 65536))
+    @property
+    def token(self) -> str:
+        # Needed only for a private repository: a fine-grained token with read access to Contents.
+        return str(os.environ.get("MDOCK_GITHUB_TOKEN") or self.config.data.get("github_token") or "")
+
+    def _asset(self, release: dict | None, version: str, name: str, limit: int = MAX_DOWNLOAD) -> bytes:
+        if "/" in name or "\\" in name:
+            raise ValueError("bad file name")
+        if release is None:
+            return _fetch(f"https://github.com/{self.repo}/releases/download/v{version}/{name}", limit)
+        for asset in release.get("assets", []):
+            if asset.get("name") == name:
+                return _fetch(str(asset["url"]), limit, self.token, "application/octet-stream")
+        raise ValueError(f"{name} is missing from the release")
+
+    def _latest(self) -> tuple[dict, dict | None]:
+        release = None
+        if self.token:
+            release = json.loads(_fetch(f"https://api.github.com/repos/{self.repo}/releases/latest", 1 << 20,
+                                        self.token, "application/vnd.github+json"))
+            raw = self._asset(release, "", "latest.json", 65536)
+        else:
+            raw = _fetch(f"https://github.com/{self.repo}/releases/latest/download/latest.json", 65536)
+        manifest = json.loads(raw)
         if not isinstance(manifest, dict) or "version" not in manifest:
             raise ValueError("bad latest.json")
-        return manifest
+        return manifest, release
 
     def _download(self, version: str, entry: dict) -> bytes:
         name = str(entry["file"])
-        if "/" in name or "\\" in name:
-            raise ValueError("bad file name")
-        data = _fetch(f"https://github.com/{self.repo}/releases/download/v{version}/{name}")
+        data = self._asset(self._release, version, name)
         if hashlib.sha256(data).hexdigest() != str(entry["sha256"]).lower():
             raise ValueError(f"{name} failed the SHA-256 check")
         return data
@@ -106,13 +143,19 @@ class Updater:
     def check(self) -> str:
         with self._lock:
             try:
-                manifest = self._latest()
+                manifest, self._release = self._latest()
                 version = str(manifest["version"])
                 self._update_android(version, manifest.get("android"))
                 self.status = f"Up to date ({__version__})"
                 if self._should_update_self(version, manifest.get("windows")):
                     self.status = f"Installing {version}"
                     self._apply_windows(version, manifest["windows"])
+            except urllib.error.HTTPError as exc:
+                if exc.code in (401, 403, 404) and not self.token:
+                    self.status = "No release found. A private repository needs a token, see the README."
+                else:
+                    self.status = f"Update check failed: HTTP {exc.code}"
+                log.warning("update check failed: %s", exc)
             except Exception as exc:  # noqa: BLE001 - updates must never crash the dock
                 log.warning("update check failed: %s", exc)
                 self.status = f"Update check failed: {exc}"

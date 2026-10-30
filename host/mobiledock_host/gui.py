@@ -117,6 +117,7 @@ class App:
             self.update_label = ttk.Label(upd, text=updater.status)
             self.update_label.pack(side="left")
             ttk.Button(upd, text="Check for updates", command=self.check_updates).pack(side="right")
+            ttk.Button(upd, text="GitHub token", command=self.set_token).pack(side="right", padx=6)
 
         if sys.platform == "win32":
             self.autostart = tk.BooleanVar(value=_autostart_get())
@@ -245,6 +246,21 @@ class App:
         threading.Thread(target=work, daemon=True).start()
 
     # Updates --------------------------------------------------------------
+
+    def set_token(self) -> None:
+        from tkinter import simpledialog
+
+        token = simpledialog.askstring(
+            "Mobile Dock",
+            "Only needed when the GitHub repository is private.\n"
+            "Paste a fine-grained token with read-only access to Contents of this one repository.\n"
+            "Leave empty to remove it.",
+            show="*", parent=self.root)
+        if token is None:
+            return
+        self.server.config.data["github_token"] = token.strip()
+        self.server.config.save()
+        self.check_updates()
 
     def check_updates(self) -> None:
         self.update_label.config(text="Checking for updates...")

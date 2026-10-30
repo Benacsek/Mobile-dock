@@ -27,6 +27,7 @@ Mobile Dock lets a phone type and click on your PC. Treat a paired phone like a 
 - Anyone who unlocks your paired phone can control your PC while the host runs.
 - Updates trust whoever can publish releases in this repository. Protect your GitHub account with two-factor authentication. Keep the APK signing key and its password only in the repository secrets.
 - The Windows .exe is not code-signed, so SmartScreen warns on the first run.
+- For a private repository, the host stores a GitHub token in its config file. Give it read-only access to Contents of this repository and nothing else. The token goes only to api.github.com. It is removed before GitHub redirects a download to its storage servers.
 
 ## Why custom crypto and not TLS
 
