@@ -28,18 +28,26 @@ Debug builds from the Actions tab are signed with a different key on every run. 
 
 ## Use
 
+The dock bar sits at the bottom of the screen. Tap a tile to open its page.
+
 - Apps: tap a tile to open it on the PC. Long press a tile to drag it. Drop it on another tile to move it there, or on the red bar to unpin. Tap + Add app to pin more.
-- Now playing: album art, title, artist, album and a progress bar you can drag to seek. Play, skip, shuffle, repeat and volume. Opening Spotify or another music app from the Apps grid jumps here. Back returns to Apps.
-- Touchpad: one finger moves. Tap to click. Two finger tap is right click, three finger tap is middle click. Two fingers scroll. Hold Left and move to drag. Speed changes the pointer speed.
-- Keys: type in the box and the text goes to the PC as you type. Tap Ctrl, Alt, Shift or Win before a key to make a shortcut. The shortcut row has copy, paste, undo and more.
+- Playing: album art, title, artist, album and a progress bar you can drag to seek. Play, skip, shuffle, repeat and volume. Opening Spotify or another music app from Apps jumps here.
 - Shortcuts: tiles for the app in front on the PC. The target icon in the header turns Follow on or off. Tap the pad name to pick another pad.
+- Controls: volume, mute, lock, screen off, sleep, show desktop, Task Manager and Disconnect. Sleep asks first.
+- Capture: screenshot, snip a region (Win+Shift+S on Windows), record, picture to the PC clipboard and file to Downloads.
+- Touch & sign: switch between Touchpad, Keyboard and Sign at the top.
+  - Touchpad: one finger moves. Tap to click. Two finger tap is right click, three finger tap is middle click. Two fingers scroll. Hold Left and move to drag.
+  - Keyboard: type in the box and the text goes to the PC as you type. Tap Ctrl, Alt, Shift or Win before a key to make a shortcut.
+  - Sign: draw with your finger. Send to PC puts a PNG with a clear background on the clipboard. Paste it with Ctrl+V.
 - Stats: CPU, GPU, memory, network and disk graphs for the last minute, plus the busiest apps.
-- Send: pick a picture for the PC clipboard or a file for Downloads. You can also use Share, then Mobile Dock, in any app.
-- Screenshot and Record sit at the bottom of the side rail. Files save on the PC.
+- Appearance: accent color, tile size, background glow and dock labels. Changes apply at once and stay on the phone.
+- Updates: phone and PC versions, the PC's update status and Check now.
+- Arrange: opens Apps in arrange mode. A tap picks a tile up. Tap Arrange again or press Back when you are done.
+- Fullscreen: hides the dock bar. Tap the small button in the corner or press Back to bring it back.
 
 ## Start with your PC
 
-Turn on "Wake up and connect when my PC turns on" on the connect page. Tap Disconnect in the rail to reach it.
+Turn on "Wake up and connect when my PC turns on" on the connect page. Tap Disconnect on the Controls page to reach it.
 
 - A small background service sends the discovery probe every 5 seconds while charging and every 60 seconds on battery.
 - When a paired PC answers after being off, or after the PC app restarted, the phone turns its screen on, opens the dock and connects.
@@ -106,8 +114,12 @@ If you lose the key, phones can't update anymore. You'd have to uninstall and re
 | `proto/` | Pure Java protocol: SPAKE2, AES and HMAC channel, framing |
 | `DockClient.java` | Connection, reconnect, requests |
 | `Discovery.java` | UDP broadcast to find PCs |
-| `MainActivity.java` | Connect page, side rail, panels |
-| `AppsPanel.java` | Pinned apps grid with drag and drop |
+| `MainActivity.java` | Connect page, dock bar, pages, fullscreen |
+| `Ui.java`, `Icon.java` | Theme, dock tiles and line icons drawn in code |
+| `AppsPanel.java` | Pinned apps grid with drag and drop and arrange mode |
+| `ControlsPanel.java`, `CapturePanel.java` | PC controls, capture and sending |
+| `TouchPanel.java`, `SignPanel.java` | Touchpad, keyboard and signature pad |
+| `AppearancePanel.java`, `UpdatesPanel.java` | Theme settings and versions |
 | `MediaPanel.java` | Now playing with art, seek, shuffle and repeat |
 | `PadPanel.java`, `KeysPanel.java` | Touchpad and keyboard |
 | `IconCache.java` | App icons from the PC, cached on the phone |

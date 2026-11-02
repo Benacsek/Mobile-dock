@@ -21,6 +21,8 @@ from . import pads
 from . import protocol as p
 from .config import Config, config_dir
 from .perf import PerfMonitor
+from . import __version__
+from .platforms.base import SYSTEM_ACTIONS
 from .platforms import Platform, PlatformError
 
 log = logging.getLogger("mobiledock")
@@ -261,7 +263,7 @@ class Session:
 
 
 class DockServer:
-    SLOW = {"apps.available", "apps.launch", "apps.pin", "apps.icon", "screenshot", "record.start", "record.stop",
+    SLOW = {"update.refresh", "system", "apps.available", "apps.launch", "apps.pin", "apps.icon", "screenshot", "record.start", "record.stop",
             "media", "media.status", "media.art", "media.seek", "media.shuffle", "media.repeat", "update.chunk"}
 
     def __init__(self, config: Config, platform: Platform, notify: Callable[[str, str], None] | None = None):
@@ -293,7 +295,7 @@ class DockServer:
     def identity(self) -> dict:
         # "boot" changes every time the host starts, so a phone can tell the PC app was restarted.
         return {"host_id": self.config.data["host_id"], "host_name": self.config.data["host_name"],
-                "os": self.platform.name, "boot": self.boot}
+                "os": self.platform.name, "boot": self.boot, "version": __version__}
 
     # Abuse limits ---------------------------------------------------------
 
@@ -452,6 +454,22 @@ class DockServer:
         if cmd == "media.repeat":
             pf.media_repeat()
             return pf.media_status()
+        if cmd == "system":
+            action = str(msg.get("action", ""))
+            if action not in SYSTEM_ACTIONS:
+                raise PlatformError("Unknown control")
+            pf.system(action)
+            return None
+        if cmd == "update.status":
+            up = self.updater
+            return {"pc_version": __version__, "status": up.status if up else "Updates are off on this PC",
+                    "phone_ready": (up.apk or {}).get("version", "") if up else ""}
+        if cmd == "update.refresh":
+            if not self.updater:
+                raise PlatformError("Updates are off on this PC")
+            status = self.updater.check()
+            return {"pc_version": __version__, "status": status,
+                    "phone_ready": (self.updater.apk or {}).get("version", "")}
         if cmd == "update.check":
             if not self.updater:
                 return {"available": False}

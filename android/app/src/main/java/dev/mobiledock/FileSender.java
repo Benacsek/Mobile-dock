@@ -50,6 +50,32 @@ final class FileSender {
         return busy;
     }
 
+    /** Sends bytes made in the app, such as a signature, through a private cache file. */
+    void sendBytes(String name, byte[] data, String mode) {
+        java.io.File dir = new java.io.File(activity.getCacheDir(), "outgoing");
+        if (!dir.isDirectory() && !dir.mkdirs()) {
+            toast("Could not prepare the file");
+            return;
+        }
+        java.io.File f = new java.io.File(dir, name);
+        java.io.FileOutputStream out = null;
+        try {
+            out = new java.io.FileOutputStream(f);
+            out.write(data);
+        } catch (java.io.IOException e) {
+            toast("Could not prepare the file");
+            return;
+        } finally {
+            if (out != null) {
+                try {
+                    out.close();
+                } catch (java.io.IOException ignored) {
+                }
+            }
+        }
+        send(Uri.fromFile(f), mode);
+    }
+
     void send(final Uri uri, final String mode) {
         if (busy) {
             toast("Already sending a file");
@@ -109,7 +135,11 @@ final class FileSender {
         void open() {
             try {
                 sha = MessageDigest.getInstance("SHA-256");
-                Cursor c = activity.getContentResolver().query(uri, null, null, null, null);
+                if ("file".equals(uri.getScheme()) && uri.getLastPathSegment() != null) {
+                    name = uri.getLastPathSegment();  // only our own cache files use this scheme
+                }
+                Cursor c = "file".equals(uri.getScheme()) ? null
+                        : activity.getContentResolver().query(uri, null, null, null, null);
                 if (c != null) {
                     try {
                         if (c.moveToFirst()) {

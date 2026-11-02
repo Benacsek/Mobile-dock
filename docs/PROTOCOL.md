@@ -42,12 +42,12 @@ Discovery is a convenience. Nothing in it is trusted.
 6. Phone sends `{"t":"pair_c","c":hex}`. The PC checks it. On failure it counts a wrong guess and closes.
 7. PC sends `{"t":"pair_ok","c":hex}`. The phone checks it before it trusts anything.
 8. The session material is HKDF(K, empty, "mdock session v1", 128). The encrypted channel starts.
-9. PC sends the first encrypted message: `{"t":"paired","device_id":"...","secret":hex32,"host_id":"...","host_name":"...","os":"..."}`. The phone stores the secret under host_id.
+9. PC sends the first encrypted message: `{"t":"paired","device_id":"...","secret":hex32,"host_id":"...","host_name":"...","os":"...","version":"..."}`. The phone stores the secret under host_id.
 
 ## Reconnect
 
 1. Phone sends `{"v":1,"t":"hello","nc":hex32}`.
-2. PC sends `{"t":"challenge","ns":hex32,"host_id":"...","host_name":"...","os":"..."}`.
+2. PC sends `{"t":"challenge","ns":hex32,"host_id":"...","host_name":"...","os":"...","version":"..."}`.
 3. Phone looks up the secret S for host_id. Let salt = nc || ns and D = device_id.
    - A = HKDF(S, salt, "mdock auth v1|" || D, 64)
    - session material = HKDF(S, salt, "mdock session v1|" || D, 128)
@@ -89,6 +89,9 @@ Requests are JSON with `t` and an optional numeric `id`. If `id` is present, the
 | file.end | sha256 | where: "clipboard" or the saved path |
 | update.check | code (installed versionCode) | available, version, code, size, sha256 |
 | update.chunk | offset | data (base64, up to 256 KiB), total |
+| update.status | | pc_version, status, phone_ready (phone version kept on the PC, or empty) |
+| update.refresh | | same as update.status, after a fresh check on GitHub |
+| system | action: lock, sleep, display_off, desktop, task_manager | |
 | screenshot | | path |
 | record.start | | recording |
 | record.stop | | recording, path |
@@ -99,6 +102,8 @@ Requests are JSON with `t` and an optional numeric `id`. If `id` is present, the
 | mouse.scroll | dx, dy. One unit is a third of a wheel notch. Positive dy scrolls up. | |
 
 Mouse and keyboard messages are usually sent without `id`, so the PC does not reply.
+
+`system` has no shutdown or restart on purpose. A phone left on a desk should not be able to end your work.
 
 The PC may also send events on its own:
 

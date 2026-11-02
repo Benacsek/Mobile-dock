@@ -342,6 +342,24 @@ class WindowsPlatform(Platform):
 
     # Foreground app and clipboard ------------------------------------------
 
+    def system(self, action: str) -> None:
+        if action == "lock":
+            if not self.user32.LockWorkStation():
+                raise PlatformError("Windows did not lock")
+        elif action == "sleep":
+            # SetSuspendState(hibernate=False, force=False, wakeupEventsDisabled=False)
+            if not ctypes.WinDLL("powrprof").SetSuspendState(False, False, False):
+                raise PlatformError("Windows refused to sleep")
+        elif action == "display_off":
+            # Posted, not sent, so a hung window cannot block us. HWND_BROADCAST, WM_SYSCOMMAND, SC_MONITORPOWER.
+            self.user32.PostMessageW(wintypes.HWND(0xFFFF), 0x0112, 0xF170, 2)
+        elif action == "desktop":
+            self.key("d", ["meta"])
+        elif action == "task_manager":
+            self.key("esc", ["ctrl", "shift"])
+        else:
+            raise PlatformError("Unknown control")
+
     def foreground(self) -> dict:
         u, wt = self.user32, wintypes
         if not getattr(self, "_fg_ready", False):
@@ -376,7 +394,10 @@ class WindowsPlatform(Platform):
         except Exception as exc:  # noqa: BLE001
             raise PlatformError("That file is not a picture") from exc
         bmp = io.BytesIO()
-        img.convert("RGB").save(bmp, "BMP")
+        flat = img.convert("RGBA")
+        white = Image.new("RGBA", flat.size, (255, 255, 255, 255))
+        # Apps that only read the bitmap would show transparent parts, like a signature's paper, as black.
+        Image.alpha_composite(white, flat).convert("RGB").save(bmp, "BMP")
         dib = bmp.getvalue()[14:]  # CF_DIB is a BMP without its file header
         png_out = io.BytesIO()
         img.save(png_out, "PNG")

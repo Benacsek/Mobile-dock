@@ -7,6 +7,8 @@ import subprocess
 import time
 from pathlib import Path
 
+# PC controls the phone may trigger. Deliberately no shutdown or restart: too easy to hit by accident.
+SYSTEM_ACTIONS = ("lock", "sleep", "display_off", "desktop", "task_manager")
 MEDIA_ACTIONS = ("play_pause", "next", "prev", "vol_up", "vol_down", "mute")
 MOUSE_BUTTONS = ("left", "right", "middle")
 MODIFIERS = ("ctrl", "alt", "shift", "meta")
@@ -62,6 +64,9 @@ class Platform:
 
     def media_repeat(self) -> None:
         raise PlatformError("Repeat is not supported here")
+
+    def system(self, action: str) -> None:
+        raise PlatformError("Not supported on this system")
 
     def foreground(self) -> dict:
         """The app in front: {"app": exe name or window class, "title": window title}."""

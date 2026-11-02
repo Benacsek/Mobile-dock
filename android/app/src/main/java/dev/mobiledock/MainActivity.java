@@ -31,7 +31,7 @@ import java.util.List;
 
 import dev.mobiledock.proto.Connection;
 
-/** Single screen app: a connect page, then the dock with a side rail and four panels. */
+/** Single screen app: a connect page, then the dock with its pages and a bottom bar of tiles. */
 public final class MainActivity extends Activity implements DockClient.Listener {
     static final String EXTRA_WAKE = "wake";
     /** Random per app process. Other apps cannot know it, so they cannot trigger a wake. */
@@ -55,7 +55,6 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private MediaPanel media;
     private final List<LinearLayout> tabs = new ArrayList<LinearLayout>();
     private final List<View> panels = new ArrayList<View>();
-    private LinearLayout recordButton;
     private boolean recording;
     private PhoneUpdater updater;
     private static final java.util.regex.Pattern MUSIC_APPS = java.util.regex.Pattern.compile(
@@ -71,8 +70,9 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         client = new DockClient(store, this);
         updater = new PhoneUpdater(this, client);
         sender = new FileSender(this, client);
+        Ui.loadTheme(WatchService.prefs(this));
         root = new FrameLayout(this);
-        root.setBackgroundColor(Ui.BG);
+        root.setBackground(Ui.background(this));
         setContentView(root);
         if (Build.VERSION.SDK_INT >= 33) {
             BackCompat.register(this, new Runnable() {
@@ -155,11 +155,21 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         super.onDestroy();
     }
 
-    /** Back returns to the Apps panel first, then leaves the app. */
+    /** Back leaves fullscreen or arrange mode, then returns to Apps, then leaves the app. */
     private void handleBack() {
-        if (dockView != null && dockView.getVisibility() == View.VISIBLE && panels.size() > 0
-                && panels.get(0).getVisibility() != View.VISIBLE) {
-            select(0);
+        boolean docked = dockView != null && dockView.getVisibility() == View.VISIBLE;
+        if (docked && fullscreen) {
+            setFullscreen(false);
+            return;
+        }
+        if (docked && apps.arranging()) {
+            select(APPS);
+            apps.setArrange(false);
+            arrangeTile.setSelected(false);
+            return;
+        }
+        if (docked && current != APPS) {
+            select(APPS);
             return;
         }
         finish();
@@ -499,6 +509,15 @@ public final class MainActivity extends Activity implements DockClient.Listener 
 
     // Dock -------------------------------------------------------------------
 
+    private static final int APPS = 0, PLAYING = 1, SHORTCUTS = 2, CONTROLS = 3, CAPTURE = 4, TOUCH = 5,
+            STATS = 6, APPEARANCE = 7, UPDATES = 8;
+    private int current;
+    private boolean fullscreen;
+    private LinearLayout dockBar, arrangeTile;
+    private View barScroll, exitFull;
+    private CapturePanel capture;
+    private UpdatesPanel updates;
+
     private void showDock() {
         if (dockView == null) {
             dockView = buildDock();
@@ -510,120 +529,197 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         apps.load();
     }
 
+    /** Rebuilds the dock after an Appearance change. The connection stays up. */
+    private void rebuildDock() {
+        int keep = current;
+        root.setBackground(Ui.background(this));
+        if (dockView != null) root.removeView(dockView);
+        if (connectView != null) root.removeView(connectView);
+        connectView = null;
+        dockView = null;
+        panels.clear();
+        tabs.clear();
+        fullscreen = false;
+        showDock();
+        select(keep);
+    }
+
     private View buildDock() {
-        LinearLayout dock = Ui.row(this);
-        dock.setGravity(Gravity.TOP);
-        int pad = Ui.dp(this, 8);
-        dock.setPadding(pad, pad, pad, pad);
+        FrameLayout frame = new FrameLayout(this);
+        LinearLayout dock = Ui.column(this);
+        int pad = Ui.dp(this, 10);
+        dock.setPadding(pad, pad, pad, Ui.dp(this, 6));
 
-        LinearLayout rail = Ui.column(this);
-        rail.setBackground(Ui.rounded(this, Ui.SURFACE, 18));
-        rail.setPadding(pad, pad, pad, pad);
-        String[] names = {"Apps", "Playing", "Shortcuts", "Stats", "Touchpad", "Keys"};
-        Icon.Kind[] kinds = {Icon.Kind.APPS, Icon.Kind.MUSIC, Icon.Kind.SHORTCUTS, Icon.Kind.CHART,
-            Icon.Kind.TOUCHPAD, Icon.Kind.KEYBOARD};
-        for (int i = 0; i < names.length; i++) {
-            final int index = i;
-            LinearLayout item = Ui.railItem(this, kinds[i], names[i]);
-            item.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    select(index);
-                }
-            });
-            tabs.add(item);
-            rail.addView(item, Ui.fillWidth(this, 2));
-        }
-        rail.addView(Ui.spacer(this));
-        LinearLayout send = Ui.railItem(this, Icon.Kind.SEND, "Send");
-        send.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                chooseSend();
-            }
-        });
-        rail.addView(send, Ui.fillWidth(this, 2));
-        LinearLayout shot = Ui.railItem(this, Icon.Kind.CAMERA, "Screenshot");
-        shot.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                screenshot();
-            }
-        });
-        rail.addView(shot, Ui.fillWidth(this, 2));
-        recordButton = Ui.railItem(this, Icon.Kind.RECORD, "Record");
-        recordButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                toggleRecording();
-            }
-        });
-        rail.addView(recordButton, Ui.fillWidth(this, 2));
-        LinearLayout leave = Ui.railItem(this, Icon.Kind.POWER, "Disconnect");
-        leave.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                WatchService.quietUntilOffline = true;  // do not reopen until the PC restarts
-                client.disconnect();
-                showConnect();
-                scan();
-            }
-        });
-        rail.addView(leave, Ui.fillWidth(this, 2));
-        // The rail scrolls on short screens so its bottom items never get cut off.
-        android.widget.ScrollView railScroll = new android.widget.ScrollView(this);
-        railScroll.setFillViewport(true);
-        railScroll.setVerticalScrollBarEnabled(false);
-        railScroll.addView(rail, new android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT, android.widget.FrameLayout.LayoutParams.MATCH_PARENT));
-        dock.addView(railScroll, new LinearLayout.LayoutParams(Ui.dp(this, 92), LinearLayout.LayoutParams.MATCH_PARENT));
-
-        LinearLayout main = Ui.column(this);
         dockBanner = Ui.text(this, "", 14, Ui.TEXT);
-        dockBanner.setBackground(Ui.rounded(this, Ui.DANGER, 8));
+        dockBanner.setBackground(Ui.rounded(this, Ui.DANGER, 12));
         dockBanner.setGravity(Gravity.CENTER);
         dockBanner.setPadding(pad, pad, pad, pad);
         dockBanner.setVisibility(View.GONE);
-        main.addView(dockBanner, Ui.fillWidth(this, 4));
+        dock.addView(dockBanner, Ui.fillWidth(this, 2));
+
         content = new FrameLayout(this);
         apps = new AppsPanel(this, client, new AppsPanel.LaunchListener() {
             @Override
             public void launched(String appName) {
                 // Opening a music app jumps to Now playing, like a car dashboard.
-                if (MUSIC_APPS.matcher(appName).find()) select(1);
+                if (MUSIC_APPS.matcher(appName).find()) select(PLAYING);
             }
         });
         media = new MediaPanel(this, client, new Runnable() {
             @Override
             public void run() {
-                select(0);
+                select(APPS);
             }
         });
         shortcuts = new ShortcutsPanel(this, client);
         stats = new StatsPanel(this, client);
+        capture = new CapturePanel(this, client, new CapturePanel.Actions() {
+            @Override
+            public void screenshot() {
+                MainActivity.this.screenshot();
+            }
+
+            @Override
+            public void toggleRecording() {
+                MainActivity.this.toggleRecording();
+            }
+
+            @Override
+            public void pick(boolean picture) {
+                pickToSend(picture);
+            }
+        });
+        updates = new UpdatesPanel(this, client, updater);
         panels.add(apps);
         panels.add(media);
         panels.add(shortcuts);
+        panels.add(new ControlsPanel(this, client, new Runnable() {
+            @Override
+            public void run() {
+                leaveDock();
+            }
+        }));
+        panels.add(capture);
+        panels.add(new TouchPanel(this, client, new SignPanel.Sender() {
+            @Override
+            public void sendPng(byte[] png) {
+                sender.sendBytes("signature.png", png, "clipboard");
+            }
+        }));
         panels.add(stats);
-        panels.add(new PadPanel(this, client));
-        panels.add(new KeysPanel(this, client));
+        panels.add(new AppearancePanel(this, WatchService.prefs(this), new Runnable() {
+            @Override
+            public void run() {
+                rebuildDock();
+            }
+        }));
+        panels.add(updates);
         for (View p : panels) content.addView(p);
-        main.addView(content, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
-        LinearLayout.LayoutParams mlp = Ui.weight(1f);
-        mlp.leftMargin = pad;
-        dock.addView(main, mlp);
-        select(0);
-        return dock;
+        capture.setRecording(recording);
+        dock.addView(content, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        // The dock bar: rounded tiles in one row, centered, scrolling sideways on narrow phones.
+        dockBar = Ui.row(this);
+        int bp = Ui.dp(this, 6);
+        dockBar.setPadding(bp, bp, bp, bp);
+        dockBar.setBackground(Ui.rounded(this, 0x66101A2E, 24));
+        String[] names = {"Apps", "Playing", "Shortcuts", "Controls", "Capture", "Touch & sign", "Stats",
+            "Appearance", "Updates"};
+        Icon.Kind[] kinds = {Icon.Kind.APPS, Icon.Kind.MUSIC, Icon.Kind.SHORTCUTS, Icon.Kind.SLIDERS,
+            Icon.Kind.CAMERA, Icon.Kind.PEN, Icon.Kind.CHART, Icon.Kind.SUN, Icon.Kind.DOWNLOAD};
+        for (int i = 0; i < names.length; i++) {
+            final int index = i;
+            LinearLayout tile = Ui.dockTile(this, kinds[i], names[i]);
+            tile.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    select(index);
+                }
+            });
+            tabs.add(tile);
+            dockBar.addView(tile);
+        }
+        View divider = new View(this);
+        divider.setBackgroundColor(0x22FFFFFF);
+        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(Ui.dp(this, 1), Ui.dp(this, 40));
+        dlp.setMargins(Ui.dp(this, 6), 0, Ui.dp(this, 6), 0);
+        dockBar.addView(divider, dlp);
+        arrangeTile = Ui.dockTile(this, Icon.Kind.MOVE, "Arrange");
+        arrangeTile.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                boolean on = !apps.arranging();
+                select(APPS);
+                apps.setArrange(on);
+                arrangeTile.setSelected(on);
+            }
+        });
+        dockBar.addView(arrangeTile);
+        LinearLayout full = Ui.dockTile(this, Icon.Kind.EXPAND, "Fullscreen");
+        full.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                setFullscreen(true);
+            }
+        });
+        dockBar.addView(full);
+        android.widget.HorizontalScrollView scroll = new android.widget.HorizontalScrollView(this);
+        scroll.setHorizontalScrollBarEnabled(false);
+        scroll.addView(dockBar);
+        barScroll = scroll;
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        blp.gravity = Gravity.CENTER_HORIZONTAL;
+        blp.topMargin = Ui.dp(this, 8);
+        dock.addView(scroll, blp);
+        frame.addView(dock);
+
+        ImageView exit = Ui.iconButton(this, Icon.Kind.SHRINK, 44, 0x99101A2E, Ui.SURFACE_HI, Ui.TEXT);
+        exit.setContentDescription("Exit fullscreen");
+        exit.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                setFullscreen(false);
+            }
+        });
+        FrameLayout.LayoutParams elp = new FrameLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44),
+                Gravity.BOTTOM | Gravity.END);
+        elp.setMargins(0, 0, Ui.dp(this, 12), Ui.dp(this, 12));
+        exit.setVisibility(View.GONE);
+        frame.addView(exit, elp);
+        exitFull = exit;
+        select(APPS);
+        return frame;
+    }
+
+    /** Fullscreen hides the dock bar so the open page gets the whole screen. */
+    private void setFullscreen(boolean on) {
+        fullscreen = on;
+        barScroll.setVisibility(on ? View.GONE : View.VISIBLE);
+        exitFull.setVisibility(on ? View.VISIBLE : View.GONE);
+    }
+
+    private void leaveDock() {
+        WatchService.quietUntilOffline = true;  // do not reopen until the PC restarts
+        client.disconnect();
+        showConnect();
+        scan();
     }
 
     private void select(int index) {
+        current = index;
         for (int i = 0; i < panels.size(); i++) {
             panels.get(i).setVisibility(i == index ? View.VISIBLE : View.GONE);
-            Ui.setRailSelected(tabs.get(i), i == index);
+            tabs.get(i).setSelected(i == index);
         }
-        media.setActive(index == 1);
-        stats.setActive(index == 3);
-        if (index == 2) shortcuts.load();
+        if (index != APPS && apps.arranging()) {
+            apps.setArrange(false);
+            arrangeTile.setSelected(false);
+        }
+        media.setActive(index == PLAYING);
+        stats.setActive(index == STATS);
+        if (index == SHORTCUTS) shortcuts.load();
+        if (index == UPDATES) updates.refresh(false);
     }
 
     private void screenshot() {
@@ -652,11 +748,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
 
     private void setRecording(boolean on) {
         recording = on;
-        if (recordButton == null) return;
-        ImageView icon = (ImageView) recordButton.getChildAt(0);
-        icon.setImageDrawable(new Icon(on ? Icon.Kind.STOP : Icon.Kind.RECORD, on ? Ui.DANGER : Ui.MUTED));
-        ((TextView) recordButton.getChildAt(1)).setText(on ? "Stop" : "Record");
-        ((TextView) recordButton.getChildAt(1)).setTextColor(on ? Ui.DANGER : Ui.MUTED);
+        if (capture != null) capture.setRecording(on);
     }
 
     private void toast(String s) {
@@ -715,23 +807,15 @@ public final class MainActivity extends Activity implements DockClient.Listener 
 
     // Sending to the PC ----------------------------------------------------------
 
-    private void chooseSend() {
-        new AlertDialog.Builder(this).setTitle("Send to PC")
-                .setItems(new String[] {"Picture to the clipboard (paste with Ctrl+V)", "File to Downloads"},
-                        new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface d, int which) {
-                                Intent pick = new Intent(Intent.ACTION_GET_CONTENT);
-                                pick.addCategory(Intent.CATEGORY_OPENABLE);
-                                pick.setType(which == 0 ? "image/*" : "*/*");
-                                try {
-                                    startActivityForResult(Intent.createChooser(pick, "Choose"),
-                                            which == 0 ? PICK_PICTURE : PICK_FILE);
-                                } catch (RuntimeException ex) {
-                                    toast("No file picker on this phone");
-                                }
-                            }
-                        }).show();
+    private void pickToSend(boolean picture) {
+        Intent pick = new Intent(Intent.ACTION_GET_CONTENT);
+        pick.addCategory(Intent.CATEGORY_OPENABLE);
+        pick.setType(picture ? "image/*" : "*/*");
+        try {
+            startActivityForResult(Intent.createChooser(pick, "Choose"), picture ? PICK_PICTURE : PICK_FILE);
+        } catch (RuntimeException ex) {
+            toast("No file picker on this phone");
+        }
     }
 
     @Override

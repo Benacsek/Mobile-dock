@@ -214,6 +214,19 @@ class LinuxPlatform(Platform):
 
     # Foreground app and clipboard ------------------------------------------
 
+    def system(self, action: str) -> None:
+        commands = {
+            "lock": ["loginctl", "lock-session"],
+            "sleep": ["systemctl", "suspend"],
+            "display_off": ["hyprctl", "dispatch", "dpms", "off"],
+            "desktop": ["hyprctl", "dispatch", "workspace", "empty"],
+            "task_manager": ["hyprctl", "dispatch", "exec", "btop"] if not shutil.which("missioncenter")
+            else ["hyprctl", "dispatch", "exec", "missioncenter"],
+        }
+        if action not in commands:
+            raise PlatformError("Unknown control")
+        _run(commands[action], timeout=10)
+
     def foreground(self) -> dict:
         if not (os.environ.get("HYPRLAND_INSTANCE_SIGNATURE") and shutil.which("hyprctl")):
             return {}

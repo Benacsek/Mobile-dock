@@ -164,7 +164,7 @@ final class ShortcutsPanel extends LinearLayout {
             tile.setGravity(Gravity.CENTER);
             tile.setPadding(Ui.dp(c, 6), 0, Ui.dp(c, 6), 0);
             tile.setMaxLines(2);
-            tile.setBackground(Ui.pressable(c, Ui.SURFACE, 0xFF2E3B55, 14));
+            tile.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.SURFACE_HI, 14));
             tile.setClickable(true);
             tile.setOnClickListener(new OnClickListener() {
                 @Override

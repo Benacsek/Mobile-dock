@@ -63,8 +63,10 @@ def _autostart_set(enabled: bool) -> None:
                 pass
 
 
-BG, CARD, CARD_HI, ACCENT, TEXT, MUTED = "#0F1115", "#1A1D23", "#262A33", "#4F8CFF", "#E8EAED", "#9AA0A6"
-GREEN, GREEN_BG = "#3DDC84", "#16352A"
+# Same navy, glass and green as the phone dock.
+BG, CARD, CARD_HI, ACCENT, TEXT, MUTED = "#0B1220", "#131C2E", "#1D2940", "#34D399", "#E8EAED", "#9AA0A6"
+ACCENT_DARK, ON_ACCENT, PRESSED, GLOW_2 = "#2BAE80", "#0B1220", "#2A3852", "#A78BFA"
+GREEN, GREEN_BG = "#34D399", "#0F2E28"
 
 
 def apply_theme(root: tk.Tk) -> None:
@@ -95,15 +97,25 @@ def apply_theme(root: tk.Tk) -> None:
     style.configure("Muted.TLabel", background=CARD, foreground=MUTED)
     style.configure("Pin.TLabel", background=CARD, foreground=ACCENT, font=pin)
     style.configure("TButton", background=CARD_HI, foreground=TEXT, padding=(14, 7), borderwidth=0)
-    style.map("TButton", background=[("active", "#343A46"), ("pressed", "#343A46")])
-    style.configure("Accent.TButton", background=ACCENT, foreground="#FFFFFF")
-    style.map("Accent.TButton", background=[("active", "#3A6FD0"), ("pressed", "#3A6FD0")])
+    style.map("TButton", background=[("active", PRESSED), ("pressed", PRESSED)])
+    style.configure("Accent.TButton", background=ACCENT, foreground=ON_ACCENT)
+    style.map("Accent.TButton", background=[("active", ACCENT_DARK), ("pressed", ACCENT_DARK)])
     style.configure("TCheckbutton", background=BG, foreground=TEXT, indicatorbackground=CARD_HI,
                     indicatorforeground=TEXT)
     style.map("TCheckbutton", background=[("active", BG)], indicatorbackground=[("selected", ACCENT)])
     style.configure("TEntry", fieldbackground=CARD_HI, foreground=TEXT, insertcolor=TEXT, padding=6)
     style.configure("TCombobox", fieldbackground=CARD_HI, foreground=TEXT, background=CARD_HI, arrowcolor=TEXT)
     style.map("TCombobox", fieldbackground=[("readonly", CARD_HI)], foreground=[("readonly", TEXT)])
+
+
+def draw_glow(canvas: tk.Canvas, width: int) -> None:
+    canvas.delete("all")
+    a, b = [int(ACCENT[i:i + 2], 16) for i in (1, 3, 5)], [int(GLOW_2[i:i + 2], 16) for i in (1, 3, 5)]
+    steps = 48
+    for i in range(steps):
+        t = i / (steps - 1)
+        color = "#%02x%02x%02x" % tuple(round(a[k] + (b[k] - a[k]) * t) for k in range(3))
+        canvas.create_rectangle(width * i / steps, 0, width * (i + 1) / steps + 1, 3, fill=color, width=0)
 
 
 def card(parent, title: str, expand: bool = False) -> ttk.Frame:
@@ -115,7 +127,7 @@ def card(parent, title: str, expand: bool = False) -> ttk.Frame:
 
 def themed_listbox(parent, **kw) -> tk.Listbox:
     return tk.Listbox(parent, background=CARD_HI, foreground=TEXT, selectbackground=ACCENT,
-                      selectforeground="#FFFFFF", highlightthickness=0, borderwidth=0, activestyle="none", **kw)
+                      selectforeground=ON_ACCENT, highlightthickness=0, borderwidth=0, activestyle="none", **kw)
 
 
 class App:
@@ -137,10 +149,14 @@ class App:
         outer.pack(fill="both", expand=True)
 
         header = ttk.Frame(outer)
-        header.pack(fill="x", pady=(0, 12))
+        header.pack(fill="x", pady=(0, 6))
         ttk.Label(header, text="Mobile Dock", style="Title.TLabel").pack(side="left")
         self.status = ttk.Label(header, text="", style="Status.TLabel")
         self.status.pack(side="right")
+        # A thin green to purple line, the same glow colors as the phone dock.
+        self.glow = tk.Canvas(outer, height=3, background=BG, highlightthickness=0)
+        self.glow.pack(fill="x", pady=(0, 12))
+        self.glow.bind("<Configure>", lambda e: draw_glow(self.glow, e.width))
 
         # Big connection banner: green with the phone name when connected, grey when not.
         self.banner = tk.Frame(outer, background=CARD, padx=16, pady=12)

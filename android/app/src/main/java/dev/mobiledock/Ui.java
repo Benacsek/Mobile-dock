@@ -15,10 +15,93 @@ import android.widget.TextView;
 
 /** Colors and small view factories. The whole UI is built in code, so it works on every Android version. */
 final class Ui {
-    static final int BG = 0xFF0F1115;
-    static final int SURFACE = 0xFF1A1D23;
-    static final int SURFACE_HI = 0xFF262A33;
-    static final int ACCENT = 0xFF4F8CFF;
+    // Navy base with translucent glass tiles, so the background glow shows through.
+    static final int BG = 0xFF0B1220;
+    static final int SURFACE = 0x14FFFFFF;
+    static final int SURFACE_HI = 0x24FFFFFF;
+    /** Set from the Appearance page. Everything reads it when it is built. */
+    static int ACCENT = 0xFF34D399;
+    static float TILE_SCALE = 1f;
+    static boolean LABELS = true;
+    static boolean GLOW = true;
+
+    static final int[] ACCENTS = {0xFF34D399, 0xFF60A5FA, 0xFFA78BFA, 0xFFFB923C};
+    static final String[] ACCENT_NAMES = {"Green", "Blue", "Purple", "Orange"};
+    static final float[] TILE_SCALES = {0.85f, 1f, 1.2f};
+    static final String[] TILE_SCALE_NAMES = {"Compact", "Comfortable", "Large"};
+
+    static void loadTheme(android.content.SharedPreferences p) {
+        ACCENT = ACCENTS[Math.max(0, Math.min(ACCENTS.length - 1, p.getInt("accent", 0)))];
+        TILE_SCALE = TILE_SCALES[Math.max(0, Math.min(TILE_SCALES.length - 1, p.getInt("tile_scale", 1)))];
+        LABELS = p.getBoolean("labels", true);
+        GLOW = p.getBoolean("glow", true);
+    }
+
+    /** The accent, a little darker, for the pressed state. */
+    static int accentPressed() {
+        return android.graphics.Color.rgb(android.graphics.Color.red(ACCENT) * 4 / 5,
+                android.graphics.Color.green(ACCENT) * 4 / 5, android.graphics.Color.blue(ACCENT) * 4 / 5);
+    }
+
+    /** Text color that stays readable on the accent. */
+    static int onAccent() {
+        int r = android.graphics.Color.red(ACCENT), g = android.graphics.Color.green(ACCENT),
+                b = android.graphics.Color.blue(ACCENT);
+        return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? 0xFF0B1220 : 0xFFFFFFFF;
+    }
+
+    /** Navy background with two soft glows at the bottom, like the dock bar in the reference. */
+    static Drawable background(Context c) {
+        GradientDrawable base = new GradientDrawable();
+        base.setColor(BG);
+        if (!GLOW) return base;
+        int second = ACCENT == ACCENTS[2] ? ACCENTS[1] : ACCENTS[2];
+        return new android.graphics.drawable.LayerDrawable(new Drawable[] {
+            base, glow(c, ACCENT, 0.12f, 1.0f), glow(c, second, 0.88f, 1.0f),
+        });
+    }
+
+    private static Drawable glow(Context c, int color, float cx, float cy) {
+        GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[] {(color & 0x00FFFFFF) | 0x55000000, color & 0x00FFFFFF});
+        g.setGradientType(GradientDrawable.RADIAL_GRADIENT);
+        g.setGradientCenter(cx, cy);
+        g.setGradientRadius(dp(c, 260));
+        return g;
+    }
+
+    /** Rounded-square dock tile: line icon over a short label. */
+    static LinearLayout dockTile(Context c, Icon.Kind kind, String label) {
+        int size = dp(c, (LABELS ? 76 : 60) * TILE_SCALE);
+        LinearLayout tile = column(c);
+        tile.setGravity(Gravity.CENTER);
+        StateListDrawable bg = new StateListDrawable();
+        bg.addState(new int[] {android.R.attr.state_selected}, rounded(c, (ACCENT & 0x00FFFFFF) | 0x38000000, 18));
+        bg.addState(new int[] {android.R.attr.state_pressed}, rounded(c, SURFACE_HI, 18));
+        bg.addState(new int[] {}, rounded(c, SURFACE, 18));
+        tile.setBackground(bg);
+        tile.setClickable(true);
+        tile.setMinimumWidth(size);
+        int p = dp(c, 6);
+        tile.setPadding(p, p, p, p);
+        ImageView icon = new ImageView(c);
+        icon.setImageDrawable(new Icon(kind, TEXT));
+        int iconSize = dp(c, 26 * TILE_SCALE);
+        tile.addView(icon, new LinearLayout.LayoutParams(iconSize, iconSize));
+        TextView t = text(c, label, 11, TEXT);
+        t.setGravity(Gravity.CENTER);
+        t.setSingleLine(true);
+        t.setVisibility(LABELS ? View.VISIBLE : View.GONE);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(c, 6);
+        tile.addView(t, lp);
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(size, size);
+        int m = dp(c, 4);
+        tlp.setMargins(m, 0, m, 0);
+        tile.setLayoutParams(tlp);
+        return tile;
+    }
     static final int TEXT = 0xFFE8EAED;
     static final int MUTED = 0xFF9AA0A6;
     static final int DANGER = 0xFFE5484D;
@@ -68,7 +151,7 @@ final class Ui {
         b.setTextColor(TEXT);
         b.setAllCaps(false);
         b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        b.setBackground(pressable(c, SURFACE_HI, 0xFF343A46, 10));
+        b.setBackground(pressable(c, SURFACE_HI, 0x38FFFFFF, 14));
         b.setMinHeight(dp(c, 48));
         b.setMinimumHeight(dp(c, 48));
         b.setPadding(dp(c, 14), 0, dp(c, 14), 0);
@@ -77,7 +160,8 @@ final class Ui {
 
     static Button accentButton(Context c, String label) {
         Button b = button(c, label);
-        b.setBackground(pressable(c, ACCENT, 0xFF3A6FD0, 10));
+        b.setBackground(pressable(c, ACCENT, accentPressed(), 14));
+        b.setTextColor(onAccent());
         return b;
     }
 
@@ -137,38 +221,6 @@ final class Ui {
     /** Plain icon button with no fill until pressed. */
     static ImageView flatIcon(Context c, Icon.Kind kind, int sizeDp) {
         return iconButton(c, kind, sizeDp, 0x00000000, 0x33FFFFFF, TEXT);
-    }
-
-    /** Side rail entry: icon over a short label. Shows an accent pill when selected. */
-    static LinearLayout railItem(Context c, Icon.Kind kind, String label) {
-        LinearLayout item = column(c);
-        item.setGravity(Gravity.CENTER);
-        int p = dp(c, 6);
-        item.setPadding(p, p, p, p);
-        StateListDrawable bg = new StateListDrawable();
-        bg.addState(new int[] {android.R.attr.state_selected}, rounded(c, 0x334F8CFF, 14));
-        bg.addState(new int[] {android.R.attr.state_pressed}, rounded(c, SURFACE_HI, 14));
-        bg.addState(new int[] {}, rounded(c, 0x00000000, 14));
-        item.setBackground(bg);
-        item.setClickable(true);
-        ImageView icon = new ImageView(c);
-        icon.setImageDrawable(new Icon(kind, MUTED));
-        item.addView(icon, new LinearLayout.LayoutParams(dp(c, 26), dp(c, 26)));
-        TextView t = text(c, label, 11, MUTED);
-        t.setGravity(Gravity.CENTER);
-        t.setSingleLine(true);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = dp(c, 3);
-        item.addView(t, lp);
-        return item;
-    }
-
-    static void setRailSelected(LinearLayout item, boolean selected) {
-        item.setSelected(selected);
-        int color = selected ? ACCENT : MUTED;
-        ((Icon) ((ImageView) item.getChildAt(0)).getDrawable()).setColor(color);
-        ((TextView) item.getChildAt(1)).setTextColor(selected ? TEXT : MUTED);
     }
 
     static String initials(String name) {

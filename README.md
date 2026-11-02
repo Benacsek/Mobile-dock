@@ -17,11 +17,14 @@ It works on your local network or over USB. There is no account, no cloud servic
 - Open Spotify or another music app and the phone switches to Now playing. You see the album art, title, artist and album, a progress bar you can drag, and buttons for play, skip, shuffle, repeat and volume. It reads Windows media controls or MPRIS on Linux, so it needs no Spotify account.
 - Shortcuts: tiles for the app in front on the PC. Pads for Figma, VS Code, browsers and Windows are built in. The page switches by itself when you switch apps. Edit pads and add your own in the PC window.
 - Stats: live graphs for CPU, GPU, memory, network and disk, plus the busiest apps, like Task Manager. GPU load works for AMD, NVIDIA and Intel.
-- Send: share a photo to Mobile Dock from any app, or tap Send in the dock. Pictures go to the PC clipboard, so Ctrl+V pastes them into Figma. Other files land in Downloads/Mobile Dock.
-- Take a screenshot. It saves on the PC in Pictures/Mobile Dock.
-- Start and stop screen recording. Videos save in Videos/Mobile Dock.
-- Use the touchpad. Tap to click. Use two fingers to scroll or to right click.
-- Type on the PC. Use Ctrl, Alt, Shift and Win keys, arrows, F1 to F12 and common shortcuts.
+- Send: share a photo to Mobile Dock from any app, or use Capture in the dock. Pictures go to the PC clipboard, so Ctrl+V pastes them into Figma. Other files land in Downloads/Mobile Dock.
+- Controls: volume, mute, lock the PC, turn the screen off, sleep, show the desktop and open Task Manager. There is no shutdown button on purpose.
+- Capture: take a screenshot, snip a region, and start or stop screen recording. Screenshots save in Pictures/Mobile Dock, videos in Videos/Mobile Dock.
+- Touch & sign: the touchpad, the keyboard, and a signature pad. Sign with your finger, tap Send, and paste the signature into a PDF or document with Ctrl+V.
+- Appearance: pick the accent color, the tile size, the background glow and whether the dock shows labels.
+- Updates: see the phone and PC versions and check for updates now.
+- Arrange: tap a tile to pick it up and drop it in its new place, or on the red bar to unpin it.
+- Fullscreen: hide the dock bar so the open page gets the whole screen. Back brings the bar back.
 - Optional: turn on "Wake up and connect when my PC turns on". When your PC starts, or when you close and reopen the PC app, the phone turns its screen on, opens the dock and connects. It works best while the phone charges.
 
 The PC window shows a green banner with the phone's name, how it connects and since when.

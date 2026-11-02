@@ -17,7 +17,8 @@ final class Icon extends Drawable {
     enum Kind {
         PLAY, PAUSE, PREV, NEXT, SHUFFLE, REPEAT, REPEAT_ONE, VOL_DOWN, VOL_UP, MUTE,
         APPS, MUSIC, TOUCHPAD, KEYBOARD, CAMERA, RECORD, STOP, POWER, BACK, PLUS, REFRESH,
-        SHORTCUTS, CHART, SEND, FOLLOW
+        SHORTCUTS, CHART, SEND, FOLLOW,
+        SLIDERS, SUN, PENCIL, MONITOR, LOCK, MOON, PEN, PICTURE, FILE, SCISSORS, MOVE, EXPAND, SHRINK, DOWNLOAD
     }
 
     private final Kind kind;
@@ -190,6 +191,97 @@ final class Icon extends Drawable {
             case FOLLOW:
                 c.drawCircle(x(0.5f), y(0.5f), s * 0.3f, line);
                 c.drawCircle(x(0.5f), y(0.5f), s * 0.1f, fill);
+                break;
+            case SLIDERS:
+                for (int i = 0; i < 3; i++) {
+                    float xx = 0.26f + i * 0.24f, knob = new float[] {0.36f, 0.62f, 0.44f}[i];
+                    seg(c, xx, 0.18f, xx, 0.82f);
+                    seg(c, xx - 0.08f, knob, xx + 0.08f, knob);
+                }
+                break;
+            case SUN:
+                c.drawCircle(x(0.5f), y(0.5f), s * 0.14f, line);
+                for (int i = 0; i < 8; i++) {
+                    double a = i * Math.PI / 4;
+                    float cx = (float) Math.cos(a), cy = (float) Math.sin(a);
+                    seg(c, 0.5f + cx * 0.26f, 0.5f + cy * 0.26f, 0.5f + cx * 0.36f, 0.5f + cy * 0.36f);
+                }
+                break;
+            case PENCIL:
+                c.drawPath(poly(0.66f, 0.18f, 0.82f, 0.34f, 0.38f, 0.78f, 0.2f, 0.82f, 0.24f, 0.62f), line);
+                seg(c, 0.58f, 0.26f, 0.74f, 0.42f);
+                break;
+            case MONITOR:
+                c.drawRoundRect(box(0.14f, 0.2f, 0.86f, 0.66f), s * 0.07f, s * 0.07f, line);
+                seg(c, 0.5f, 0.66f, 0.5f, 0.8f);
+                seg(c, 0.34f, 0.82f, 0.66f, 0.82f);
+                break;
+            case LOCK:
+                c.drawRoundRect(box(0.24f, 0.46f, 0.76f, 0.84f), s * 0.07f, s * 0.07f, line);
+                c.drawArc(box(0.34f, 0.18f, 0.66f, 0.56f), 180, 180, false, line);
+                break;
+            case MOON:
+                c.drawArc(box(0.2f, 0.18f, 0.8f, 0.82f), 60, 260, false, line);
+                c.drawArc(box(0.42f, 0.16f, 0.86f, 0.62f), 120, 150, false, line);
+                break;
+            case PEN:
+                seg(c, 0.16f, 0.74f, 0.32f, 0.58f);
+                seg(c, 0.32f, 0.58f, 0.46f, 0.7f);
+                seg(c, 0.46f, 0.7f, 0.62f, 0.5f);
+                seg(c, 0.62f, 0.5f, 0.84f, 0.62f);
+                seg(c, 0.2f, 0.84f, 0.84f, 0.84f);
+                break;
+            case PICTURE:
+                c.drawRoundRect(box(0.14f, 0.22f, 0.86f, 0.78f), s * 0.07f, s * 0.07f, line);
+                c.drawPath(poly(0.2f, 0.72f, 0.42f, 0.46f, 0.56f, 0.6f, 0.66f, 0.5f, 0.8f, 0.72f), fill);
+                c.drawCircle(x(0.68f), y(0.36f), s * 0.05f, fill);
+                break;
+            case FILE:
+                c.drawPath(poly(0.26f, 0.14f, 0.6f, 0.14f, 0.76f, 0.3f, 0.76f, 0.86f, 0.26f, 0.86f), line);
+                seg(c, 0.36f, 0.5f, 0.66f, 0.5f);
+                seg(c, 0.36f, 0.66f, 0.66f, 0.66f);
+                break;
+            case SCISSORS:
+                c.drawCircle(x(0.3f), y(0.7f), s * 0.1f, line);
+                c.drawCircle(x(0.7f), y(0.7f), s * 0.1f, line);
+                seg(c, 0.36f, 0.62f, 0.72f, 0.16f);
+                seg(c, 0.64f, 0.62f, 0.28f, 0.16f);
+                break;
+            case MOVE:
+                seg(c, 0.5f, 0.14f, 0.5f, 0.86f);
+                seg(c, 0.14f, 0.5f, 0.86f, 0.5f);
+                c.drawPath(poly(0.5f, 0.1f, 0.4f, 0.24f, 0.6f, 0.24f), fill);
+                c.drawPath(poly(0.5f, 0.9f, 0.4f, 0.76f, 0.6f, 0.76f), fill);
+                c.drawPath(poly(0.1f, 0.5f, 0.24f, 0.4f, 0.24f, 0.6f), fill);
+                c.drawPath(poly(0.9f, 0.5f, 0.76f, 0.4f, 0.76f, 0.6f), fill);
+                break;
+            case EXPAND:
+                seg(c, 0.16f, 0.36f, 0.16f, 0.16f);
+                seg(c, 0.16f, 0.16f, 0.36f, 0.16f);
+                seg(c, 0.64f, 0.16f, 0.84f, 0.16f);
+                seg(c, 0.84f, 0.16f, 0.84f, 0.36f);
+                seg(c, 0.84f, 0.64f, 0.84f, 0.84f);
+                seg(c, 0.84f, 0.84f, 0.64f, 0.84f);
+                seg(c, 0.36f, 0.84f, 0.16f, 0.84f);
+                seg(c, 0.16f, 0.84f, 0.16f, 0.64f);
+                break;
+            case SHRINK:
+                seg(c, 0.16f, 0.36f, 0.36f, 0.36f);
+                seg(c, 0.36f, 0.36f, 0.36f, 0.16f);
+                seg(c, 0.64f, 0.16f, 0.64f, 0.36f);
+                seg(c, 0.64f, 0.36f, 0.84f, 0.36f);
+                seg(c, 0.84f, 0.64f, 0.64f, 0.64f);
+                seg(c, 0.64f, 0.64f, 0.64f, 0.84f);
+                seg(c, 0.36f, 0.84f, 0.36f, 0.64f);
+                seg(c, 0.36f, 0.64f, 0.16f, 0.64f);
+                break;
+            case DOWNLOAD:
+                seg(c, 0.5f, 0.14f, 0.5f, 0.62f);
+                seg(c, 0.32f, 0.46f, 0.5f, 0.64f);
+                seg(c, 0.68f, 0.46f, 0.5f, 0.64f);
+                seg(c, 0.18f, 0.66f, 0.18f, 0.84f);
+                seg(c, 0.18f, 0.84f, 0.82f, 0.84f);
+                seg(c, 0.82f, 0.84f, 0.82f, 0.66f);
                 break;
             case REFRESH:
             default:

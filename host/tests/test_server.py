@@ -235,3 +235,15 @@ def test_only_local_networks():
 def test_discovery_rate_limit(server):
     assert all(server._reply_ok("192.168.1.50") for _ in range(5))
     assert not server._reply_ok("192.168.1.50")
+
+
+def test_system_controls_and_update_status(server):
+    called = []
+    server.platform.system = lambda action: called.append(action)
+    channel, paired = pair(server, server.pairing.start())
+    assert "version" in paired
+    assert call(channel, "system", 1, action="lock")["ok"]
+    assert not call(channel, "system", 2, action="shutdown")["ok"]
+    assert called == ["lock"]
+    status = call(channel, "update.status", 3)
+    assert status["ok"] and "pc_version" in status

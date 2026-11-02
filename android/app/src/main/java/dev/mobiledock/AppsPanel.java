@@ -49,6 +49,8 @@ final class AppsPanel extends LinearLayout {
     private final LinearLayout grid;
     private final LinearLayout header;
     private final TextView removeZone;
+    private TextView hint;
+    private boolean arrange;
     private final TextView empty;
     private int columns = 5;
     private final IconCache icons;
@@ -69,7 +71,7 @@ final class AppsPanel extends LinearLayout {
         FrameLayout top = new FrameLayout(c);
         header = Ui.row(c);
         header.addView(Ui.title(c, "Pinned apps"));
-        TextView hint = Ui.text(c, "   Long press a tile to move it", 13, Ui.MUTED);
+        hint = Ui.text(c, "   Long press a tile to move it", 13, Ui.MUTED);
         header.addView(hint);
         header.addView(Ui.spacer(c));
         ImageView refresh = Ui.flatIcon(c, Icon.Kind.REFRESH, 44);
@@ -82,7 +84,7 @@ final class AppsPanel extends LinearLayout {
         header.addView(refresh);
         Button add = Ui.accentButton(c, "Add app");
         add.setCompoundDrawablePadding(Ui.dp(c, 6));
-        Icon plus = new Icon(Icon.Kind.PLUS, 0xFFFFFFFF);
+        Icon plus = new Icon(Icon.Kind.PLUS, Ui.onAccent());
         plus.setBounds(0, 0, Ui.dp(c, 18), Ui.dp(c, 18));
         add.setCompoundDrawables(plus, null, null, null);
         add.setOnClickListener(new OnClickListener() {
@@ -116,7 +118,7 @@ final class AppsPanel extends LinearLayout {
                 }
             }
         });
-        top.addView(removeZone, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(c, 56)));
+        top.addView(removeZone, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Ui.dp(c, 56 * Ui.TILE_SCALE)));
         addView(top, Ui.fillWidth(c, 4));
 
         empty = Ui.text(c, "No pinned apps yet. Tap + Add app.", 15, Ui.MUTED);
@@ -133,7 +135,7 @@ final class AppsPanel extends LinearLayout {
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
-        int cols = Math.max(3, w / Ui.dp(getContext(), 118));
+        int cols = Math.max(3, w / Ui.dp(getContext(), 118 * Ui.TILE_SCALE));
         if (cols != columns) {
             columns = cols;
             post(new Runnable() {
@@ -181,7 +183,7 @@ final class AppsPanel extends LinearLayout {
         for (int i = 0; i < apps.size(); i++) {
             if (i % columns == 0) {
                 row = Ui.row(c);
-                grid.addView(row, new LayoutParams(LayoutParams.MATCH_PARENT, Ui.dp(c, 116)));
+                grid.addView(row, new LayoutParams(LayoutParams.MATCH_PARENT, Ui.dp(c, 116 * Ui.TILE_SCALE)));
             }
             row.addView(tile(apps.get(i), i), cell(c));
         }
@@ -202,20 +204,21 @@ final class AppsPanel extends LinearLayout {
         LinearLayout t = Ui.column(c);
         t.setGravity(Gravity.CENTER);
         t.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.SURFACE_HI, 18));
+        if (arrange) t.setRotation(index % 2 == 0 ? -1.5f : 1.5f);
         t.setPadding(Ui.dp(c, 4), Ui.dp(c, 6), Ui.dp(c, 4), Ui.dp(c, 6));
 
         FrameLayout iconBox = new FrameLayout(c);
         TextView letters = Ui.text(c, Ui.initials(app.name), 20, Ui.TEXT);
         letters.setGravity(Gravity.CENTER);
         letters.setBackground(Ui.rounded(c, Ui.colorFor(app.id), 14));
-        iconBox.addView(letters, new FrameLayout.LayoutParams(Ui.dp(c, 56), Ui.dp(c, 56)));
+        iconBox.addView(letters, new FrameLayout.LayoutParams(Ui.dp(c, 56 * Ui.TILE_SCALE), Ui.dp(c, 56 * Ui.TILE_SCALE)));
         ImageView image = new ImageView(c);
         image.setScaleType(ImageView.ScaleType.FIT_CENTER);
         image.setBackgroundColor(Ui.SURFACE);
         image.setVisibility(GONE);
-        iconBox.addView(image, new FrameLayout.LayoutParams(Ui.dp(c, 56), Ui.dp(c, 56)));
+        iconBox.addView(image, new FrameLayout.LayoutParams(Ui.dp(c, 56 * Ui.TILE_SCALE), Ui.dp(c, 56 * Ui.TILE_SCALE)));
         icons.load(app.id, image);
-        t.addView(iconBox, new LayoutParams(Ui.dp(c, 56), Ui.dp(c, 56)));
+        t.addView(iconBox, new LayoutParams(Ui.dp(c, 56 * Ui.TILE_SCALE), Ui.dp(c, 56 * Ui.TILE_SCALE)));
 
         TextView label = Ui.text(c, app.name, 12, Ui.TEXT);
         label.setGravity(Gravity.CENTER);
@@ -228,6 +231,10 @@ final class AppsPanel extends LinearLayout {
         t.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
+                if (arrange) {
+                    startMove(v, app);
+                    return;
+                }
                 client.request("apps.launch", DockClient.args("app", app.id), new DockClient.Callback() {
                     @Override
                     public void done(JSONObject reply) {
@@ -242,11 +249,7 @@ final class AppsPanel extends LinearLayout {
             @Override
             @SuppressWarnings("deprecation")
             public boolean onLongClick(View v) {
-                header.setVisibility(INVISIBLE);
-                removeZone.setAlpha(0.7f);
-                removeZone.setVisibility(VISIBLE);
-                v.setAlpha(0.35f);
-                v.startDrag(ClipData.newPlainText("app", app.id), new DragShadowBuilder(v), app, 0);
+                startMove(v, app);
                 return true;
             }
         });
@@ -277,6 +280,27 @@ final class AppsPanel extends LinearLayout {
             }
         });
         return t;
+    }
+
+    @SuppressWarnings("deprecation")
+    private void startMove(View v, App app) {
+        header.setVisibility(INVISIBLE);
+        removeZone.setAlpha(0.7f);
+        removeZone.setVisibility(VISIBLE);
+        v.setAlpha(0.35f);
+        v.startDrag(ClipData.newPlainText("app", app.id), new DragShadowBuilder(v), app, 0);
+    }
+
+    /** Arrange mode: a tap picks a tile up instead of opening the app. */
+    void setArrange(boolean on) {
+        arrange = on;
+        hint.setText(on ? "   Arranging. Tap a tile, then drop it on its new place" : "   Long press a tile to move it");
+        hint.setTextColor(on ? Ui.ACCENT : Ui.MUTED);
+        rebuild();
+    }
+
+    boolean arranging() {
+        return arrange;
     }
 
     private void dragEnded() {

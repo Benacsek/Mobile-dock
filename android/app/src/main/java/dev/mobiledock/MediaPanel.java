@@ -170,7 +170,7 @@ final class MediaPanel extends LinearLayout {
     private ImageView control(Context c, Icon.Kind kind, int size, final String cmd, final String action,
                               boolean primary) {
         ImageView b = primary
-                ? Ui.iconButton(c, kind, size, Ui.ACCENT, 0xFF3A6FD0, 0xFFFFFFFF)
+                ? Ui.iconButton(c, kind, size, Ui.ACCENT, Ui.accentPressed(), Ui.onAccent())
                 : Ui.iconButton(c, kind, size, 0x00000000, 0x33FFFFFF, Ui.TEXT);
         LayoutParams lp = (LayoutParams) b.getLayoutParams();
         int m = Ui.dp(c, primary ? 12 : 4);
@@ -218,7 +218,7 @@ final class MediaPanel extends LinearLayout {
         album.setText(r.optString("album"));
         source.setText(appLabel(r.optString("app")));
         playing = r.optBoolean("playing");
-        play.setImageDrawable(new Icon(playing ? Icon.Kind.PAUSE : Icon.Kind.PLAY, 0xFFFFFFFF));
+        play.setImageDrawable(new Icon(playing ? Icon.Kind.PAUSE : Icon.Kind.PLAY, Ui.onAccent()));
         if (r.has("shuffle")) {
             shuffle.setVisibility(VISIBLE);
             shuffle.setSelected(r.optBoolean("shuffle"));
