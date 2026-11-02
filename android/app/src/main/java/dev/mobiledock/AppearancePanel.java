@@ -99,9 +99,29 @@ final class AppearancePanel extends ScrollView {
         }
         box.addView(dims, Ui.fillWidth(c, 4));
 
+        box.addView(section(c, "Vibrate when you press a button"));
+        LinearLayout buzz = Ui.row(c);
+        final int current = Haptics.length(prefs);
+        for (int i = 0; i < Haptics.LEVELS_MS.length; i++) {
+            final int ms = Haptics.LEVELS_MS[i];
+            Button b = Ui.button(c, Haptics.LEVEL_NAMES[i]);
+            if (current == ms) {
+                b.setBackground(Ui.pressable(c, Ui.ACCENT, Ui.accentPressed(), 14));
+                b.setTextColor(Ui.onAccent());
+            }
+            b.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Haptics.tick(getContext(), ms);  // feel it right away
+                    save(Haptics.PREF_MS, ms);
+                }
+            });
+            buzz.addView(b, new LinearLayout.LayoutParams(0, Ui.dp(c, 48), 1f));
+            if (i < Haptics.LEVELS_MS.length - 1) buzz.addView(new View(c), new LinearLayout.LayoutParams(Ui.dp(c, 8), 1));
+        }
+        box.addView(buzz, Ui.fillWidth(c, 4));
+
         box.addView(section(c, "Buttons"));
-        box.addView(toggle(c, "Vibrate when you press a button", Haptics.PREF,
-                prefs.getBoolean(Haptics.PREF, true)), Ui.fillWidth(c, 4));
         box.addView(toggle(c, "Phone volume buttons change the PC volume", PREF_VOLUME_KEYS,
                 prefs.getBoolean(PREF_VOLUME_KEYS, true)), Ui.fillWidth(c, 4));
     }

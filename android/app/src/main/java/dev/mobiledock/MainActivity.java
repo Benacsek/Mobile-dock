@@ -185,9 +185,9 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 return true;
             }
             swallowGesture = false;
-            if (isDocked() && WatchService.prefs(this).getBoolean(Haptics.PREF, true)
-                    && Haptics.onPressable(getWindow().getDecorView(), ev.getX(), ev.getY())) {
-                Haptics.tick(this);
+            int buzz = Haptics.length(WatchService.prefs(this));
+            if (buzz > 0 && isDocked() && Haptics.onPressable(getWindow().getDecorView(), ev.getX(), ev.getY())) {
+                Haptics.tick(this, buzz);
             }
             resetIdle();
         }

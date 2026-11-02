@@ -10,7 +10,16 @@ import android.widget.SeekBar;
 /** A short buzz when a button or tile is pressed, so the dock can be used without looking at it. */
 final class Haptics {
     static final String PREF = "haptic";
-    private static final int MS = 14;
+    static final String PREF_MS = "haptic_ms";
+    /** Off, light, medium, strong. Older phones have spinning motors that need about 30 ms to move at all. */
+    static final int[] LEVELS_MS = {0, 20, 40, 70};
+    static final String[] LEVEL_NAMES = {"Off", "Light", "Medium", "Strong"};
+
+    /** Buzz length in ms, 0 when off. Medium unless chosen otherwise. */
+    static int length(android.content.SharedPreferences p) {
+        if (p.contains(PREF_MS)) return p.getInt(PREF_MS, 40);
+        return p.getBoolean(PREF, true) ? 40 : 0;  // the old on/off switch from 1.2.43
+    }
 
     private Haptics() {
     }
@@ -41,10 +50,11 @@ final class Haptics {
     }
 
     @SuppressWarnings("deprecation")
-    static void tick(Context c) {
+    static void tick(Context c, int ms) {
+        if (ms <= 0) return;
         Vibrator v = (Vibrator) c.getSystemService(Context.VIBRATOR_SERVICE);
         if (v == null || !v.hasVibrator()) return;
-        if (Build.VERSION.SDK_INT >= 26) HapticCompat.tick(v, MS);
-        else v.vibrate(MS);
+        if (Build.VERSION.SDK_INT >= 26) HapticCompat.tick(v, ms);
+        else v.vibrate(ms);
     }
 }

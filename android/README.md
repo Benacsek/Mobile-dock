@@ -48,7 +48,7 @@ App icons all get the same rounded-square shape. Names can use two lines. The gr
 
 Night dimming: after 5 minutes without a touch, the dock dims to a quiet clock with the current song on black. The first touch brings the dock back and does not press anything. The clock moves a little every 20 seconds so no pixel stays lit in one place. Pick Off, 1, 5 or 15 minutes in Settings.
 
-Tap vibration: a short buzz when you press a tile or button, so you know it worked without looking. The touchpad, signature pad and sliders do not buzz. Turn it off in Settings.
+Tap vibration: a short buzz when you press a tile or button, so you know it worked without looking. The touchpad, signature pad and sliders do not buzz. In Settings pick Off, Light, Medium or Strong. The phone buzzes once when you pick, so you can feel it. Older phones need Medium or Strong, because their motors need about 30 ms to start.
 
 Volume buttons: while the dock is open and connected, the phone's volume buttons change the PC volume. Turn this off in Settings.
 
