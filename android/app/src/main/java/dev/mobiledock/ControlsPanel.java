@@ -198,7 +198,7 @@ final class ControlsPanel extends LinearLayout {
         t.addView(icon, new LinearLayout.LayoutParams(s, s));
         TextView l = Ui.text(c, label, 12, Ui.TEXT);
         l.setGravity(Gravity.CENTER);
-        l.setSingleLine(true);
+        Ui.fitLabel(l, 12);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.topMargin = Ui.dp(c, 6);

@@ -92,8 +92,8 @@ final class Ui {
         int iconSize = dp(c, 26 * TILE_SCALE);
         tile.addView(icon, new LinearLayout.LayoutParams(iconSize, iconSize));
         TextView t = text(c, label, 11, MUTED);
+        fitLabel(t, 11);
         t.setGravity(Gravity.CENTER);
-        t.setSingleLine(true);
         t.setVisibility(LABELS ? View.VISIBLE : View.GONE);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -142,6 +142,18 @@ final class Ui {
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
         t.setTextColor(color);
         return t;
+    }
+
+    /**
+     * Labels inside fixed-size tiles grow with the system text size up to 15 percent, then end in "…".
+     * Without the cap, large text would cut words in half.
+     */
+    static void fitLabel(TextView t, float sp) {
+        android.util.DisplayMetrics m = t.getResources().getDisplayMetrics();
+        float scale = Math.min(t.getResources().getConfiguration().fontScale, 1.15f);
+        t.setTextSize(TypedValue.COMPLEX_UNIT_PX, sp * m.density * scale);
+        t.setSingleLine(true);
+        t.setEllipsize(android.text.TextUtils.TruncateAt.END);
     }
 
     static TextView title(Context c, String s) {
