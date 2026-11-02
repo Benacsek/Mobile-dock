@@ -203,7 +203,6 @@ jobs:
           sparse-checkout: |
             CHANGELOG.md
             .github/scripts
-            host/mobiledock_host/updater.py
       - name: Version and notes from CHANGELOG.md
         run: python3 .github/scripts/release_notes.py --env --notes "$RUNNER_TEMP/notes.md" >> "$GITHUB_ENV"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -212,8 +211,6 @@ jobs:
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
-          # Private half of the update signing key. The PC apps refuse releases without its signature.
-          MDOCK_UPDATE_KEY: ${{ secrets.MDOCK_UPDATE_KEY }}
         run: |
           set -euo pipefail
           tag="v$VERSION"
@@ -237,8 +234,6 @@ jobs:
           fi
           printf '{"version":"%s","windows":{"file":"MobileDockHost.exe","sha256":"%s"},"android":%s}\n' \
             "$VERSION" "$exe_sha" "$android" > out/latest.json
-          python3 -m pip install --quiet "cryptography==50.0.2"
-          python3 .github/scripts/sign_manifest.py out/latest.json
           cat out/latest.json
           echo "TAG=$tag" >> "$GITHUB_ENV"
       - name: Attest build provenance
