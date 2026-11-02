@@ -22,6 +22,7 @@ import dev.mobiledock.proto.Crypto;
 final class IconCache {
     private final DockClient client;
     private final File dir;
+    private final java.util.Map<String, ImageView> waiting = new java.util.HashMap<String, ImageView>();
     private final LruCache<String, Bitmap> memory = new LruCache<String, Bitmap>(120);
     private final Set<String> missing = new HashSet<String>();
     private final Set<String> loading = new HashSet<String>();
@@ -41,9 +42,12 @@ final class IconCache {
     /** Shows the icon in view when it exists. Leaves the view hidden otherwise. */
     void load(final String appId, final ImageView view) {
         view.setTag(appId);
+        // The newest view for this app gets the icon, even if the grid was rebuilt while it loaded.
+        waiting.put(appId, view);
         Bitmap cached = memory.get(appId);
         if (cached == null) cached = fromDisk(appId);
         if (cached != null) {
+            waiting.remove(appId);
             show(view, cached);
             return;
         }
@@ -70,7 +74,8 @@ final class IconCache {
                 bmp = shape(bmp);
                 memory.put(appId, bmp);
                 save(appId, data);
-                if (appId.equals(view.getTag())) show(view, bmp);
+                ImageView target = waiting.remove(appId);
+                if (target != null && appId.equals(target.getTag())) show(target, bmp);
             }
         });
     }
