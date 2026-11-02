@@ -23,14 +23,14 @@ The `windows-media` extra powers Now playing on the phone: album art, progress, 
 ### First run
 
 1. Windows Firewall asks about network access. Allow it on private networks only.
-2. Click Pair new phone. A 6 digit PIN appears for 3 minutes.
-3. Under Pinned apps, click Add apps to choose what the phone shows. You can also do this from the phone.
+2. On the Phone tab, click Pair new phone. A 6 digit PIN appears with a 3 minute countdown.
+3. On the Apps tab, click Add apps to choose what the phone shows. You can also do this from the phone.
 4. Type that PIN in the phone app.
-5. Tick Start with Windows if you want the dock ready after every login.
+5. On the Settings tab, turn Start with Windows on if you want the dock ready after every login.
 
 ### Shortcut pads
 
-Click Edit shortcut pads in the window. Each pad has a name, the programs it belongs to (for example `Figma.exe`) and its tiles. Write a shortcut like `Ctrl+Shift+G`. Separate steps with commas, like `Win+Left, Enter`. The Windows pad is used when no other pad matches.
+On the Shortcuts tab, click Edit shortcut pads. Each pad has a name, the programs it belongs to (for example `Figma.exe`) and its tiles. Write a shortcut like `Ctrl+Shift+G`. Separate steps with commas, like `Win+Left, Enter`. The Windows pad is used when no other pad matches.
 
 Shortcuts with punctuation, such as `Ctrl+backslash`, use the key's position on a US keyboard. On another keyboard layout, pick the shortcut your app shows in its own menus.
 
@@ -105,7 +105,7 @@ Without wtype, typing falls back to the US layout and ASCII only.
 
 ## Updates
 
-The host checks the latest GitHub release of this repository at start and every 6 hours. Check for updates in the window runs it now.
+The host checks the latest GitHub release of this repository at start and every 6 hours. Check for updates on the Settings tab runs it now.
 
 - The Windows .exe replaces itself and restarts. Keep it in a folder you can write to, not Program Files.
 - Source installs on Windows or Linux do not replace themselves. Update them with `git pull` and `pipx install --force ./host`.
@@ -119,7 +119,7 @@ GitHub hides releases of a private repository from anyone who isn't signed in. T
 1. On GitHub, open Settings, Developer settings, Personal access tokens, Fine-grained tokens, and click Generate new token.
 2. Under Repository access, pick Only select repositories and choose Mobile-dock.
 3. Under Permissions, set Contents to Read-only. Leave everything else at No access.
-4. Copy the token. In the host window, click GitHub token and paste it.
+4. Copy the token. On the Settings tab, click Private repository token and paste it.
 
 The token is saved in the host config file. It can only read this one repository. On Linux you can set `MDOCK_GITHUB_TOKEN` instead.
 

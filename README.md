@@ -27,7 +27,7 @@ It works on your local network or over USB. There is no account, no cloud servic
 - Fullscreen: hide the dock bar so the open page gets the whole screen. Back brings the bar back.
 - Optional: turn on "Wake up and connect when my PC turns on". When your PC starts, or when you close and reopen the PC app, the phone turns its screen on, opens the dock and connects. It works best while the phone charges.
 
-The PC window shows a green banner with the phone's name, how it connects and since when.
+The PC window shows the connected phone in an amber badge at the top. The Phone tab lists how it connects and since when.
 
 ## Quick start
 
@@ -43,7 +43,7 @@ The phone remembers the PC. Next time it connects on its own.
 
 1. Turn on USB debugging on the phone and plug it in.
 2. Install Android platform-tools on the PC so the adb command works.
-3. Click Enable USB in the host window. On Linux, run `mobile-dock-host --headless --usb`.
+3. Click Use USB on the Phone tab of the host window. On Linux, run `mobile-dock-host --headless --usb`.
 4. Tap Connect over USB on the phone.
 
 This uses `adb reverse`, which needs Android 5.0 or newer. On Android 4.x, turn on USB tethering instead and connect by the PC address.

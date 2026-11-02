@@ -63,76 +63,125 @@ def _autostart_set(enabled: bool) -> None:
                 pass
 
 
-# Same navy, glass and green as the phone dock.
-BG, CARD, CARD_HI, ACCENT, TEXT, MUTED = "#0B1220", "#131C2E", "#1D2940", "#34D399", "#E8EAED", "#9AA0A6"
-ACCENT_DARK, ON_ACCENT, PRESSED, GLOW_2 = "#2BAE80", "#0B1220", "#2A3852", "#A78BFA"
-GREEN, GREEN_BG = "#34D399", "#0F2E28"
+# Three colors: graphite for surfaces, blue for actions and selection, amber for live state.
+BG, SURFACE, SURFACE_HI, LINE = "#16181C", "#1E2126", "#272B31", "#33383F"
+TEXT, MUTED, FAINT = "#E6E8EB", "#8B919A", "#5C626B"
+ACCENT, ACCENT_HOVER, ACCENT_PRESS, ON_ACCENT = "#4C8DF6", "#6A9FF8", "#3A74D4", "#FFFFFF"
+SIGNAL, SIGNAL_BG = "#F2B33D", "#2E2618"
+HOVER, PRESS = "#2F343B", "#383E46"
+# Old names, still used by the dialogs below.
+CARD, CARD_HI, GREEN = SURFACE, SURFACE_HI, SIGNAL
 
 
 def apply_theme(root: tk.Tk) -> None:
-    """Dark theme that matches the phone app."""
+    """Graphite theme with a blue accent and an amber signal color."""
     from tkinter import font as tkfont
 
     root.configure(background=BG)
     base = tkfont.nametofont("TkDefaultFont")
-    title = base.copy()
-    title.configure(size=base.cget("size") + 8, weight="bold")
-    pin = base.copy()
-    pin.configure(size=base.cget("size") + 20, weight="bold")
-    bold = base.copy()
-    bold.configure(weight="bold")
-    root._fonts = (title, pin, bold)  # keep references alive
+    family = base.cget("family")
+    if sys.platform == "win32":
+        family = "Segoe UI"
+        base.configure(family=family)
+    size = abs(int(base.cget("size"))) or 9
+    fonts = {
+        "body": tkfont.Font(family=family, size=size + 1),
+        "small": tkfont.Font(family=family, size=size),
+        "strong": tkfont.Font(family=family, size=size + 1, weight="bold"),
+        "h2": tkfont.Font(family=family, size=size + 4, weight="bold"),
+        "brand": tkfont.Font(family=family, size=size + 5, weight="bold"),
+        "pin": tkfont.Font(family=family, size=size + 18, weight="bold"),
+        "tab": tkfont.Font(family=family, size=size + 2),
+    }
+    root._fonts = fonts  # keep references alive
 
     style = ttk.Style(root)
     style.theme_use("clam")
-    style.configure(".", background=BG, foreground=TEXT, fieldbackground=CARD_HI, bordercolor=BG,
-                    lightcolor=BG, darkcolor=BG, troughcolor=CARD, focuscolor=ACCENT)
+    style.configure(".", background=BG, foreground=TEXT, fieldbackground=SURFACE_HI, bordercolor=LINE,
+                    lightcolor=BG, darkcolor=BG, troughcolor=SURFACE, focuscolor=ACCENT, font=fonts["body"])
     style.configure("TFrame", background=BG)
-    style.configure("Card.TFrame", background=CARD)
+    style.configure("Card.TFrame", background=SURFACE)
     style.configure("TLabel", background=BG, foreground=TEXT)
-    style.configure("Title.TLabel", font=title)
-    style.configure("Status.TLabel", foreground=MUTED)
     style.configure("Footer.TLabel", foreground=MUTED)
-    style.configure("CardTitle.TLabel", background=CARD, font=bold)
-    style.configure("Muted.TLabel", background=CARD, foreground=MUTED)
-    style.configure("Pin.TLabel", background=CARD, foreground=ACCENT, font=pin)
-    style.configure("TButton", background=CARD_HI, foreground=TEXT, padding=(14, 7), borderwidth=0)
-    style.map("TButton", background=[("active", PRESSED), ("pressed", PRESSED)])
+    style.configure("TButton", background=SURFACE_HI, foreground=TEXT, padding=(14, 7), borderwidth=0)
+    style.map("TButton", background=[("active", HOVER), ("pressed", PRESS)])
     style.configure("Accent.TButton", background=ACCENT, foreground=ON_ACCENT)
-    style.map("Accent.TButton", background=[("active", ACCENT_DARK), ("pressed", ACCENT_DARK)])
-    style.configure("TCheckbutton", background=BG, foreground=TEXT, indicatorbackground=CARD_HI,
+    style.map("Accent.TButton", background=[("active", ACCENT_HOVER), ("pressed", ACCENT_PRESS)])
+    style.configure("TCheckbutton", background=BG, foreground=TEXT, indicatorbackground=SURFACE_HI,
                     indicatorforeground=TEXT)
     style.map("TCheckbutton", background=[("active", BG)], indicatorbackground=[("selected", ACCENT)])
-    style.configure("TEntry", fieldbackground=CARD_HI, foreground=TEXT, insertcolor=TEXT, padding=6)
-    style.configure("TCombobox", fieldbackground=CARD_HI, foreground=TEXT, background=CARD_HI, arrowcolor=TEXT)
-    style.map("TCombobox", fieldbackground=[("readonly", CARD_HI)], foreground=[("readonly", TEXT)])
+    style.configure("TEntry", fieldbackground=SURFACE_HI, foreground=TEXT, insertcolor=TEXT, padding=6)
+    style.configure("TCombobox", fieldbackground=SURFACE_HI, foreground=TEXT, background=SURFACE_HI, arrowcolor=TEXT)
+    style.map("TCombobox", fieldbackground=[("readonly", SURFACE_HI)], foreground=[("readonly", TEXT)])
+    style.configure("Vertical.TScrollbar", background=SURFACE_HI, troughcolor=SURFACE, arrowcolor=MUTED)
 
 
-def draw_glow(canvas: tk.Canvas, width: int) -> None:
-    canvas.delete("all")
-    a, b = [int(ACCENT[i:i + 2], 16) for i in (1, 3, 5)], [int(GLOW_2[i:i + 2], 16) for i in (1, 3, 5)]
-    steps = 48
-    for i in range(steps):
-        t = i / (steps - 1)
-        color = "#%02x%02x%02x" % tuple(round(a[k] + (b[k] - a[k]) * t) for k in range(3))
-        canvas.create_rectangle(width * i / steps, 0, width * (i + 1) / steps + 1, 3, fill=color, width=0)
+class FlatButton(tk.Label):
+    """Flat button with hover, press and a keyboard focus ring. Space or Enter clicks it."""
+
+    KINDS = {
+        "primary": (ACCENT, ACCENT_HOVER, ACCENT_PRESS, ON_ACCENT),
+        "secondary": (SURFACE_HI, HOVER, PRESS, TEXT),
+        "ghost": (None, SURFACE_HI, HOVER, MUTED),
+    }
+
+    def __init__(self, parent, text: str, command, kind: str = "secondary", bg: str = SURFACE):
+        base, hover, press, fg = self.KINDS[kind]
+        base = base or bg
+        super().__init__(parent, text=text, background=base, foreground=fg, padx=16, pady=7, cursor="hand2",
+                         takefocus=1, highlightthickness=1, highlightbackground=base, highlightcolor=ACCENT,
+                         font=parent.winfo_toplevel()._fonts["strong" if kind == "primary" else "body"])
+        self._colors, self._command, self._inside = (base, hover, press), command, False
+        self.bind("<Enter>", lambda e: self._paint(1, True))
+        self.bind("<Leave>", lambda e: self._paint(0, False))
+        self.bind("<ButtonPress-1>", lambda e: self._paint(2, True))
+        self.bind("<ButtonRelease-1>", self._release)
+        self.bind("<Return>", lambda e: self._command())
+        self.bind("<space>", lambda e: self._command())
+
+    def _paint(self, state: int, inside: bool) -> None:
+        self._inside = inside
+        self.configure(background=self._colors[state])
+
+    def _release(self, _event) -> None:
+        self._paint(1 if self._inside else 0, self._inside)
+        if self._inside:
+            self._command()
 
 
-def card(parent, title: str, expand: bool = False) -> ttk.Frame:
-    box = ttk.Frame(parent, style="Card.TFrame", padding=14)
-    box.pack(fill="both" if expand else "x", expand=expand, pady=(0, 12))
-    ttk.Label(box, text=title, style="CardTitle.TLabel").pack(anchor="w", pady=(0, 8))
+def section(parent, title: str, hint: str = "") -> tk.Frame:
+    """A surface block with a title, optional hint, and a body frame to fill."""
+    fonts = parent.winfo_toplevel()._fonts
+    box = tk.Frame(parent, background=SURFACE, padx=20, pady=18)
+    tk.Label(box, text=title, background=SURFACE, foreground=TEXT, font=fonts["h2"], anchor="w").pack(fill="x")
+    if hint:
+        tk.Label(box, text=hint, background=SURFACE, foreground=MUTED, font=fonts["small"], anchor="w",
+                 justify="left").pack(fill="x", pady=(2, 0))
+    body = tk.Frame(box, background=SURFACE)
+    body.pack(fill="both", expand=True, pady=(14, 0))
+    box.body = body
     return box
 
 
 def themed_listbox(parent, **kw) -> tk.Listbox:
-    return tk.Listbox(parent, background=CARD_HI, foreground=TEXT, selectbackground=ACCENT,
-                      selectforeground=ON_ACCENT, highlightthickness=0, borderwidth=0, activestyle="none", **kw)
+    return tk.Listbox(parent, background=SURFACE_HI, foreground=TEXT, selectbackground=ACCENT,
+                      selectforeground=ON_ACCENT, highlightthickness=0, borderwidth=0, activestyle="none",
+                      **{"font": parent.winfo_toplevel()._fonts["body"], **kw})
+
+
+def dot(parent, color: str, bg: str, size: int = 10) -> tk.Canvas:
+    c = tk.Canvas(parent, width=size, height=size, background=bg, highlightthickness=0)
+    c.create_oval(1, 1, size - 1, size - 1, fill=color, outline="")
+    return c
 
 
 class App:
+    TABS = ("Phone", "Apps", "Shortcuts", "Settings")
+
     def __init__(self, server: DockServer, events: "queue.Queue[tuple[str, str]]", minimized: bool = False,
                  updater=None, restart: threading.Event | None = None):
+        from . import __version__
+
         self.server = server
         self.events = events
         self.updater = updater
@@ -141,110 +190,192 @@ class App:
         self.root = tk.Tk()
         self.root.title("Mobile Dock")
         self.pin_job = None
+        self.update_label = None
 
         apply_theme(self.root)
-        self.root.minsize(720, 460)
+        f = self.root._fonts
+        self.root.minsize(760, 660)
+        self.root.geometry("860x700")
 
-        outer = ttk.Frame(self.root, padding=16)
-        outer.pack(fill="both", expand=True)
+        # Top bar: brand on the left, live connection on the right.
+        top = tk.Frame(self.root, background=BG, padx=24, pady=18)
+        top.pack(fill="x")
+        mark = tk.Canvas(top, width=28, height=28, background=BG, highlightthickness=0)
+        for x, y, color in ((2, 2, ACCENT), (15, 2, ACCENT), (2, 15, ACCENT), (15, 15, SIGNAL)):
+            mark.create_rectangle(x, y, x + 11, y + 11, fill=color, outline="")  # four dock tiles
+        mark.pack(side="left")
+        tk.Label(top, text="Mobile Dock", background=BG, foreground=TEXT, font=f["brand"]).pack(side="left", padx=(10, 0))
+        self.pill = tk.Frame(top, background=SURFACE, padx=14, pady=7)
+        self.pill.pack(side="right")
+        self.pill_dot = tk.Canvas(self.pill, width=10, height=10, background=SURFACE, highlightthickness=0)
+        self.pill_dot.pack(side="left", padx=(0, 8))
+        self.pill_text = tk.Label(self.pill, text="", background=SURFACE, foreground=MUTED, font=f["body"])
+        self.pill_text.pack(side="left")
 
-        header = ttk.Frame(outer)
-        header.pack(fill="x", pady=(0, 6))
-        ttk.Label(header, text="Mobile Dock", style="Title.TLabel").pack(side="left")
-        self.status = ttk.Label(header, text="", style="Status.TLabel")
-        self.status.pack(side="right")
-        # A thin green to purple line, the same glow colors as the phone dock.
-        self.glow = tk.Canvas(outer, height=3, background=BG, highlightthickness=0)
-        self.glow.pack(fill="x", pady=(0, 12))
-        self.glow.bind("<Configure>", lambda e: draw_glow(self.glow, e.width))
+        # Tabs with a blue underline on the active one.
+        tabbar = tk.Frame(self.root, background=BG, padx=24)
+        tabbar.pack(fill="x")
+        self.tab_labels, self.tab_lines, self.pages = [], [], []
+        for i, name in enumerate(self.TABS):
+            cell = tk.Frame(tabbar, background=BG)
+            cell.pack(side="left", padx=(0, 22))
+            lbl = tk.Label(cell, text=name, background=BG, foreground=MUTED, font=f["tab"], cursor="hand2",
+                           takefocus=1, highlightthickness=0)
+            lbl.pack(pady=(0, 6))
+            line = tk.Frame(cell, background=BG, height=2)
+            line.pack(fill="x")
+            lbl.bind("<Button-1>", lambda e, k=i: self.show_tab(k))
+            lbl.bind("<Return>", lambda e, k=i: self.show_tab(k))
+            self.tab_labels.append(lbl)
+            self.tab_lines.append(line)
+        tk.Frame(self.root, background=LINE, height=1).pack(fill="x", padx=24)
 
-        # Big connection banner: green with the phone name when connected, grey when not.
-        self.banner = tk.Frame(outer, background=CARD, padx=16, pady=12)
-        self.banner.pack(fill="x", pady=(0, 12))
-        self.banner_dot = tk.Canvas(self.banner, width=18, height=18, background=CARD, highlightthickness=0)
-        self.banner_dot.pack(side="left", padx=(0, 12))
-        texts = tk.Frame(self.banner, background=CARD)
-        texts.pack(side="left", fill="x", expand=True)
-        self.banner_title = tk.Label(texts, text="", background=CARD, foreground=TEXT, anchor="w",
-                                     font=self.root._fonts[2])
-        self.banner_title.pack(fill="x")
-        self.banner_sub = tk.Label(texts, text="", background=CARD, foreground=MUTED, anchor="w")
-        self.banner_sub.pack(fill="x")
-        self._banner_widgets = (self.banner, self.banner_dot, texts, self.banner_title, self.banner_sub)
+        # Status line at the bottom.
+        foot = tk.Frame(self.root, background=SURFACE, padx=24, pady=8)
+        foot.pack(fill="x", side="bottom")
+        self.status = tk.Label(foot, text="", background=SURFACE, foreground=MUTED, font=f["small"], anchor="w")
+        self.status.pack(side="left", fill="x", expand=True)
+        tk.Label(foot, text=f"v{__version__}", background=SURFACE, foreground=FAINT, font=f["small"]).pack(side="right")
 
-        columns = ttk.Frame(outer)
-        columns.pack(fill="both", expand=True)
-        left = ttk.Frame(columns)
-        left.pack(side="left", fill="both", expand=True, padx=(0, 8))
-        right = ttk.Frame(columns)
-        right.pack(side="left", fill="both", expand=True, padx=(8, 0))
+        body = tk.Frame(self.root, background=BG, padx=24, pady=20)
+        body.pack(fill="both", expand=True)
+        for build in (self._phone_page, self._apps_page, self._pads_page, self._settings_page):
+            page = tk.Frame(body, background=BG)
+            build(page)
+            self.pages.append(page)
 
-        conn = card(left, "Connect a phone")
-        addrs = ", ".join(local_addresses()) or "no network"
-        ttk.Label(conn, text=f"{server.config.data['host_name']}   {addrs}   port {server.port}",
-                  style="Muted.TLabel").pack(anchor="w")
-        self.pin_label = ttk.Label(conn, text="No active PIN", style="Pin.TLabel")
-        self.pin_label.pack(anchor="w", pady=(10, 10))
-        row = ttk.Frame(conn, style="Card.TFrame")
-        row.pack(fill="x")
-        ttk.Button(row, text="Pair new phone", style="Accent.TButton", command=self.start_pairing).pack(side="left")
-        ttk.Button(row, text="Enable USB", command=self.usb).pack(side="left", padx=8)
-
-        dev = card(left, "Paired phones", expand=True)
-        self.devices = themed_listbox(dev, height=4)
-        self.devices.pack(fill="both", expand=True)
-        ttk.Button(dev, text="Remove selected", command=self.remove_device).pack(anchor="e", pady=(8, 0))
-
-        apps = card(right, "Pinned apps on the phone", expand=True)
-        self.pinned = themed_listbox(apps, height=10)
-        self.pinned.pack(fill="both", expand=True)
-        buttons = ttk.Frame(apps, style="Card.TFrame")
-        buttons.pack(fill="x", pady=(8, 0))
-        ttk.Button(buttons, text="Add apps", style="Accent.TButton", command=self.add_apps).pack(side="left")
-        ttk.Button(buttons, text="Up", command=lambda: self.move_pinned(-1)).pack(side="left", padx=(8, 0))
-        ttk.Button(buttons, text="Down", command=lambda: self.move_pinned(1)).pack(side="left", padx=(8, 0))
-        ttk.Button(buttons, text="Unpin", command=self.unpin).pack(side="right")
-
-        pads_card = card(right, "Shortcut pads")
-        ttk.Label(pads_card, text="Buttons the phone shows for the app in front.", style="Muted.TLabel").pack(anchor="w")
-        ttk.Button(pads_card, text="Edit shortcut pads", command=self.edit_pads).pack(anchor="w", pady=(8, 0))
-
-        footer = ttk.Frame(outer)
-        footer.pack(fill="x", pady=(12, 0))
-        if sys.platform == "win32":
-            self.autostart = tk.BooleanVar(value=_autostart_get())
-            ttk.Checkbutton(footer, text="Start with Windows", variable=self.autostart,
-                            command=lambda: _autostart_set(self.autostart.get())).pack(side="left")
-        if updater is not None:
-            ttk.Button(footer, text="Check for updates", command=self.check_updates).pack(side="right")
-            ttk.Button(footer, text="GitHub token", command=self.set_token).pack(side="right", padx=8)
-            self.update_label = ttk.Label(footer, text=updater.status, style="Footer.TLabel")
-            self.update_label.pack(side="right", padx=8)
-
+        self.show_tab(0)
         self.refresh_devices()
         self.refresh_pinned()
+        self.refresh_pads()
         if minimized:
             self.root.iconify()
         self.root.after(200, self.poll_events)
 
+    # Pages -------------------------------------------------------------
+
+    def _phone_page(self, page: tk.Frame) -> None:
+        f = self.root._fonts
+        addrs = ", ".join(local_addresses()) or "no network"
+        pair = section(page, "Pair a phone", f"Open Mobile Dock on the phone and type this PIN.   "
+                       f"{self.server.config.data['host_name']}  ·  {addrs}  ·  port {self.server.port}")
+        pair.pack(fill="x", pady=(0, 16))
+        digits = tk.Frame(pair.body, background=SURFACE)
+        digits.pack(side="left")
+        self.pin_boxes = []
+        for i in range(6):
+            box = tk.Label(digits, text="·", width=2, background=SURFACE_HI, foreground=FAINT, font=f["pin"])
+            box.pack(side="left", padx=(0, 14 if i == 2 else 6))
+            self.pin_boxes.append(box)
+        side = tk.Frame(pair.body, background=SURFACE)
+        side.pack(side="left", fill="both", expand=True, padx=(18, 0))
+        self.pin_hint = tk.Label(side, text="No active PIN", background=SURFACE, foreground=MUTED,
+                                 font=f["body"], anchor="w")
+        self.pin_hint.pack(fill="x", pady=(2, 10))
+        FlatButton(side, "Pair new phone", self.start_pairing, "primary").pack(anchor="w")
+        FlatButton(side, "Use USB", self.usb, "ghost").pack(anchor="w", pady=(6, 0))
+
+        phones = section(page, "Paired phones", "A connected phone shows an amber dot.")
+        phones.pack(fill="both", expand=True)
+        self.device_rows = phones.body
+
+    def _apps_page(self, page: tk.Frame) -> None:
+        apps = section(page, "Pinned apps", "The phone shows these tiles in this order.")
+        apps.pack(fill="both", expand=True)
+        wrap = tk.Frame(apps.body, background=SURFACE)
+        wrap.pack(fill="both", expand=True)
+        self.pinned = themed_listbox(wrap, height=10, font=self.root._fonts["tab"])
+        self.pinned.pack(side="left", fill="both", expand=True)
+        side = tk.Frame(wrap, background=SURFACE)
+        side.pack(side="left", fill="y", padx=(14, 0))
+        FlatButton(side, "Add apps", self.add_apps, "primary").pack(fill="x")
+        FlatButton(side, "Move up", lambda: self.move_pinned(-1)).pack(fill="x", pady=(14, 0))
+        FlatButton(side, "Move down", lambda: self.move_pinned(1)).pack(fill="x", pady=(6, 0))
+        FlatButton(side, "Unpin", self.unpin, "ghost").pack(fill="x", pady=(14, 0))
+        self.pinned_count = tk.Label(apps.body, text="", background=SURFACE, foreground=FAINT,
+                                     font=self.root._fonts["small"], anchor="w")
+        self.pinned_count.pack(fill="x", pady=(10, 0))
+
+    def _pads_page(self, page: tk.Frame) -> None:
+        pads = section(page, "Shortcut pads", "Buttons the phone shows for the app in front. "
+                       "Write shortcuts like Ctrl+Shift+G.")
+        pads.pack(fill="both", expand=True)
+        head = tk.Frame(pads.body, background=SURFACE)
+        head.pack(fill="x")
+        FlatButton(head, "Edit shortcut pads", self.edit_pads, "primary").pack(side="left")
+        self.pad_rows = tk.Frame(pads.body, background=SURFACE)
+        self.pad_rows.pack(fill="both", expand=True, pady=(14, 0))
+
+    def _settings_page(self, page: tk.Frame) -> None:
+        f = self.root._fonts
+        if sys.platform == "win32":
+            start = section(page, "Start with Windows", "Keeps the dock ready after every login.")
+            start.pack(fill="x", pady=(0, 16))
+            self.autostart = tk.BooleanVar(value=_autostart_get())
+            self.toggle = tk.Label(start.body, background=SURFACE, font=f["strong"], padx=16, pady=6,
+                                   cursor="hand2", takefocus=1)
+            self.toggle.pack(anchor="w")
+            self.toggle.bind("<Button-1>", lambda e: self.flip_autostart())
+            self.toggle.bind("<space>", lambda e: self.flip_autostart())
+            self._paint_toggle()
+        if self.updater is not None:
+            up = section(page, "Updates", "Checks this project's GitHub releases at start and every 6 hours.")
+            up.pack(fill="x")
+            self.update_label = tk.Label(up.body, text=self.updater.status, background=SURFACE, foreground=TEXT,
+                                         font=f["body"], anchor="w")
+            self.update_label.pack(fill="x", pady=(0, 14))
+            row = tk.Frame(up.body, background=SURFACE)
+            row.pack(fill="x")
+            FlatButton(row, "Check for updates", self.check_updates, "primary").pack(side="left")
+            FlatButton(row, "Private repository token", self.set_token, "ghost").pack(side="left", padx=8)
+
+    def show_tab(self, index: int) -> None:
+        for i, page in enumerate(self.pages):
+            on = i == index
+            if on:
+                page.pack(fill="both", expand=True)
+            else:
+                page.pack_forget()
+            self.tab_labels[i].configure(foreground=TEXT if on else MUTED)
+            self.tab_lines[i].configure(background=ACCENT if on else BG)
+
+    def flip_autostart(self) -> None:
+        self.autostart.set(not self.autostart.get())
+        _autostart_set(self.autostart.get())
+        self._paint_toggle()
+
+    def _paint_toggle(self) -> None:
+        on = self.autostart.get()
+        self.toggle.configure(text="On" if on else "Off", background=ACCENT if on else SURFACE_HI,
+                              foreground=ON_ACCENT if on else MUTED)
+
+    # Phone page -----------------------------------------------------------
+
     def run(self) -> None:
         self.root.mainloop()
 
+    def _show_pin(self, pin: str | None) -> None:
+        for i, box in enumerate(self.pin_boxes):
+            box.configure(text=pin[i] if pin else "·", foreground=TEXT if pin else FAINT)
+
     def start_pairing(self) -> None:
-        pin = self.server.pairing.start()
-        self.pin_label.config(text=f"{pin[:3]} {pin[3:]}")
-        self.status.config(text="Type this PIN on your phone. It works for 3 minutes.")
+        self._show_pin(self.server.pairing.start())
+        self.show_tab(0)
         if self.pin_job:
             self.root.after_cancel(self.pin_job)
-        self.pin_job = self.root.after(1000, self.check_pin)
+        self.check_pin()
 
     def check_pin(self) -> None:
+        import time as _time
+
         if self.server.pairing.current():
+            left = max(0, int(self.server.pairing.expires - _time.monotonic()))
+            self.pin_hint.configure(text=f"Expires in {left // 60}:{left % 60:02d}", foreground=SIGNAL)
             self.pin_job = self.root.after(1000, self.check_pin)
         else:
-            self.pin_label.config(text="No active PIN")
+            self._show_pin(None)
+            self.pin_hint.configure(text="No active PIN", foreground=MUTED)
             self.pin_job = None
-            self.status.config(text="")
             self.refresh_devices()
 
     def usb(self) -> None:
@@ -254,46 +385,63 @@ class App:
         threading.Thread(target=work, daemon=True).start()
 
     def refresh_devices(self) -> None:
-        self.device_ids = list(self.server.config.devices().items())
-        self.devices.delete(0, "end")
-        live = self.server.connected_sessions()
-        live_ids = {s["id"] for s in live}
-        for device_id, name in self.device_ids:
-            self.devices.insert("end", f"{name}    ●  connected" if device_id in live_ids else name)
-            if device_id in live_ids:
-                self.devices.itemconfig("end", foreground=GREEN)
-        self.show_connection(live)
-
-    def show_connection(self, live: list[dict]) -> None:
         import time as _time
 
+        f = self.root._fonts
+        self.device_ids = list(self.server.config.devices().items())
+        live = {s["id"]: s for s in self.server.connected_sessions()}
+        for child in self.device_rows.winfo_children():
+            child.destroy()
+        if not self.device_ids:
+            tk.Label(self.device_rows, text="No phones yet. Click Pair new phone to add one.", background=SURFACE,
+                     foreground=MUTED, font=f["body"], anchor="w").pack(fill="x")
+        for device_id, name in self.device_ids:
+            s = live.get(device_id)
+            row = tk.Frame(self.device_rows, background=SURFACE_HI, padx=14, pady=10)
+            row.pack(fill="x", pady=(0, 6))
+            FlatButton(row, "Remove", lambda d=device_id, n=name: self.remove_device(d, n), "ghost",
+                       bg=SURFACE_HI).pack(side="right")
+            dot(row, SIGNAL if s else FAINT, SURFACE_HI).pack(side="left", padx=(0, 12))
+            texts = tk.Frame(row, background=SURFACE_HI)
+            texts.pack(side="left", fill="x", expand=True)
+            tk.Label(texts, text=name, background=SURFACE_HI, foreground=TEXT, font=f["strong"], anchor="w").pack(fill="x")
+            sub = (f"Connected  ·  {s['via']}  ·  since {_time.strftime('%H:%M', _time.localtime(s['since']))}"
+                   if s else "Offline")
+            tk.Label(texts, text=sub, background=SURFACE_HI, foreground=SIGNAL if s else MUTED, font=f["small"],
+                     anchor="w", justify="left").pack(fill="x")
+        self.show_connection(list(live.values()))
+
+    def show_connection(self, live: list[dict]) -> None:
         if live:
-            bg, fg = GREEN_BG, GREEN
             names = ", ".join(s["name"] for s in live)
-            title = f"Connected to {names}"
-            first = live[0]
-            sub = f"{first['via']}   since {_time.strftime('%H:%M', _time.localtime(first['since']))}"
+            text, color, bg = f"Connected to {names}", SIGNAL, SIGNAL_BG
             self.root.title(f"Mobile Dock  ●  {names}")
         else:
-            bg, fg = CARD, MUTED
-            title = "No phone connected"
-            sub = "Open Mobile Dock on your phone. It connects on its own once paired."
+            text, color, bg = "No phone connected", FAINT, SURFACE
             self.root.title("Mobile Dock")
-        for w in self._banner_widgets:
+        for w in (self.pill, self.pill_dot, self.pill_text):
             w.configure(background=bg)
-        self.banner_title.configure(text=title, foreground=fg if live else TEXT)
-        self.banner_sub.configure(text=sub, foreground=fg if live else MUTED)
-        self.banner_dot.delete("all")
-        self.banner_dot.create_oval(2, 2, 16, 16, fill=fg, outline="")
+        self.pill_text.configure(text=text, foreground=color if live else MUTED)
+        self.pill_dot.delete("all")
+        self.pill_dot.create_oval(1, 1, 9, 9, fill=color, outline="")
 
-    def remove_device(self) -> None:
-        sel = self.devices.curselection()
-        if not sel:
-            return
-        device_id, name = self.device_ids[sel[0]]
+    def remove_device(self, device_id: str, name: str) -> None:
         if messagebox.askyesno("Mobile Dock", f"Remove {name}? It will need a new PIN to connect."):
             self.server.revoke(device_id)
             self.refresh_devices()
+
+    def refresh_pads(self) -> None:
+        f = self.root._fonts
+        for child in self.pad_rows.winfo_children():
+            child.destroy()
+        for pad in self.server.config.data.get("pads", []):
+            row = tk.Frame(self.pad_rows, background=SURFACE_HI, padx=14, pady=9)
+            row.pack(fill="x", pady=(0, 6))
+            tk.Label(row, text=pad["name"], background=SURFACE_HI, foreground=TEXT, font=f["strong"]).pack(side="left")
+            apps = ", ".join(pad.get("apps", [])) or "when no other pad matches"
+            tk.Label(row, text=f"  {apps}", background=SURFACE_HI, foreground=MUTED, font=f["small"]).pack(side="left")
+            tk.Label(row, text=f"{len(pad.get('tiles', []))} shortcuts", background=SURFACE_HI, foreground=FAINT,
+                     font=f["small"]).pack(side="right")
 
     # Pinned apps ----------------------------------------------------------
 
@@ -301,7 +449,9 @@ class App:
         self.pinned_items = self.server.config.pinned()
         self.pinned.delete(0, "end")
         for app in self.pinned_items:
-            self.pinned.insert("end", app["name"])
+            self.pinned.insert("end", f"  {app['name']}")
+        n = len(self.pinned_items)
+        self.pinned_count.configure(text=f"{n} app{'s' if n != 1 else ''} pinned. Select one to move or unpin it.")
 
     def move_pinned(self, step: int) -> None:
         sel = self.pinned.curselection()
@@ -541,6 +691,7 @@ class App:
             except ValueError as exc:
                 messagebox.showerror("Shortcut pads", str(exc), parent=win)
                 return
+            self.refresh_pads()
             win.destroy()
 
         def add_running(_):
@@ -594,7 +745,7 @@ class App:
         self.check_updates()
 
     def check_updates(self) -> None:
-        self.update_label.config(text="Checking for updates...")
+        self.update_label.config(text="Checking for updates")
 
         def work():
             self.events.put(("update_status", self.updater.check()))
@@ -618,13 +769,14 @@ class App:
             while True:
                 kind, text = self.events.get_nowait()
                 if kind == "paired":
-                    self.pin_label.config(text=f"Paired with {text}")
-                    self.status.config(text="")
+                    self._show_pin(None)
+                    self.pin_hint.configure(text=f"Paired with {text}", foreground=SIGNAL)
+                    self.status.config(text=f"Paired with {text}")
                 elif kind == "info":
                     messagebox.showinfo("Mobile Dock", text)
                 elif kind == "file":
                     self.status.config(text=text)
-                elif kind in ("update", "update_status") and self.updater is not None:
+                elif kind in ("update", "update_status") and self.update_label is not None:
                     self.update_label.config(text=text)
                 self.refresh_devices()
         except queue.Empty:
