@@ -71,7 +71,7 @@ Repository secrets stay secret in a public repository. Pull requests from forks 
 With the GitHub CLI installed, run this in the folder with the downloaded file:
 
 ```bash
-gh attestation verify MobileDockHost.exe --repo MPLearry/Mobile-dock
+gh attestation verify MobileDockHost.exe --repo Benacsek/Mobile-dock
 ```
 
 It works the same for the APK. A file that was changed after the build fails this check.

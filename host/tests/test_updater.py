@@ -18,8 +18,8 @@ def make(tmp_path, monkeypatch, apk=APK, sha=None):
     manifest = {"version": "1.1.7", "android": {"file": "MobileDock-1.1.7.apk", "code": 7,
                                                  "sha256": sha or hashlib.sha256(apk).hexdigest()}}
     served = {
-        "https://github.com/MPLearry/Mobile-dock/releases/latest/download/latest.json": json.dumps(manifest).encode(),
-        "https://github.com/MPLearry/Mobile-dock/releases/download/v1.1.7/MobileDock-1.1.7.apk": apk,
+        "https://github.com/Benacsek/Mobile-dock/releases/latest/download/latest.json": json.dumps(manifest).encode(),
+        "https://github.com/Benacsek/Mobile-dock/releases/download/v1.1.7/MobileDock-1.1.7.apk": apk,
     }
     monkeypatch.setattr(up, "_fetch", lambda url, limit=0, token="", accept="": served[url])
     u = up.Updater(Config(tmp_path / "config.json"))
@@ -81,7 +81,7 @@ def test_server_serves_update(tmp_path, monkeypatch):
 
 def test_private_repo_uses_token_and_api(tmp_path, monkeypatch):
     manifest = {"version": "1.1.8", "android": {"file": "a.apk", "code": 8, "sha256": hashlib.sha256(APK).hexdigest()}}
-    api = "https://api.github.com/repos/MPLearry/Mobile-dock/releases"
+    api = "https://api.github.com/repos/Benacsek/Mobile-dock/releases"
     release = {"assets": [{"name": "latest.json", "url": f"{api}/assets/1"}, {"name": "a.apk", "url": f"{api}/assets/2"}]}
     served = {f"{api}/latest": json.dumps(release).encode(), f"{api}/assets/1": json.dumps(manifest).encode(),
               f"{api}/assets/2": APK}
@@ -112,35 +112,3 @@ def test_redirect_drops_token():
 def test_restart_env_drops_pyinstaller_state():
     env = up.clean_env({"PATH": "x", "_PYI_APPLICATION_HOME_DIR": "C:\\\\Temp\\\\_MEI1", "_MEIPASS2": "y"})
     assert env == {"PATH": "x", "PYINSTALLER_RESET_ENVIRONMENT": "1"}
-
-
-def test_renamed_account(tmp_path, monkeypatch):
-    import urllib.error
-
-    # An install that saved the old address switches to the new one.
-    path = tmp_path / "config.json"
-    path.write_text(json.dumps({"update_repo": "Benacsek/Mobile-dock"}), encoding="utf-8")
-    assert Config(path).data["update_repo"] == "MPLearry/Mobile-dock"
-    assert json.loads(path.read_text(encoding="utf-8"))["update_repo"] == "MPLearry/Mobile-dock"
-
-    manifest = json.dumps({"version": "1.1.7"}).encode()
-    new = "https://github.com/MPLearry/Mobile-dock/releases/latest/download/latest.json"
-    old = "https://github.com/Benacsek/Mobile-dock/releases/latest/download/latest.json"
-    asked = []
-
-    def before_rename(url, limit=0, token="", accept=""):
-        asked.append(url)
-        if url == new:
-            raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
-        return manifest
-
-    monkeypatch.setattr(up, "_fetch", before_rename)
-    u = up.Updater(Config(path))
-    u.dir = tmp_path / "updates"
-    assert u.check().startswith("Up to date")
-    assert asked == [new, old]  # the new name first, the old one only while it does not exist yet
-
-    asked.clear()
-    monkeypatch.setattr(up, "_fetch", lambda url, limit=0, token="", accept="": asked.append(url) or manifest)
-    assert u.check().startswith("Up to date")
-    assert asked == [new]  # after the rename the old name is never asked again
