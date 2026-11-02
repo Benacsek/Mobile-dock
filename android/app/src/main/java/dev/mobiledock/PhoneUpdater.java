@@ -30,6 +30,7 @@ final class PhoneUpdater {
     private final Activity activity;
     private final DockClient client;
     private boolean busy;
+    private String expectedSha;
 
     PhoneUpdater(Activity activity, DockClient client) {
         this.activity = activity;
@@ -77,6 +78,7 @@ final class PhoneUpdater {
         final long total = offer.optLong("size");
         final String version = offer.optString("version");
         final String sha = offer.optString("sha256");
+        expectedSha = sha;
         new Object() {
             long offset;
 
@@ -145,6 +147,10 @@ final class PhoneUpdater {
     @SuppressWarnings("deprecation")
     void install(File file) {
         try {
+            // Check once more right before installing, in case the file changed since the download.
+            if (expectedSha == null || !expectedSha.equalsIgnoreCase(sha256(file))) {
+                throw new IOException("the update file changed, download it again");
+            }
             if (Build.VERSION.SDK_INT >= 24) {
                 if (InstallCompat.needsPermission(activity)) {
                     Toast.makeText(activity, "Allow Mobile Dock to install updates, then tap Install again.",
@@ -155,30 +161,19 @@ final class PhoneUpdater {
                 activity.startActivity(InstallCompat.installIntent(activity));
                 return;
             }
-            // Android 6 and older: the installer reads a file on shared storage.
-            File ext = activity.getExternalFilesDir(null);
-            if (ext == null) throw new IOException("no shared storage");
-            File copy = new File(ext, "MobileDock-update.apk");
-            copyFile(file, copy);
+            // Android 6 and older: the installer reads the file straight from app-private storage.
+            // Other apps may read it but never write it, so nobody can swap it after the check.
+            // (Shared storage would let any app with storage access replace it before install.)
+            File dir = file.getParentFile();
+            if (dir == null || !dir.setExecutable(true, false) || !file.setReadable(true, false)) {
+                throw new IOException("cannot share the update with the installer");
+            }
             Intent i = new Intent(Intent.ACTION_VIEW);
-            i.setDataAndType(Uri.fromFile(copy), "application/vnd.android.package-archive");
+            i.setDataAndType(Uri.fromFile(file), "application/vnd.android.package-archive");
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             activity.startActivity(i);
         } catch (IOException | RuntimeException e) {
             Toast.makeText(activity, "Could not start the installer: " + e.getMessage(), Toast.LENGTH_LONG).show();
-        }
-    }
-
-    private static void copyFile(File from, File to) throws IOException {
-        FileInputStream in = new FileInputStream(from);
-        FileOutputStream out = new FileOutputStream(to);
-        try {
-            byte[] buf = new byte[65536];
-            int n;
-            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-        } finally {
-            in.close();
-            out.close();
         }
     }
 }
