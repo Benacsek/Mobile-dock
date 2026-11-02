@@ -111,7 +111,7 @@ public final class WatchService extends Service {
                 ? WatchCompat.builder(this, tapToOpen) : new Notification.Builder(this);
         b.setSmallIcon(getApplicationInfo().icon).setContentTitle(title).setContentText(text).setOngoing(!tapToOpen);
         Intent open = new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                .putExtra(MainActivity.EXTRA_WAKE, true);
+                .putExtra(MainActivity.EXTRA_WAKE, MainActivity.WAKE_TOKEN);
         b.setContentIntent(Build.VERSION.SDK_INT >= 23
                 ? WatchCompat.openIntent(this, tapToOpen ? 1 : 0, open)
                 : PendingIntent.getActivity(this, tapToOpen ? 1 : 0, open, PendingIntent.FLAG_UPDATE_CURRENT));
@@ -298,7 +298,7 @@ public final class WatchService extends Service {
         }
         Intent open = new Intent(this, MainActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                .putExtra(MainActivity.EXTRA_WAKE, true);
+                .putExtra(MainActivity.EXTRA_WAKE, MainActivity.WAKE_TOKEN);
         // Android 10 and newer only lets an app open itself from the background when it may
         // draw over other apps. Without that, a notification asks you to tap.
         if (Build.VERSION.SDK_INT >= 29 && !dockVisible && !WatchCompat.canDrawOverlays(this)) {

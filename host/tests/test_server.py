@@ -220,3 +220,18 @@ def test_perf_and_boot_id(server):
     assert paired["boot"] == server.boot
     first = call(channel, "perf")
     assert first["ok"]
+
+
+def test_only_local_networks():
+    from mobiledock_host.server import is_local
+
+    for ip in ("192.168.1.5", "10.0.0.2", "172.16.4.4", "127.0.0.1", "169.254.1.1", "100.100.1.1", "::1",
+               "fe80::1", "::ffff:192.168.1.9"):
+        assert is_local(ip), ip
+    for ip in ("8.8.8.8", "1.1.1.1", "2001:4860:4860::8888", "nonsense"):
+        assert not is_local(ip), ip
+
+
+def test_discovery_rate_limit(server):
+    assert all(server._reply_ok("192.168.1.50") for _ in range(5))
+    assert not server._reply_ok("192.168.1.50")

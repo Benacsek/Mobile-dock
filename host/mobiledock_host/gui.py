@@ -574,8 +574,7 @@ class App:
             show="*", parent=self.root)
         if token is None:
             return
-        self.server.config.data["github_token"] = token.strip()
-        self.server.config.save()
+        self.server.config.set_secret("github_token", token.strip())
         self.check_updates()
 
     def check_updates(self) -> None:

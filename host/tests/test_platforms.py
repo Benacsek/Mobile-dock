@@ -86,3 +86,21 @@ def test_windows_clipboard_image_and_foreground():
     pf.set_clipboard_image(buf.getvalue())
     assert ctypes.windll.user32.IsClipboardFormatAvailable(8)  # CF_DIB
     assert isinstance(pf.foreground(), dict)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
+def test_windows_secrets_encrypted_at_rest(tmp_path):
+    import json
+
+    from mobiledock_host import secretstore
+    from mobiledock_host.config import Config
+
+    enc = secretstore.protect("abc123")
+    assert enc.startswith("dpapi:") and secretstore.reveal(enc) == "abc123"
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({"devices": {"d1": {"name": "Phone", "secret": "aa" * 32}}, "github_token": "tok"}))
+    cfg = Config(path)
+    raw = path.read_text()
+    assert "aa" * 32 not in raw and '"tok"' not in raw
+    assert cfg.device_secret("d1") == bytes.fromhex("aa" * 32)
+    assert cfg.get_secret("github_token") == "tok"

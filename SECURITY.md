@@ -16,12 +16,17 @@ Mobile Dock lets a phone type and click on your PC. Treat a paired phone like a 
 | Files sent from the phone | Only paired phones can send. Up to 200 MB. The file name is cut down to a plain name, so it cannot point outside Downloads/Mobile Dock. A SHA-256 check rejects damaged files. |
 | Oversized messages | Frames over 1 MiB close the connection. Text, mouse and scroll values are clamped. |
 | A fake update | Updates come only from this repository's GitHub releases over HTTPS. Every file must match the SHA-256 in that release's latest.json. Android refuses an APK signed with a different key. |
+| Someone on the internet | The PC only accepts connections and discovery from your own network: LAN, USB, link-local and VPN ranges. Internet addresses are dropped before any data is read. |
+| Using the PC to flood others | Discovery answers at most 5 times per second per address. |
+| A stolen copy of the PC config | On Windows, pairing keys and the GitHub token are encrypted with DPAPI, tied to your Windows account. A copy is useless on another PC or account. On Linux the file is readable only by you. |
+| A stolen copy of the phone's app data | On Android 6 and newer, pairing keys are encrypted with a key held in the Android Keystore, which never leaves the phone. |
+| Another app on the phone | It cannot send files to your PC without your tap, and it cannot wake the dock or show it over the lock screen. |
 | Stolen phone | Click Remove selected in the host window. The key stops working at once, and any open session closes. |
 
 ## Limits you should know
 
 - The 6 digit PIN gives about 20 bits. That is enough against online guessing with the limits above. It is not a password.
-- The pairing key on the phone sits in app private storage. A rooted phone or a phone with an unlocked bootloader can expose it.
+- On Android 4.1 to 5.1 the pairing key sits unencrypted in app private storage, because those versions have no usable Keystore for this. A rooted phone can expose it.
 - The host config file holds the PC side keys. On Linux it is mode 600. On Windows it lives in your user profile.
 - Discovery answers anyone on the network with the PC name and port. Turn it off with `"discovery": false` in the config.
 - The host listens on all interfaces by default. Set `"bind": "127.0.0.1"` to accept USB connections only.
@@ -43,6 +48,19 @@ On Android 4.1 to 4.3, `SecureRandom` had a seeding bug. The app reads `/dev/ura
 - The host depends on `cryptography`, and `evdev` on Linux.
 - GitHub Actions are pinned to commit hashes. Dependabot opens update PRs weekly.
 - Workflows run with read-only tokens. Only the release job gets write access, and only for pushes to main.
+
+## Before you make the repository public
+
+The code and its history contain no passwords, tokens or keys. These steps are about your GitHub account and settings, which only you can change.
+
+1. Turn on two-factor authentication for your GitHub account. Whoever controls the account can publish an update that every installed copy will install.
+2. Under Settings, Emails, turn on "Keep my email addresses private" and "Block command line pushes that expose my email".
+3. In the repository, under Settings, Code security, turn on private vulnerability reporting, Dependabot alerts, secret scanning and push protection.
+4. Under Settings, Rules, add a ruleset for main that blocks force pushes and deletion.
+5. Under Settings, Actions, General, keep "Require approval for all outside collaborators" and set workflow permissions to read only. The release job asks for write access itself.
+6. Once the repository is public, the PC no longer needs a GitHub token. Revoke it on GitHub, then click GitHub token in the PC window and save it empty.
+
+Repository secrets stay secret in a public repository. Pull requests from forks never receive them, and only pushes to main can publish releases.
 
 ## Report a problem
 

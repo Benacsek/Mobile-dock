@@ -2,6 +2,7 @@ package dev.mobiledock;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Build;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -31,7 +32,7 @@ final class Store implements Connection.Keys {
         JSONObject all = pairings();
         try {
             all.put(hostId, new JSONObject().put("device_id", cred.deviceId)
-                    .put("secret", Crypto.hex(cred.secret)).put("name", hostName));
+                    .put("secret", seal(Crypto.hex(cred.secret))).put("name", hostName));
         } catch (JSONException e) {
             return;
         }
@@ -40,13 +41,37 @@ final class Store implements Connection.Keys {
 
     @Override
     public synchronized Connection.Credentials find(String hostId) {
-        JSONObject entry = pairings().optJSONObject(hostId);
+        JSONObject all = pairings();
+        JSONObject entry = all.optJSONObject(hostId);
         if (entry == null) return null;
         try {
-            return new Connection.Credentials(entry.getString("device_id"), Crypto.unhex(entry.getString("secret")));
+            String stored = entry.getString("secret");
+            String hex = open(stored);
+            if (hex == null) return null;
+            if (!stored.startsWith(KeystoreBox.PREFIX) && Build.VERSION.SDK_INT >= 23) {
+                // Saved by an older version in plain text: encrypt it now.
+                String sealed = seal(hex);
+                if (!sealed.equals(stored)) {
+                    entry.put("secret", sealed);
+                    prefs.edit().putString("pairings", all.toString()).commit();
+                }
+            }
+            return new Connection.Credentials(entry.getString("device_id"), Crypto.unhex(hex));
         } catch (JSONException | IllegalArgumentException e) {
             return null;
         }
+    }
+
+    /** Encrypts with the Android Keystore on Android 6 and newer. Older phones rely on app-private storage. */
+    private static String seal(String hex) {
+        if (Build.VERSION.SDK_INT < 23) return hex;
+        String sealed = KeystoreBox.seal(hex);
+        return sealed == null ? hex : sealed;
+    }
+
+    private static String open(String stored) {
+        if (!stored.startsWith(KeystoreBox.PREFIX)) return stored;
+        return Build.VERSION.SDK_INT >= 23 ? KeystoreBox.open(stored) : null;
     }
 
     synchronized boolean isPaired(String hostId) {

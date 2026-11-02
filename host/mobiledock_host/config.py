@@ -11,6 +11,8 @@ import tempfile
 import threading
 from pathlib import Path
 
+from . import secretstore
+
 
 def config_dir() -> Path:
     if sys.platform == "win32":
@@ -45,6 +47,7 @@ class Config:
                 stored = json.load(fh)
             if isinstance(stored, dict):
                 self.data.update(stored)
+            self._encrypt_old_secrets()
         else:
             self.save()
 
@@ -65,20 +68,51 @@ class Config:
                     os.unlink(tmp)
                 raise
 
+    # Secrets --------------------------------------------------------------
+
+    def _encrypt_old_secrets(self) -> None:
+        """Older versions stored keys in plain text. Encrypt them once."""
+        changed = False
+        for entry in self.data.get("devices", {}).values():
+            enc = secretstore.protect(entry.get("secret", ""))
+            if enc != entry.get("secret"):
+                entry["secret"], changed = enc, True
+        token = self.data.get("github_token", "")
+        if token and secretstore.protect(token) != token:
+            self.data["github_token"], changed = secretstore.protect(token), True
+        if changed:
+            self.save()
+
+    def get_secret(self, key: str) -> str:
+        try:
+            return secretstore.reveal(str(self.data.get(key, "") or ""))
+        except (OSError, ValueError):
+            return ""
+
+    def set_secret(self, key: str, value: str) -> None:
+        with self._lock:
+            self.data[key] = secretstore.protect(value)
+            self.save()
+
     # Paired devices -------------------------------------------------------
 
     def add_device(self, name: str) -> tuple[str, bytes]:
         device_id = secrets.token_hex(8)
         secret = secrets.token_bytes(32)
         with self._lock:
-            self.data["devices"][device_id] = {"name": name[:64], "secret": secret.hex()}
+            self.data["devices"][device_id] = {"name": name[:64], "secret": secretstore.protect(secret.hex())}
             self.save()
         return device_id, secret
 
     def device_secret(self, device_id: str) -> bytes | None:
         with self._lock:
             entry = self.data["devices"].get(device_id)
-            return bytes.fromhex(entry["secret"]) if entry else None
+            if not entry:
+                return None
+            try:
+                return bytes.fromhex(secretstore.reveal(entry["secret"]))
+            except (OSError, ValueError):
+                return None  # cannot decrypt, for example a config copied from another PC
 
     def remove_device(self, device_id: str) -> None:
         with self._lock:

@@ -142,7 +142,9 @@ mobile-dock-host [--headless] [--pair] [--usb] [--minimized] [--port N] [--verbo
 | Recordings | `Videos\Mobile Dock` | `~/Videos/Mobile Dock` |
 | Files from the phone | `Downloads\Mobile Dock` | `~/Downloads/Mobile Dock` |
 
-On Linux the config file is mode 600 and its folder is mode 700. You can change `bind`, `port`, `discovery`, `screenshots_dir` and `recordings_dir` in the file. Set `bind` to `127.0.0.1` to allow USB only.
+On Windows, pairing keys and the GitHub token in this file are encrypted with DPAPI, so they only open under your Windows account. On Linux the file is mode 600 and its folder is mode 700.
+
+You can change `bind`, `port`, `discovery`, `screenshots_dir`, `recordings_dir` and `downloads_dir` in the file. Set `bind` to `127.0.0.1` to allow USB only. The host refuses connections from internet addresses. Set `allow_public_networks` to true only if you really need that.
 
 ## Network ports
 

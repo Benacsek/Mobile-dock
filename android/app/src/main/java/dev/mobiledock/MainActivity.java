@@ -34,6 +34,8 @@ import dev.mobiledock.proto.Connection;
 /** Single screen app: a connect page, then the dock with a side rail and four panels. */
 public final class MainActivity extends Activity implements DockClient.Listener {
     static final String EXTRA_WAKE = "wake";
+    /** Random per app process. Other apps cannot know it, so they cannot trigger a wake. */
+    static final String WAKE_TOKEN = dev.mobiledock.proto.Crypto.hex(dev.mobiledock.proto.Crypto.random(16));
     private Store store;
     private DockClient client;
     private FrameLayout root;
@@ -100,7 +102,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     /** Opened by the PC watcher: turn the screen on and connect to the PC that just started. */
     @SuppressWarnings("deprecation")
     private void handleWake(Intent intent) {
-        if (intent == null || !intent.getBooleanExtra(EXTRA_WAKE, false)) return;
+        if (intent == null || !WAKE_TOKEN.equals(intent.getStringExtra(EXTRA_WAKE))) return;
         boolean overLock = WatchService.prefs(this).getBoolean(WatchService.PREF_LOCKSCREEN, false);
         if (Build.VERSION.SDK_INT >= 27) {
             WatchCompat.wakeActivity(this, overLock);
@@ -751,7 +753,28 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             return;
         }
         String type = intent.getType() == null ? "" : intent.getType();
-        final String mode = type.startsWith("image/") ? "clipboard" : "downloads";
+        final boolean picture = type.startsWith("image/");
+        // Always ask. Without this, any app on the phone could push files to your PC unseen.
+        setIntent(new Intent());
+        new AlertDialog.Builder(this).setTitle("Send to your PC?")
+                .setMessage(picture ? "Put this picture on the PC clipboard, or save it in Downloads?"
+                        : "Save this file in Downloads/Mobile Dock on your PC?")
+                .setPositiveButton(picture ? "Clipboard" : "Send", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface d, int w) {
+                        sendShared(uri, picture ? "clipboard" : "downloads");
+                    }
+                })
+                .setNeutralButton(picture ? "Downloads" : null, picture ? new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface d, int w) {
+                        sendShared(uri, "downloads");
+                    }
+                } : null)
+                .setNegativeButton("Cancel", null).show();
+    }
+
+    private void sendShared(Uri uri, String mode) {
         if (client.isConnected()) {
             sender.send(uri, mode);
         } else {

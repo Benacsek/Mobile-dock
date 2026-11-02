@@ -96,7 +96,8 @@ If you lose the key, phones can't update anymore. You'd have to uninstall and re
 - Permissions: Internet, to reach your PC. Wi-Fi state, to find PCs on the subnet. Install packages, to open the installer for updates. Storage on Android 4.1 to 4.3 only, to hand the update to the installer.
 - For the optional PC watcher: foreground service, wake lock, start at boot, notifications, display over other apps and the battery exemption. None of them do anything until you turn the watcher on.
 - No analytics, no ads, no Google services.
-- Pairing keys stay in app private storage. Backup and device transfer are turned off for them.
+- Pairing keys stay in app private storage. Backup and device transfer are turned off for them. On Android 6 and newer they are also encrypted with a Keystore key that never leaves the phone.
+- Sharing a file to Mobile Dock always asks before anything is sent.
 
 ## Code map
 

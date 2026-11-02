@@ -35,6 +35,8 @@ CHECK_EVERY = 6 * 3600
 FIRST_CHECK_DELAY = 20
 MAX_DOWNLOAD = 200 * 1024 * 1024
 CHUNK = 256 * 1024
+RETRY_FIRST = 120
+RETRY_MAX = 30 * 60
 
 
 def parse_version(text: str) -> tuple[int, ...]:
@@ -94,6 +96,7 @@ class Updater:
         self.status = "Not checked yet"
         self.apk: dict | None = None
         self._release: dict | None = None
+        self.offline = False
         self._lock = threading.Lock()
         self._load_apk_meta()
 
@@ -111,16 +114,23 @@ class Updater:
 
     def _loop(self) -> None:
         time.sleep(FIRST_CHECK_DELAY)
+        retry = RETRY_FIRST
         while True:
             self.check()
-            time.sleep(CHECK_EVERY)
+            if self.offline:
+                # No network yet, common right after boot or wake. Try again soon, then back off.
+                time.sleep(retry)
+                retry = min(retry * 2, RETRY_MAX)
+            else:
+                retry = RETRY_FIRST
+                time.sleep(CHECK_EVERY)
 
     # Release data ---------------------------------------------------------
 
     @property
     def token(self) -> str:
         # Needed only for a private repository: a fine-grained token with read access to Contents.
-        return str(os.environ.get("MDOCK_GITHUB_TOKEN") or self.config.data.get("github_token") or "")
+        return str(os.environ.get("MDOCK_GITHUB_TOKEN") or self.config.get_secret("github_token") or "")
 
     def _asset(self, release: dict | None, version: str, name: str, limit: int = MAX_DOWNLOAD) -> bytes:
         if "/" in name or "\\" in name:
@@ -154,6 +164,7 @@ class Updater:
 
     def check(self) -> str:
         with self._lock:
+            self.offline = False
             try:
                 manifest, self._release = self._latest()
                 version = str(manifest["version"])
@@ -162,11 +173,20 @@ class Updater:
                 if self._should_update_self(version, manifest.get("windows")):
                     self.status = f"Installing {version}"
                     self._apply_windows(version, manifest["windows"])
-            except urllib.error.HTTPError as exc:
-                if exc.code in (401, 403, 404) and not self.token:
-                    self.status = "No release found. A private repository needs a token, see the README."
+            except urllib.error.URLError as exc:
+                if isinstance(exc, urllib.error.HTTPError):
+                    if exc.code in (401, 403, 404) and not self.token:
+                        self.status = "No release found. A private repository needs a token, see the README."
+                    else:
+                        self.status = f"Update check failed: GitHub answered {exc.code}"
                 else:
-                    self.status = f"Update check failed: HTTP {exc.code}"
+                    # DNS or connection failure: the PC is offline or GitHub is unreachable right now.
+                    self.offline = True
+                    self.status = "Could not reach GitHub. Is the PC online? Trying again in a few minutes."
+                log.warning("update check failed: %s", exc)
+            except (TimeoutError, ConnectionError) as exc:
+                self.offline = True
+                self.status = "Could not reach GitHub. Is the PC online? Trying again in a few minutes."
                 log.warning("update check failed: %s", exc)
             except Exception as exc:  # noqa: BLE001 - updates must never crash the dock
                 log.warning("update check failed: %s", exc)

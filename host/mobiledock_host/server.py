@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import ipaddress
 import logging
 import os
 import secrets
@@ -45,6 +46,20 @@ def safe_name(name: str) -> str:
                             *(f"LPT{i}" for i in range(10))}:
         name = "file-from-phone"
     return name[:120]
+
+
+_CGNAT = ipaddress.ip_network("100.64.0.0/10")  # also used by VPNs such as Tailscale
+
+
+def is_local(ip: str) -> bool:
+    """True for addresses that can only come from your own network: LAN, loopback (USB), link-local, VPN."""
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    if getattr(addr, "ipv4_mapped", None):
+        addr = addr.ipv4_mapped
+    return addr.is_private or addr.is_loopback or addr.is_link_local or (addr.version == 4 and addr in _CGNAT)
 
 
 def unique_path(path: Path) -> Path:
@@ -257,6 +272,7 @@ class DockServer:
         self.sessions: list[Session] = []
         self.lock = threading.Lock()
         self.failures: dict[str, list[float]] = {}
+        self._replies: dict[str, list[float]] = {}
         self._notify = notify or (lambda kind, text: None)
         self._stop = threading.Event()
         self._sockets: list[socket.socket] = []
@@ -291,6 +307,24 @@ class DockServer:
             recent = [t for t in self.failures.get(ip, []) if now - t < FAIL_WINDOW]
             self.failures[ip] = recent
             return len(recent) >= FAIL_LIMIT
+
+    def _allowed(self, ip: str) -> bool:
+        """Refuses the internet. Only your own network may connect, unless you turn that off."""
+        return bool(self.config.data.get("allow_public_networks", False)) or is_local(ip)
+
+    def _reply_ok(self, ip: str) -> bool:
+        """At most 5 discovery replies per second per address, so the PC cannot be used to flood others."""
+        now = time.monotonic()
+        with self.lock:
+            stamps = [t for t in self._replies.get(ip, []) if now - t < 1]
+            if len(stamps) >= 5:
+                self._replies[ip] = stamps
+                return False
+            stamps.append(now)
+            self._replies[ip] = stamps
+            if len(self._replies) > 256:
+                self._replies = {ip: stamps}
+            return True
 
     # Sessions -------------------------------------------------------------
 
@@ -605,7 +639,7 @@ class DockServer:
                 return
             with self.lock:
                 busy = len(self.sessions) >= MAX_SESSIONS
-            if busy:
+            if busy or not self._allowed(addr[0]):
                 sock.close()
                 continue
             threading.Thread(target=Session(self, sock, addr).run, daemon=True, name=f"session-{addr[0]}").start()
@@ -616,7 +650,7 @@ class DockServer:
                 data, addr = udp.recvfrom(64)
             except OSError:
                 return
-            if data.strip() == p.DISCOVERY_PROBE:
+            if data.strip() == p.DISCOVERY_PROBE and self._allowed(addr[0]) and self._reply_ok(addr[0]):
                 reply = {"t": "mdock", "v": p.PROTOCOL_VERSION, "port": self.port, **self.identity()}
                 try:
                     udp.sendto(p.encode_json(reply), addr)
