@@ -32,7 +32,7 @@ The `windows-media` extra powers Now playing on the phone: album art, progress, 
 
 Click Edit shortcut pads in the window. Each pad has a name, the programs it belongs to (for example `Figma.exe`) and its tiles. Write a shortcut like `Ctrl+Shift+G`. Separate steps with commas, like `Win+Left, Enter`. The Windows pad is used when no other pad matches.
 
-Shortcuts with punctuation, such as `Ctrl+backslash`, use the key's position on a US keyboard. On another layout, such as Hungarian, pick the shortcut your app shows in its own menus.
+Shortcuts with punctuation, such as `Ctrl+backslash`, use the key's position on a US keyboard. On another keyboard layout, pick the shortcut your app shows in its own menus.
 
 ### Optional tools
 
