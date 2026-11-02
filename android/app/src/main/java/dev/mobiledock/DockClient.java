@@ -61,7 +61,7 @@ final class DockClient {
     }
 
     boolean isConnected() {
-        return conn != null;
+        return conn != null || Demo.on;
     }
 
     private void state(final int s, final String message) {
@@ -267,7 +267,18 @@ final class DockClient {
     }
 
     /** Sends a command. The callback gets the reply, or ok=false on failure. Callback may be null. */
-    void request(final String cmd, JSONObject args, final Callback cb) {
+    void request(final String cmd, final JSONObject args, final Callback cb) {
+        if (Demo.on) {
+            if (cb != null) {
+                main.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        cb.done(Demo.reply(cmd, args));
+                    }
+                });
+            }
+            return;
+        }
         final JSONObject msg;
         try {
             msg = args == null ? new JSONObject() : new JSONObject(args.toString());

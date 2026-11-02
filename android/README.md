@@ -89,6 +89,18 @@ The APK lands in `app/build/outputs/apk/debug/`.
 3. The phone downloads it from the PC, checks its SHA-256 and shows Update ready.
 4. You tap Install. On Android 8 and newer, the first time, Android asks you to allow Mobile Dock to install apps.
 
+## Screenshots in CI
+
+Every build starts a 720p landscape Android emulator, opens each page in demo mode and saves a picture of it. Download `phone-screenshots` from the build in the Actions tab.
+
+Demo mode shows sample data instead of a PC. It only works in debuggable builds, so the release app never uses it. To try it on a test phone with a debug build:
+
+```bash
+adb shell am start -n dev.mobiledock/.MainActivity --ez demo true --ei page 0
+```
+
+Pages: -1 connect, 0 Apps, 1 Playing, 2 Shortcuts, 3 Controls, 4 Capture, 5 Touch, 6 Stats, 7 Settings.
+
 ## Release signing
 
 Phones accept an update only when it's signed with the same key as the installed app. So CI needs one fixed key.

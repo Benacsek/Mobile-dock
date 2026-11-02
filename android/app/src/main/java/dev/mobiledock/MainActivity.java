@@ -84,6 +84,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             });
         }
         showConnect();
+        if (startDemo(getIntent())) return;
         String last = store.lastHost();
         if (last.length() > 0 && store.hasAnyPairing()) client.connect(last, store.lastPort());
         else scan();
@@ -100,6 +101,26 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         handleWake(intent);
         handleShare(intent);
         handlePairLink(intent);
+        startDemo(intent);
+    }
+
+    /**
+     * Screenshot mode for CI: sample data instead of a PC, and the page given in the "page" extra
+     * (-1 for the connect page). Only works in debuggable builds, never in the release app.
+     */
+    private boolean startDemo(Intent intent) {
+        boolean debuggable = (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+        if (!debuggable || intent == null || !intent.getBooleanExtra("demo", false)) return false;
+        Demo.on = true;
+        client.hostName = "Alex-PC";
+        int page = intent.getIntExtra("page", APPS);
+        if (page < 0) {
+            showConnect();
+            return true;
+        }
+        if (dockView == null || dockView.getVisibility() != View.VISIBLE) onState(DockClient.CONNECTED, "Alex-PC");
+        select(page);
+        return true;
     }
 
     /**
