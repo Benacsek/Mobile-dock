@@ -25,7 +25,7 @@ The `windows-media` extra powers Now playing on the phone: album art, progress, 
 1. Windows Firewall asks about network access. Allow it on private networks only.
 2. On the Phone tab, click Pair new phone. A 6 digit PIN appears with a 3 minute countdown.
 3. On the Apps tab, click Add apps to choose what the phone shows. You can also do this from the phone.
-4. Type that PIN in the phone app.
+4. Scan the QR code next to the PIN with the phone's camera, then tap Pair. Or tap the PC in the phone app and type the PIN. Older phones' cameras may not read QR codes. The PIN always works.
 5. On the Settings tab, turn Start with Windows on if you want the dock ready after every login.
 
 ### Window tips
@@ -38,9 +38,41 @@ The `windows-media` extra powers Now playing on the phone: album art, progress, 
 
 ### Shortcut pads
 
-On the Shortcuts tab, click Edit shortcut pads. Each pad has a name, the programs it belongs to (for example `Figma.exe`) and its tiles. Write a shortcut like `Ctrl+Shift+G`. Separate steps with commas, like `Win+Left, Enter`. The Windows pad is used when no other pad matches.
+On the Shortcuts tab, click Edit shortcut pads. Each pad has a name, the programs it belongs to (for example `Figma.exe`) and its tiles. Write a shortcut like `Ctrl+Shift+G` in the Action field. Separate steps with commas, like `Win+Left, Enter`. The Windows pad is used when no other pad matches.
 
 Shortcuts with punctuation, such as `Ctrl+backslash`, use the key's position on a US keyboard. On another keyboard layout, pick the shortcut your app shows in its own menus.
+
+A tile can do more than press keys. Put ` | ` between steps:
+
+| Step | Example | What it does |
+| --- | --- | --- |
+| Keys | `Ctrl+Shift+P` | Presses the shortcut |
+| open | `open https://mail.google.com` | Opens the page in your browser |
+| run | `run C:\Program Files\Obsidian\Obsidian.exe` | Starts a program, file or folder |
+| type | `type Thanks, talk soon` | Types the text |
+| wait | `wait 1` | Waits up to 5 seconds |
+
+For example, `open https://figma.com | wait 3 | Ctrl+N` opens Figma in the browser and starts a new file. The phone can only press tiles you wrote here. It cannot send its own programs or pages.
+
+### Volume mixer
+
+The Controls page on the phone has one slider per app that plays sound. On Windows this uses the same audio sessions as the Windows volume mixer. On Linux it uses `pactl` from PipeWire or PulseAudio.
+
+### Temperatures and fans
+
+- Linux: read from the kernel sensors through psutil. Install `lm_sensors` if nothing shows.
+- Windows: Windows has no built-in way to read them. Run [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) on the PC, and the Stats page shows CPU and GPU temperatures and fan speeds. It needs to run as administrator to see most sensors.
+
+### Wake-on-LAN
+
+The phone's Wake PC button sends a "magic packet" that can turn the PC on. The PC must allow it:
+
+1. In the BIOS or UEFI, turn on Wake on LAN. It may be called "Power on by PCI-E" or "Resume by LAN".
+2. In Windows, open Device Manager, then your network card's Properties. Under Power Management, tick "Allow this device to wake the computer" and "Only allow a magic packet to wake the computer".
+3. In the same window, under Advanced, set "Wake on Magic Packet" to Enabled.
+4. Turn off Fast Startup in Control Panel, Power Options, "Choose what the power buttons do". Fast Startup often blocks wake from shutdown.
+
+Wake-on-LAN works over a network cable. Most Wi-Fi cards cannot wake a PC that is off. The phone learns the PC's address the first time it connects.
 
 ### Optional tools
 

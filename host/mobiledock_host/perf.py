@@ -3,13 +3,18 @@
 CPU, memory, network, disk and processes come from psutil on every system.
 GPU load comes from Windows performance counters, which cover AMD, NVIDIA and Intel alike,
 or from the amdgpu driver files on Linux.
+
+Temperatures and fan speeds come from psutil on Linux. Windows has no built-in way to read them,
+so the host reads them from LibreHardwareMonitor when that program is running.
 """
 
 from __future__ import annotations
 
 import ctypes
 import glob
+import json
 import platform
+import subprocess
 import sys
 import threading
 import time
@@ -18,6 +23,64 @@ from pathlib import Path
 import psutil
 
 PROCESS_EVERY = 3.0  # process list refresh, in seconds. Scanning processes is the costly part.
+SENSORS_EVERY = 5.0  # temperatures and fans change slowly, and reading them on Windows starts PowerShell
+LHM_QUERY = (
+    "$ErrorActionPreference='SilentlyContinue';"
+    "foreach($ns in 'root/LibreHardwareMonitor','root/OpenHardwareMonitor'){"
+    "$s=Get-CimInstance -Namespace $ns -ClassName Sensor|Where-Object{$_.SensorType -in 'Temperature','Fan'}"
+    "|Select-Object Name,SensorType,Value,Parent;if($s){$s|ConvertTo-Json -Compress;break}}"
+)
+
+
+def read_sensors() -> dict:
+    """cpu_temp, gpu_temp and fans [{name, rpm}] where the system can tell. Missing keys mean unknown."""
+    out: dict = {}
+    if sys.platform == "win32":
+        try:
+            raw = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", LHM_QUERY],
+                                 capture_output=True, text=True, timeout=8, creationflags=0x08000000).stdout
+            items = json.loads(raw) if raw.strip() else []
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            items = []
+        if isinstance(items, dict):
+            items = [items]
+        fans = []
+        for it in items:
+            name, kind, parent = str(it.get("Name", "")), it.get("SensorType"), str(it.get("Parent", "")).lower()
+            value = it.get("Value")
+            if not isinstance(value, (int, float)):
+                continue
+            if kind == "Temperature" and "cpu" in parent and "cpu_temp" not in out and (
+                    "package" in name.lower() or "tctl" in name.lower() or "core average" in name.lower()):
+                out["cpu_temp"] = round(value, 1)
+            elif kind == "Temperature" and "gpu" in parent and "gpu_temp" not in out and "core" in name.lower():
+                out["gpu_temp"] = round(value, 1)
+            elif kind == "Fan" and value > 0:
+                fans.append({"name": name, "rpm": int(value)})
+        if fans:
+            out["fans"] = fans[:6]
+        if not items:
+            out["sensors_hint"] = "For temperatures and fans, run LibreHardwareMonitor on the PC."
+        return out
+    temps = getattr(psutil, "sensors_temperatures", lambda: {})() or {}
+    for chip in ("k10temp", "zenpower", "coretemp", "cpu_thermal"):
+        for entry in temps.get(chip, []):
+            if not entry.current:
+                continue
+            if chip in ("k10temp", "zenpower") and entry.label not in ("Tctl", "Tdie", ""):
+                continue
+            if chip == "coretemp" and not entry.label.startswith("Package"):
+                continue
+            out["cpu_temp"] = round(entry.current, 1)
+            break
+        if "cpu_temp" in out:
+            break
+    fans = [{"name": f.label or chip, "rpm": int(f.current)}
+            for chip, entries in (getattr(psutil, "sensors_fans", lambda: {})() or {}).items()
+            for f in entries if f.current > 0]
+    if fans:
+        out["fans"] = fans[:6]
+    return out
 
 
 class _WindowsGpu:
@@ -185,6 +248,9 @@ class PerfMonitor:
         self._procs: list[dict] = []
         self._procs_at = 0.0
         self._proc_cache: dict[int, psutil.Process] = {}
+        self._sensors: dict = {}
+        self._sensors_at = -SENSORS_EVERY
+        self._sensors_busy = False
         self.cpu_name = _cpu_name()
 
     def snapshot(self) -> dict:
@@ -249,7 +315,22 @@ class PerfMonitor:
             self._procs = self._top_processes()
             self._procs_at = time.monotonic()
         out["procs"] = self._procs
+        if time.monotonic() - self._sensors_at > SENSORS_EVERY and not self._sensors_busy:
+            # On Windows this starts PowerShell, so it runs beside the sampler instead of slowing it down.
+            self._sensors_busy = True
+            threading.Thread(target=self._refresh_sensors, daemon=True, name="sensors").start()
+        for key, value in self._sensors.items():
+            out.setdefault(key, value)  # a GPU temperature from the driver wins over the sensor program
         return out
+
+    def _refresh_sensors(self) -> None:
+        try:
+            self._sensors = read_sensors()
+        except Exception:  # noqa: BLE001 - sensors are a nice extra, never a reason to stop the stats
+            self._sensors = {}
+        finally:
+            self._sensors_at = time.monotonic()
+            self._sensors_busy = False
 
     def _top_processes(self, limit: int = 7) -> list[dict]:
         """Busiest apps, with helper processes of the same name added together like Task Manager."""

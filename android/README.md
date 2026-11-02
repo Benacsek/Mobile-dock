@@ -35,16 +35,24 @@ App icons all get the same rounded-square shape. Names can use two lines. The gr
 - Apps: tap a tile to open it on the PC. Long press a tile to drag it. Drop it on another tile to move it there, or on the red bar to unpin. The header shows which PC you are connected to. Its icons are + to pin more apps and the arrows for Arrange.
 - Playing: album art, title, artist, album and a progress bar you can drag to seek. Play, skip, shuffle, repeat and volume. Opening Spotify or another music app from Apps jumps here.
 - Shortcuts: tiles for the app in front on the PC. The target icon in the header turns Follow on or off. Tap the pad name to pick another pad.
-- Controls: volume, mute, lock, screen off, sleep, show desktop, Task Manager and Disconnect. Sleep asks first.
-- Capture: screenshot, snip a region (Win+Shift+S on Windows), record, picture to the PC clipboard and file to Downloads.
+- Controls: volume, mute, lock, screen off, sleep, show desktop, Task Manager and Disconnect. Sleep asks first. The volume mixer lists every app playing sound with its own slider and mute button. Tap the refresh icon after you start a new app.
+- Capture: screenshot, snip a region (Win+Shift+S on Windows), record, picture to the PC clipboard and file to Downloads. Clipboard text: Phone to PC and PC to phone.
 - Touch: switch between Touchpad, Keyboard and Sign at the top.
   - Touchpad: one finger moves. Tap to click. Two finger tap is right click, three finger tap is middle click. Two fingers scroll. Hold Left and move to drag.
   - Keyboard: type in the box and the text goes to the PC as you type. Tap Ctrl, Alt, Shift or Win before a key to make a shortcut.
   - Sign: draw with your finger. Send to PC puts a PNG with a clear background on the clipboard. Paste it with Ctrl+V.
-- Stats: CPU, GPU, memory, network and disk graphs for the last minute, plus the busiest apps.
-- Settings: accent color, tile size, background glow and dock labels on the left. Phone and PC versions, the PC's update status and Check now on the right.
+- Stats: CPU, GPU, memory, network and disk graphs for the last minute, plus the busiest apps. Temperatures and fan speeds show when the PC can read them.
+- Settings: accent color, tile size, background glow, dock labels and the volume buttons switch on the left. Phone and PC versions, the PC's update status and Check now on the right.
 - Arrange: the arrows icon on Apps. A tap picks a tile up. Tap the icon again or press Back when you are done.
 - Fullscreen: the corners icon at the right end of the dock bar hides the bar on any page. Tap the small button in the corner or press Back to bring it back.
+
+Volume buttons: while the dock is open and connected, the phone's volume buttons change the PC volume. Turn this off in Settings.
+
+Pair with a QR code: when you click Pair new phone, the PC shows a QR code. Scan it with the phone's camera app and tap the link. Mobile Dock opens and asks before it pairs. If your camera app does not read QR codes, type the PIN instead.
+
+## Wake the PC
+
+After the phone has connected once, the connect page shows Wake PC. It sends a Wake-on-LAN signal, which can turn on a PC that sleeps or is shut down. The PC must allow it. See the host README.
 
 ## Start with your PC
 

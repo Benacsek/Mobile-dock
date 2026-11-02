@@ -145,6 +145,10 @@ class WindowsPlatform(Platform):
         self._apps_error = ""
         self._icons: dict[str, bytes | None] = {}
         self._icon_thread = ThreadPoolExecutor(max_workers=1, thread_name_prefix="icons")
+        # The volume mixer uses COM too, so it also gets one thread of its own.
+        self._audio_thread = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="audio",
+            initializer=lambda: ctypes.WinDLL("ole32").CoInitializeEx(None, 0))  # COINIT_MULTITHREADED
 
     def _send(self, *inputs: INPUT) -> None:
         arr = (INPUT * len(inputs))(*inputs)
@@ -402,14 +406,7 @@ class WindowsPlatform(Platform):
         png_out = io.BytesIO()
         img.save(png_out, "PNG")
 
-        k32, u, wt = ctypes.WinDLL("kernel32"), self.user32, wintypes
-        k32.GlobalAlloc.argtypes, k32.GlobalAlloc.restype = (wt.UINT, ctypes.c_size_t), wt.HGLOBAL
-        k32.GlobalLock.argtypes, k32.GlobalLock.restype = (wt.HGLOBAL,), ctypes.c_void_p
-        k32.GlobalUnlock.argtypes = (wt.HGLOBAL,)
-        k32.GlobalFree.argtypes = (wt.HGLOBAL,)
-        u.OpenClipboard.argtypes = (wt.HWND,)
-        u.SetClipboardData.argtypes, u.SetClipboardData.restype = (wt.UINT, wt.HANDLE), wt.HANDLE
-        u.RegisterClipboardFormatW.argtypes, u.RegisterClipboardFormatW.restype = (wt.LPCWSTR,), wt.UINT
+        k32, u = self._clipboard_api()
 
         def put(fmt: int, data: bytes) -> None:
             handle = k32.GlobalAlloc(0x0002, len(data))  # GMEM_MOVEABLE
@@ -419,18 +416,121 @@ class WindowsPlatform(Platform):
             if not u.SetClipboardData(fmt, handle):
                 k32.GlobalFree(handle)
 
-        for _ in range(10):  # another app may hold the clipboard for a moment
-            if u.OpenClipboard(None):
-                break
-            time.sleep(0.05)
-        else:
-            raise PlatformError("The clipboard is busy. Try again.")
+        self._open_clipboard()
         try:
             u.EmptyClipboard()
             put(8, dib)  # CF_DIB
             put(u.RegisterClipboardFormatW("PNG"), png_out.getvalue())
         finally:
             u.CloseClipboard()
+
+    def _clipboard_api(self):
+        k32, u, wt = ctypes.WinDLL("kernel32"), self.user32, wintypes
+        k32.GlobalAlloc.argtypes, k32.GlobalAlloc.restype = (wt.UINT, ctypes.c_size_t), wt.HGLOBAL
+        k32.GlobalLock.argtypes, k32.GlobalLock.restype = (wt.HGLOBAL,), ctypes.c_void_p
+        k32.GlobalUnlock.argtypes = (wt.HGLOBAL,)
+        k32.GlobalFree.argtypes = (wt.HGLOBAL,)
+        u.OpenClipboard.argtypes = (wt.HWND,)
+        u.SetClipboardData.argtypes, u.SetClipboardData.restype = (wt.UINT, wt.HANDLE), wt.HANDLE
+        u.GetClipboardData.argtypes, u.GetClipboardData.restype = (wt.UINT,), wt.HANDLE
+        u.RegisterClipboardFormatW.argtypes, u.RegisterClipboardFormatW.restype = (wt.LPCWSTR,), wt.UINT
+        return k32, u
+
+    def _open_clipboard(self) -> None:
+        for _ in range(10):  # another app may hold the clipboard for a moment
+            if self.user32.OpenClipboard(None):
+                return
+            time.sleep(0.05)
+        raise PlatformError("The clipboard is busy. Try again.")
+
+    def set_clipboard_text(self, text: str) -> None:
+        k32, u = self._clipboard_api()
+        data = text.encode("utf-16-le") + b"\0\0"
+        self._open_clipboard()
+        try:
+            u.EmptyClipboard()
+            handle = k32.GlobalAlloc(0x0002, len(data))
+            ptr = k32.GlobalLock(handle)
+            ctypes.memmove(ptr, data, len(data))
+            k32.GlobalUnlock(handle)
+            if not u.SetClipboardData(13, handle):  # CF_UNICODETEXT
+                k32.GlobalFree(handle)
+                raise PlatformError("Could not set the clipboard")
+        finally:
+            u.CloseClipboard()
+
+    def get_clipboard_text(self) -> str:
+        k32, u = self._clipboard_api()
+        self._open_clipboard()
+        try:
+            handle = u.GetClipboardData(13)  # CF_UNICODETEXT
+            if not handle:
+                return ""
+            ptr = k32.GlobalLock(handle)
+            try:
+                return ctypes.wstring_at(ptr) if ptr else ""
+            finally:
+                k32.GlobalUnlock(handle)
+        finally:
+            u.CloseClipboard()
+
+    def run_target(self, target: str) -> None:
+        """A path, folder or file opens like a double-click. Anything else runs as a command line."""
+        path = target.strip().strip('"')
+        try:
+            if os.path.exists(path) or path.lower().startswith("shell:"):
+                os.startfile(path)  # noqa: S606 - written by the PC owner in the pad editor
+            else:
+                subprocess.Popen(target.strip(), creationflags=0x00000008)  # DETACHED_PROCESS
+        except OSError as exc:
+            raise PlatformError(f"Could not start {target[:60]}") from exc
+
+    # Volume mixer ---------------------------------------------------------
+
+    def mixer(self) -> list[dict]:
+        return self._audio_thread.submit(self._mixer_list).result(timeout=10)
+
+    def mixer_set(self, session_id: str, volume: int | None = None, muted: bool | None = None) -> None:
+        self._audio_thread.submit(self._mixer_set, session_id, volume, muted).result(timeout=10)
+
+    @staticmethod
+    def _sessions() -> dict[str, list]:
+        """Audio sessions grouped by app, so the many Chrome or Discord processes become one slider."""
+        try:
+            from pycaw.pycaw import AudioUtilities
+        except ImportError as exc:
+            raise PlatformError("The volume mixer needs the pycaw package") from exc
+        groups: dict[str, list] = {}
+        for s in AudioUtilities.GetAllSessions():
+            if s.Process is None:
+                key, name = "system", "System sounds"
+            else:
+                try:
+                    exe = s.Process.name()
+                except Exception:  # noqa: BLE001 - the process may have just ended
+                    continue
+                key, name = exe.lower(), Path(exe).stem
+            groups.setdefault(key, [name, []])[1].append(s)
+        return groups
+
+    def _mixer_list(self) -> list[dict]:
+        out = []
+        for key, (name, sessions) in self._sessions().items():
+            vol = sessions[0].SimpleAudioVolume
+            out.append({"id": key, "name": name, "volume": round(vol.GetMasterVolume() * 100),
+                        "muted": bool(vol.GetMute())})
+        return sorted(out, key=lambda a: (a["id"] == "system", a["name"].lower()))
+
+    def _mixer_set(self, session_id: str, volume: int | None, muted: bool | None) -> None:
+        group = self._sessions().get(session_id)
+        if not group:
+            raise PlatformError("That app is no longer playing sound")
+        for s in group[1]:
+            vol = s.SimpleAudioVolume
+            if volume is not None:
+                vol.SetMasterVolume(volume / 100, None)
+            if muted is not None:
+                vol.SetMute(int(muted), None)
 
     # Icons ----------------------------------------------------------------
 

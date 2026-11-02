@@ -58,7 +58,7 @@ jobs:
         run: Set-Content -Path host/mobiledock_host/__init__.py -Value "__version__ = `"$env:VERSION`""
       - name: Build
         working-directory: host
-        run: pyinstaller --noconfirm --onefile --windowed --name MobileDockHost --collect-submodules winrt run_host.py
+        run: pyinstaller --noconfirm --onefile --windowed --name MobileDockHost --collect-submodules winrt --collect-submodules pycaw --collect-submodules comtypes --hidden-import segno run_host.py
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: MobileDockHost-windows

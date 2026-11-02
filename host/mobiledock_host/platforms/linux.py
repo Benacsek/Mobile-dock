@@ -251,6 +251,50 @@ class LinuxPlatform(Platform):
             raise PlatformError("That file is not a picture") from exc
         subprocess.run(["wl-copy", "--type", "image/png"], input=out.getvalue(), timeout=10, check=False)
 
+    def set_clipboard_text(self, text: str) -> None:
+        if not shutil.which("wl-copy"):
+            raise PlatformError("Install wl-clipboard to use the clipboard")
+        subprocess.run(["wl-copy", "--type", "text/plain;charset=utf-8"], input=text.encode(), timeout=10, check=False)
+
+    def get_clipboard_text(self) -> str:
+        return _run(["wl-paste", "--no-newline", "--type", "text"], timeout=5)
+
+    # Volume mixer through PipeWire or PulseAudio ------------------------
+
+    def _sink_inputs(self) -> dict[str, list[dict]]:
+        import json
+
+        try:
+            items = json.loads(_run(["pactl", "-f", "json", "list", "sink-inputs"]) or "[]")
+        except ValueError as exc:
+            raise PlatformError("pactl is too old for the volume mixer") from exc
+        groups: dict[str, list[dict]] = {}
+        for item in items:
+            props = item.get("properties", {})
+            name = props.get("application.name") or props.get("application.process.binary") or "Unknown"
+            groups.setdefault(name, []).append(item)
+        return groups
+
+    def mixer(self) -> list[dict]:
+        out = []
+        for name, items in self._sink_inputs().items():
+            channels = items[0].get("volume", {}).values()
+            levels = [int(str(c.get("value_percent", "0")).rstrip("%") or 0) for c in channels]
+            out.append({"id": name, "name": name, "volume": max(levels) if levels else 0,
+                        "muted": bool(items[0].get("mute"))})
+        return sorted(out, key=lambda a: a["name"].lower())
+
+    def mixer_set(self, session_id: str, volume: int | None = None, muted: bool | None = None) -> None:
+        items = self._sink_inputs().get(session_id)
+        if not items:
+            raise PlatformError("That app is no longer playing sound")
+        for item in items:
+            index = str(item.get("index"))
+            if volume is not None:
+                _run(["pactl", "set-sink-input-volume", index, f"{volume}%"])
+            if muted is not None:
+                _run(["pactl", "set-sink-input-mute", index, "1" if muted else "0"])
+
     # Icons ----------------------------------------------------------------
 
     def app_icon(self, app_id: str) -> bytes | None:

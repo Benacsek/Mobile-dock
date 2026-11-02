@@ -329,6 +329,8 @@ class App:
         FlatButton(more, "Use USB", self.usb, "ghost").pack(side="left")
         if self.addresses:
             FlatButton(more, "Copy address", self.copy_address, "ghost").pack(side="left")
+        # While a PIN is active, a QR code holds the address and PIN. The phone's camera opens the app with it.
+        self.qr = tk.Canvas(pair.body, width=148, height=148, background=SURFACE, highlightthickness=0)
 
         def reflow(event, digits=digits, side=side):
             # On a narrow window the buttons move under the PIN instead of getting cut off.
@@ -443,11 +445,38 @@ class App:
     def _show_pin(self, pin: str | None) -> None:
         for i, box in enumerate(self.pin_boxes):
             box.configure(text=pin[i] if pin else "·", foreground=TEXT if pin else FAINT)
+        self._show_qr(pin)
+
+    def _show_qr(self, pin: str | None) -> None:
+        from urllib.parse import urlencode
+
+        self.qr.delete("all")
+        if not pin or not self.addresses:
+            self.qr.pack_forget()
+            return
+        try:
+            import segno
+        except ImportError:
+            return
+        query = urlencode({"h": self.addresses[0], "p": self.server.port, "pin": pin,
+                           "n": self.server.config.data["host_name"][:40]})
+        code = segno.make(f"mobiledock://pair?{query}", error="m")
+        rows = list(code.matrix)
+        quiet, size = 2, 148
+        cell = size / (len(rows) + quiet * 2)
+        self.qr.create_rectangle(0, 0, size, size, fill="#FFFFFF", outline="")
+        for y, row in enumerate(rows):
+            for x, dark in enumerate(row):
+                if dark:
+                    x0, y0 = (x + quiet) * cell, (y + quiet) * cell
+                    self.qr.create_rectangle(x0, y0, x0 + cell, y0 + cell, fill="#000000", outline="")
+        if not self.qr.winfo_ismapped():
+            self.qr.pack(side="right", anchor="n", padx=(12, 0))
 
     def start_pairing(self) -> None:
         self._show_pin(self.server.pairing.start())
         self.show_tab(0)
-        self.say("On the phone, tap this PC and type the PIN.")
+        self.say("On the phone, scan the QR code with the camera, or tap this PC and type the PIN.")
         if self.pin_job:
             self.root.after_cancel(self.pin_job)
         self.check_pin()
@@ -727,10 +756,11 @@ class App:
         edit_row.pack(fill="x", pady=(8, 0))
         ttk.Label(edit_row, text="Label").pack(side="left")
         ttk.Entry(edit_row, textvariable=label_var, width=16).pack(side="left", padx=(6, 12))
-        ttk.Label(edit_row, text="Shortcut").pack(side="left")
-        ttk.Entry(edit_row, textvariable=keys_var, width=22).pack(side="left", padx=(6, 0))
-        ttk.Label(mid, text="Write shortcuts like Ctrl+Shift+G. Separate steps with commas: Win+Left, Enter",
-                  style="Footer.TLabel").pack(anchor="w", pady=(4, 0))
+        ttk.Label(edit_row, text="Action").pack(side="left")
+        ttk.Entry(edit_row, textvariable=keys_var, width=34).pack(side="left", padx=(6, 0), fill="x", expand=True)
+        ttk.Label(mid, text="Shortcuts: Ctrl+Shift+G, or Win+Left, Enter. More steps with | between them:\n"
+                            "open https://figma.com  |  run C:\\Tools\\app.exe  |  type Hello  |  wait 1",
+                  style="Footer.TLabel", justify="left").pack(anchor="w", pady=(4, 0))
         tbtn = ttk.Frame(mid)
         tbtn.pack(fill="x", pady=(8, 0))
         state = {"pad": 0}
@@ -778,7 +808,7 @@ class App:
 
         def checked_tile():
             try:
-                padlib.parse(keys_var.get())
+                padlib.parse_action(keys_var.get())
             except ValueError as exc:
                 messagebox.showerror("Shortcut pads", str(exc), parent=win)
                 return None

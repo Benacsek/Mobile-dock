@@ -263,7 +263,8 @@ class Session:
 
 
 class DockServer:
-    SLOW = {"update.refresh", "system", "apps.available", "apps.launch", "apps.pin", "apps.icon", "screenshot", "record.start", "record.stop",
+    SLOW = {"pad.run", "mixer.list", "mixer.set", "clipboard.get_text", "clipboard.set_text", "host.info",
+            "update.refresh", "system", "apps.available", "apps.launch", "apps.pin", "apps.icon", "screenshot", "record.start", "record.stop",
             "media", "media.status", "media.art", "media.seek", "media.shuffle", "media.repeat", "update.chunk"}
 
     def __init__(self, config: Config, platform: Platform, notify: Callable[[str, str], None] | None = None):
@@ -402,6 +403,42 @@ class DockServer:
         base.mkdir(parents=True, exist_ok=True)
         return base / f"{datetime.now():%Y-%m-%d %H-%M-%S}.{ext}"
 
+    def _run_tile(self, text: str) -> None:
+        """Runs a shortcut tile: key presses, web pages, programs, typed text and pauses, in order."""
+        pf = self.platform
+        for n, step in enumerate(pads.parse_action(text)):
+            if n:
+                time.sleep(0.05)
+            if step["do"] == "keys":
+                for k, press in enumerate(step["keys"]):
+                    if k:
+                        time.sleep(0.05)
+                    pf.key(press["key"], press["mods"])
+            elif step["do"] == "open":
+                pf.open_url(step["url"])
+            elif step["do"] == "run":
+                pf.run_target(step["target"])
+            elif step["do"] == "type":
+                pf.type_text(step["text"])
+            elif step["do"] == "wait":
+                time.sleep(step["seconds"])
+
+    def _lan_ip(self, origin: "Session | None") -> str:
+        ip = ""
+        if origin is not None:
+            try:
+                ip = origin.sock.getsockname()[0]
+            except OSError:
+                ip = ""
+        if not ip or ip.startswith("127.") or ip == "::1":
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                    s.connect(("192.0.2.1", 9))  # no packet is sent, this only picks the LAN card
+                    ip = s.getsockname()[0]
+            except OSError:
+                pass
+        return ip.removeprefix("::ffff:")
+
     def dispatch(self, cmd: str, msg: dict, origin: "Session | None" = None) -> dict | None:
         pf = self.platform
         if cmd == "ping":
@@ -460,6 +497,26 @@ class DockServer:
                 raise PlatformError("Unknown control")
             pf.system(action)
             return None
+        if cmd == "host.info":
+            # Sent only inside the encrypted session, so only paired phones learn the MAC address.
+            return {"mac": pf.mac_address(self._lan_ip(origin)) or ""}
+        if cmd == "mixer.list":
+            return {"apps": pf.mixer()}
+        if cmd == "mixer.set":
+            volume = msg.get("volume")
+            muted = msg.get("muted")
+            pf.mixer_set(str(msg.get("id", ""))[:200],
+                         None if volume is None else max(0, min(100, int(volume))),
+                         None if muted is None else bool(muted))
+            return None
+        if cmd == "clipboard.set_text":
+            text = str(msg.get("text", ""))
+            if len(text) > 100_000:
+                raise PlatformError("That text is too long for the clipboard")
+            pf.set_clipboard_text(text)
+            return None
+        if cmd == "clipboard.get_text":
+            return {"text": pf.get_clipboard_text()[:100_000]}
         if cmd == "update.status":
             up = self.updater
             return {"pc_version": __version__, "status": up.status if up else "Updates are off on this PC",
@@ -518,10 +575,7 @@ class DockServer:
             index = int(msg["index"])
             if pad is None or not 0 <= index < len(pad["tiles"]):
                 raise PlatformError("That shortcut no longer exists")
-            for n, step in enumerate(pads.parse(pad["tiles"][index]["keys"])):
-                if n:
-                    time.sleep(0.05)
-                pf.key(step["key"], step["mods"])
+            self._run_tile(pad["tiles"][index]["keys"])
             return None
         if cmd.startswith("file."):
             if origin is None:

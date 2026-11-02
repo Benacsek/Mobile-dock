@@ -11,7 +11,9 @@ Mobile Dock lets a phone type and click on your PC. Treat a paired phone like a 
 | A fake PC on your network | On reconnect the PC must prove it holds the shared key. During pairing it must prove it knows the PIN. |
 | Reading or changing traffic | AES-256-CBC with HMAC-SHA256, encrypt then MAC. Each direction has its own keys. |
 | Replaying old messages | Each message carries an implicit sequence number in its MAC. A replay or a gap closes the connection. |
-| Running commands on the PC | The phone sends app IDs only. The PC launches an ID only if it found that app itself. |
+| Running commands on the PC | The phone sends app IDs only. The PC launches an ID only if it found that app itself. Shortcut tiles that open pages or start programs are written on the PC. The phone only picks a tile by its number, so it can never make the PC run something new. Web pages must start with http:// or https://. |
+| A pairing link from a web page or another app | A mobiledock://pair link only works with a private network address, and the phone always asks before it pairs. The PIN in it is the same short-lived PIN as on screen. |
+| Learning the PC's network card address | The address for Wake-on-LAN is sent only inside the encrypted session, so only paired phones learn it. Discovery replies never include it. |
 | Brute force on reconnect | 8 failed attempts from one address in 5 minutes block that address for 5 minutes. |
 | Files sent from the phone | Only paired phones can send. Up to 200 MB. The file name is cut down to a plain name, so it cannot point outside Downloads/Mobile Dock. A SHA-256 check rejects damaged files. |
 | Oversized messages | Frames over 1 MiB close the connection. Text, mouse and scroll values are clamped. |

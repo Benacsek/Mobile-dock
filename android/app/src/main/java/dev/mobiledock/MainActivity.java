@@ -47,6 +47,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private AppsPanel apps;
     private ShortcutsPanel shortcuts;
     private TextView watchStatus;
+    private Button wakeButton;
     private StatsPanel stats;
     private FileSender sender;
     private Uri pendingShare;
@@ -88,6 +89,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         else scan();
         handleWake(getIntent());
         handleShare(getIntent());
+        handlePairLink(getIntent());
         WatchService.sync(this);
     }
 
@@ -97,6 +99,77 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         setIntent(intent);
         handleWake(intent);
         handleShare(intent);
+        handlePairLink(intent);
+    }
+
+    /**
+     * The QR code on the PC holds mobiledock://pair?h=address&p=port&pin=123456&n=name.
+     * Any app or web page could open such a link, so it must point at a local address and you confirm it.
+     */
+    private void handlePairLink(Intent intent) {
+        if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction()) || intent.getData() == null) return;
+        Uri uri = intent.getData();
+        setIntent(new Intent());
+        if (!"mobiledock".equals(uri.getScheme()) || !"pair".equals(uri.getHost())) return;
+        final String host = uri.getQueryParameter("h");
+        final String pin = uri.getQueryParameter("pin");
+        String name = uri.getQueryParameter("n");
+        int port;
+        try {
+            port = Integer.parseInt(uri.getQueryParameter("p"));
+        } catch (RuntimeException e) {
+            port = -1;
+        }
+        if (host == null || !isLocalAddress(host) || pin == null || !pin.matches("\\d{6}") || port < 1 || port > 65535) {
+            toast("This pairing code is not valid");
+            return;
+        }
+        final int pairPort = port;
+        String label = name == null || name.trim().length() == 0 ? host : name.trim() + " (" + host + ")";
+        new AlertDialog.Builder(this).setTitle("Pair with this PC?")
+                .setMessage(label + "\n\nOnly continue if you just scanned the code on your own PC.")
+                .setPositiveButton("Pair", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface d, int w) {
+                        client.pair(host, pairPort, pin);
+                    }
+                }).setNegativeButton("Cancel", null).show();
+    }
+
+    /** Private network addresses only, the same ranges the PC accepts. */
+    static boolean isLocalAddress(String host) {
+        if (!host.matches("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}")) return false;
+        String[] p = host.split("\\.");
+        int a = Integer.parseInt(p[0]), b = Integer.parseInt(p[1]);
+        for (String part : p) if (Integer.parseInt(part) > 255) return false;
+        return a == 10 || a == 127 || (a == 172 && b >= 16 && b <= 31) || (a == 192 && b == 168)
+                || (a == 169 && b == 254) || (a == 100 && b >= 64 && b <= 127);
+    }
+
+    /** Phone volume buttons turn the PC volume up and down while the dock is open. */
+    @Override
+    public boolean onKeyDown(int keyCode, android.view.KeyEvent event) {
+        if (volumeKeysForPc() && (keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP
+                || keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN)) {
+            client.fire("media", DockClient.args("action",
+                    keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP ? "vol_up" : "vol_down"));
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    public boolean onKeyUp(int keyCode, android.view.KeyEvent event) {
+        if (volumeKeysForPc() && (keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP
+                || keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN)) {
+            return true;  // no phone volume popup or click sound
+        }
+        return super.onKeyUp(keyCode, event);
+    }
+
+    private boolean volumeKeysForPc() {
+        return client.isConnected() && dockView != null && dockView.getVisibility() == View.VISIBLE
+                && WatchService.prefs(this).getBoolean(AppearancePanel.PREF_VOLUME_KEYS, true);
     }
 
     /** Opened by the PC watcher: turn the screen on and connect to the PC that just started. */
@@ -183,8 +256,35 @@ public final class MainActivity extends Activity implements DockClient.Listener 
 
     // Connect page -----------------------------------------------------------
 
+    /** Wake-on-LAN: turns the PC on from sleep or shutdown, if its network card allows it. */
+    private void wakePc() {
+        final String host = store.lastHost();
+        final String mac = store.mac(host);
+        if (mac.length() == 0) return;
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                String result;
+                try {
+                    WakeOnLan.send(mac, host);
+                    result = "Wake signal sent. The PC app connects once Windows has started.";
+                } catch (Exception e) {
+                    result = "Could not send the wake signal. Is Wi-Fi on?";
+                }
+                final String text = result;
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        toast(text);
+                    }
+                });
+            }
+        }, "wake").start();
+    }
+
     private void showConnect() {
         if (connectView == null) connectView = buildConnect();
+        wakeButton.setVisibility(store.mac(store.lastHost()).length() > 0 ? View.VISIBLE : View.GONE);
         if (connectView.getParent() == null) root.addView(connectView);
         connectView.setVisibility(View.VISIBLE);
         root.removeCallbacks(statusTick);
@@ -222,7 +322,17 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 scan();
             }
         });
-        left.addView(again, Ui.wrap(this, 4));
+        LinearLayout buttons = Ui.row(this);
+        buttons.addView(again, Ui.wrap(this, 4));
+        wakeButton = Ui.button(this, "Wake PC");
+        wakeButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                wakePc();
+            }
+        });
+        buttons.addView(wakeButton, Ui.wrap(this, 4));
+        left.addView(buttons);
         page.addView(left, Ui.weight(1f));
 
         View gap = new View(this);
@@ -513,6 +623,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private LinearLayout dockBar;
     private View exitFull;
     private CapturePanel capture;
+    private ControlsPanel controls;
     private UpdatesPanel updates;
 
     private void showDock() {
@@ -590,12 +701,13 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         panels.add(apps);
         panels.add(media);
         panels.add(shortcuts);
-        panels.add(new ControlsPanel(this, client, new Runnable() {
+        controls = new ControlsPanel(this, client, new Runnable() {
             @Override
             public void run() {
                 leaveDock();
             }
-        }));
+        });
+        panels.add(controls);
         panels.add(capture);
         panels.add(new TouchPanel(this, client, new SignPanel.Sender() {
             @Override
@@ -701,6 +813,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         media.setActive(index == PLAYING);
         stats.setActive(index == STATS);
         if (index == SHORTCUTS) shortcuts.load();
+        if (index == CONTROLS) controls.load();
         if (index == SETTINGS) updates.refresh(false);
     }
 
@@ -750,6 +863,16 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             case DockClient.CONNECTED:
                 showDock();
                 apps.setPc(client.hostName);
+                final String connectedHost = client.host;
+                client.request("host.info", null, new DockClient.Callback() {
+                    @Override
+                    public void done(JSONObject r) {
+                        String mac = r.optString("mac", "");
+                        if (r.optBoolean("ok") && mac.matches("[0-9a-f]{2}(:[0-9a-f]{2}){5}")) {
+                            store.setMac(connectedHost, mac);
+                        }
+                    }
+                });
                 updater.check();
                 shortcuts.load();
                 if (pendingShare != null) {

@@ -106,6 +106,15 @@ final class Store implements Connection.Keys {
         return sb.toString();
     }
 
+    /** MAC address of the PC at this address, for Wake-on-LAN. Learned from the PC while connected. */
+    void setMac(String host, String mac) {
+        prefs.edit().putString("mac_" + host, mac).commit();
+    }
+
+    String mac(String host) {
+        return prefs.getString("mac_" + host, "");
+    }
+
     void setLast(String host, int port) {
         prefs.edit().putString("last_host", host).putInt("last_port", port).commit();
     }

@@ -1,7 +1,17 @@
-"""Shortcut pads: tiles on the phone that press key combinations on the PC.
+"""Shortcut pads: tiles on the phone that run actions on the PC.
 
 A pad belongs to one or more apps. When that app is in front, the phone shows its pad.
-Shortcuts are written like "Ctrl+Shift+G". Several steps are separated by commas.
+Shortcuts are written like "Ctrl+Shift+G". Several key presses are separated by commas.
+
+A tile can also do more than press keys. Steps are separated by " | ":
+  open https://figma.com      opens a web page
+  run C:\\Tools\\app.exe       starts a program, file or folder
+  type Hello there            types the text
+  wait 1                      pauses up to 5 seconds
+For example: "open https://mail.google.com | wait 2 | Ctrl+K"
+
+Only the PC owner writes tiles in the editor. The phone can only pick a tile by its number,
+so a phone can never make the PC run something new.
 """
 
 from __future__ import annotations
@@ -39,6 +49,43 @@ def parse(shortcut: str) -> list[dict]:
         steps.append({"key": key, "mods": clean})
     if not steps or len(steps) > 8:
         raise ValueError("A tile needs 1 to 8 steps")
+    return steps
+
+
+ACTION_WORDS = ("open", "run", "type", "wait")
+
+
+def parse_action(text: str) -> list[dict]:
+    """A tile's text as a list of steps: keys, open, run, type and wait. Raises ValueError with a reason."""
+    steps: list[dict] = []
+    parts = [p.strip() for p in str(text).split(" | ") if p.strip()]
+    if not parts:
+        raise ValueError("A tile needs a shortcut or an action")
+    for part in parts:
+        word, _, rest = part.partition(" ")
+        word, rest = word.lower(), rest.strip()
+        if word == "open":
+            if not re.match(r"^https?://\S+$", rest, re.I):
+                raise ValueError("open needs a web address that starts with http:// or https://")
+            steps.append({"do": "open", "url": rest})
+        elif word == "run":
+            if not rest:
+                raise ValueError("run needs a program, file or folder")
+            steps.append({"do": "run", "target": rest[:400]})
+        elif word == "type":
+            if not rest:
+                raise ValueError("type needs some text")
+            steps.append({"do": "type", "text": rest[:2000]})
+        elif word == "wait":
+            try:
+                seconds = float(rest)
+            except ValueError:
+                raise ValueError("wait needs a number of seconds, like wait 1") from None
+            steps.append({"do": "wait", "seconds": max(0.0, min(5.0, seconds))})
+        else:
+            steps.append({"do": "keys", "keys": parse(part)})
+    if len(steps) > 10:
+        raise ValueError("A tile can have at most 10 steps")
     return steps
 
 
@@ -111,10 +158,10 @@ def validate(pads: list[dict]) -> list[dict]:
         tiles = []
         for tile in pad.get("tiles", [])[:60]:
             label = str(tile.get("label", "")).strip()[:24]
-            keys = str(tile.get("keys", "")).strip()
+            keys = str(tile.get("keys", "")).strip()[:1000]
             if not label:
                 raise ValueError("Every tile needs a label")
-            parse(keys)
+            parse_action(keys)
             tiles.append({"label": label, "keys": keys})
         apps = [str(a).strip()[:64] for a in pad.get("apps", []) if str(a).strip()][:20]
         clean.append({"id": pid, "name": str(pad.get("name", pid))[:24], "apps": apps, "tiles": tiles})

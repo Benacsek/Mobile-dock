@@ -104,3 +104,24 @@ def test_windows_secrets_encrypted_at_rest(tmp_path):
     assert "aa" * 32 not in raw and '"tok"' not in raw
     assert cfg.device_secret("d1") == bytes.fromhex("aa" * 32)
     assert cfg.get_secret("github_token") == "tok"
+
+
+def test_mixer_and_clipboard_answer_or_explain():
+    """On every system these either work or raise a readable PlatformError, never crash."""
+    pf = get_platform()
+    try:
+        apps = pf.mixer()
+        assert all({"id", "name", "volume", "muted"} <= set(a) for a in apps)
+    except PlatformError:
+        pass
+    try:
+        assert isinstance(pf.get_clipboard_text(), str)
+    except PlatformError:
+        pass
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
+def test_windows_clipboard_text_round_trip():
+    pf = get_platform()
+    pf.set_clipboard_text("Mobile Dock ✓ test")
+    assert pf.get_clipboard_text() == "Mobile Dock ✓ test"

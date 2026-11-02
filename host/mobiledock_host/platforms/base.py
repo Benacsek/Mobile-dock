@@ -75,6 +75,47 @@ class Platform:
     def set_clipboard_image(self, png: bytes) -> None:
         raise PlatformError("Clipboard images are not supported here")
 
+    def set_clipboard_text(self, text: str) -> None:
+        raise PlatformError("The clipboard is not supported here")
+
+    def get_clipboard_text(self) -> str:
+        raise PlatformError("The clipboard is not supported here")
+
+    def open_url(self, url: str) -> None:
+        import webbrowser
+
+        if not webbrowser.open(url):
+            raise PlatformError("Could not open a browser")
+
+    def run_target(self, target: str) -> None:
+        """Starts a program, file or folder the PC owner wrote into a shortcut tile."""
+        import shlex
+
+        try:
+            subprocess.Popen(shlex.split(target), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL, start_new_session=True)
+        except (OSError, ValueError) as exc:
+            raise PlatformError(f"Could not start {target[:60]}") from exc
+
+    def mixer(self) -> list[dict]:
+        """Apps playing sound: [{"id", "name", "volume" 0-100, "muted"}]."""
+        raise PlatformError("The volume mixer is not supported here")
+
+    def mixer_set(self, session_id: str, volume: int | None = None, muted: bool | None = None) -> None:
+        raise PlatformError("The volume mixer is not supported here")
+
+    def mac_address(self, local_ip: str) -> str | None:
+        """MAC address of the network card that has local_ip, for Wake-on-LAN."""
+        import psutil
+
+        for nic, addrs in psutil.net_if_addrs().items():
+            if any(a.address == local_ip for a in addrs):
+                for a in addrs:
+                    mac = (a.address or "").replace("-", ":").lower()
+                    if len(mac) == 17 and mac.count(":") == 5 and mac != "00:00:00:00:00:00":
+                        return mac
+        return None
+
     def app_icon(self, app_id: str) -> bytes | None:
         """PNG icon for an app from list_apps(), or None."""
         return None

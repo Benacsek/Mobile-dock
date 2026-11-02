@@ -12,6 +12,7 @@ import android.widget.TextView;
 
 /** Accent color, tile size, background glow and labels. Saved on the phone and applied at once. */
 final class AppearancePanel extends ScrollView {
+    static final String PREF_VOLUME_KEYS = "volume_keys";
     private final SharedPreferences prefs;
     private final Runnable apply;
 
@@ -73,6 +74,10 @@ final class AppearancePanel extends ScrollView {
         box.addView(section(c, "Dock"));
         box.addView(toggle(c, "Background glow", "glow", Ui.GLOW), Ui.fillWidth(c, 4));
         box.addView(toggle(c, "Labels under dock icons", "labels", Ui.LABELS), Ui.fillWidth(c, 4));
+
+        box.addView(section(c, "Buttons"));
+        box.addView(toggle(c, "Phone volume buttons change the PC volume", PREF_VOLUME_KEYS,
+                prefs.getBoolean(PREF_VOLUME_KEYS, true)), Ui.fillWidth(c, 4));
     }
 
     private static TextView section(Context c, String label) {

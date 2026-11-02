@@ -247,3 +247,62 @@ def test_system_controls_and_update_status(server):
     assert called == ["lock"]
     status = call(channel, "update.status", 3)
     assert status["ok"] and "pc_version" in status
+
+
+def test_tile_actions_parse_and_run(server):
+    from mobiledock_host import pads
+
+    steps = pads.parse_action("open https://figma.com | wait 9 | type Hi there | Ctrl+K, Enter")
+    assert [s["do"] for s in steps] == ["open", "wait", "type", "keys"]
+    assert steps[1]["seconds"] == 5.0  # waits are capped
+    assert steps[3]["keys"][1] == {"key": "enter", "mods": []}
+    for bad in ("open javascript:alert(1)", "open file:///etc/passwd", "run", "wait soon", "Hyper+X"):
+        with pytest.raises(ValueError):
+            pads.parse_action(bad)
+
+    done = []
+    server.platform.open_url = lambda url: done.append(("open", url))
+    server.platform.run_target = lambda t: done.append(("run", t))
+    server.platform.type_text = lambda t: done.append(("type", t))
+    server.platform.key = lambda k, m: done.append(("key", k, tuple(m)))
+    server.config.data["pads"] = pads.validate([{"id": "mine", "name": "Mine", "apps": [], "tiles": [
+        {"label": "Mail", "keys": "open https://mail.example.com | run notepad.exe | type Hello | Ctrl+K"}]}])
+    channel, _ = pair(server, server.pairing.start())
+    assert call(channel, "pad.run", 1, pad="mine", index=0)["ok"]
+    assert done == [("open", "https://mail.example.com"), ("run", "notepad.exe"), ("type", "Hello"),
+                    ("key", "k", ("ctrl",))]
+
+
+def test_mixer_clipboard_and_host_info(server):
+    server.platform.mixer = lambda: [{"id": "spotify.exe", "name": "Spotify", "volume": 40, "muted": False}]
+    calls = []
+    server.platform.mixer_set = lambda i, v, m: calls.append((i, v, m))
+    clip = {}
+    server.platform.set_clipboard_text = lambda t: clip.update(text=t)
+    server.platform.get_clipboard_text = lambda: clip.get("text", "")
+    server.platform.mac_address = lambda ip: "aa:bb:cc:dd:ee:ff"
+    channel, _ = pair(server, server.pairing.start())
+    assert call(channel, "mixer.list", 1)["apps"][0]["name"] == "Spotify"
+    assert call(channel, "mixer.set", 2, id="spotify.exe", volume=250)["ok"]
+    assert calls == [("spotify.exe", 100, None)]  # volume is clamped
+    assert call(channel, "clipboard.set_text", 3, text="from the phone")["ok"]
+    assert call(channel, "clipboard.get_text", 4)["text"] == "from the phone"
+    assert not call(channel, "clipboard.set_text", 5, text="x" * 100_001)["ok"]
+    assert call(channel, "host.info", 6)["mac"] == "aa:bb:cc:dd:ee:ff"
+
+
+def test_sensors_parse_libre_hardware_monitor(monkeypatch):
+    import json
+    import subprocess
+
+    from mobiledock_host import perf
+
+    items = [{"Name": "Core (Tctl/Tdie)", "SensorType": "Temperature", "Value": 61.4, "Parent": "/amdcpu/0"},
+             {"Name": "GPU Core", "SensorType": "Temperature", "Value": 55.0, "Parent": "/gpu-amd/0"},
+             {"Name": "Fan #1", "SensorType": "Fan", "Value": 1180.0, "Parent": "/lpc/nct6798d/0"},
+             {"Name": "Fan #2", "SensorType": "Fan", "Value": 0.0, "Parent": "/lpc/nct6798d/0"}]
+    monkeypatch.setattr(perf.sys, "platform", "win32")
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, json.dumps(items), ""))
+    assert perf.read_sensors() == {"cpu_temp": 61.4, "gpu_temp": 55.0, "fans": [{"name": "Fan #1", "rpm": 1180}]}
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, "", ""))
+    assert "sensors_hint" in perf.read_sensors()

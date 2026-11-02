@@ -18,7 +18,7 @@ final class Icon extends Drawable {
         PLAY, PAUSE, PREV, NEXT, SHUFFLE, REPEAT, REPEAT_ONE, VOL_DOWN, VOL_UP, MUTE,
         APPS, MUSIC, TOUCHPAD, KEYBOARD, CAMERA, RECORD, STOP, POWER, BACK, PLUS, REFRESH,
         SHORTCUTS, CHART, SEND, FOLLOW,
-        SLIDERS, SUN, MONITOR, LOCK, MOON, PEN, PICTURE, FILE, SCISSORS, MOVE, EXPAND, SHRINK
+        SLIDERS, SUN, MONITOR, LOCK, MOON, PEN, PICTURE, FILE, SCISSORS, MOVE, EXPAND, SHRINK, CLIPBOARD
     }
 
     private final Kind kind;
@@ -270,6 +270,12 @@ final class Icon extends Drawable {
                 seg(c, 0.64f, 0.64f, 0.64f, 0.84f);
                 seg(c, 0.36f, 0.84f, 0.36f, 0.64f);
                 seg(c, 0.36f, 0.64f, 0.16f, 0.64f);
+                break;
+            case CLIPBOARD:
+                c.drawRoundRect(box(0.22f, 0.18f, 0.78f, 0.86f), s * 0.06f, s * 0.06f, line);
+                c.drawRoundRect(box(0.38f, 0.12f, 0.62f, 0.26f), s * 0.04f, s * 0.04f, fill);
+                seg(c, 0.34f, 0.46f, 0.66f, 0.46f);
+                seg(c, 0.34f, 0.62f, 0.58f, 0.62f);
                 break;
             case REFRESH:
             default:

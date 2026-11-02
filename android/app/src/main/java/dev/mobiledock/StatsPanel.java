@@ -19,6 +19,7 @@ final class StatsPanel extends LinearLayout {
     private final DockClient client;
     private final Card cpu, gpu, ram, net, disk;
     private final LinearLayout procs;
+    private final TextView sensors;
     private boolean active;
 
     private final Runnable poll = new Runnable() {
@@ -70,6 +71,14 @@ final class StatsPanel extends LinearLayout {
         net = new Card(c, "Network", DOWN, new GraphView(c, 0, DOWN, UP));
         disk = new Card(c, "Disk", READ, new GraphView(c, 0, READ, WRITE));
 
+        // Fan speeds, or a hint on how to get temperatures. Hidden when there is nothing to say.
+        sensors = Ui.text(c, "", 12, Ui.MUTED);
+        sensors.setSingleLine(true);
+        sensors.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        sensors.setPadding(Ui.dp(c, 8), 0, Ui.dp(c, 8), Ui.dp(c, 2));
+        sensors.setVisibility(GONE);
+        addView(sensors);
+
         LinearLayout top = Ui.row(c);
         top.addView(cpu, cell(c));
         top.addView(gpu, cell(c));
@@ -94,6 +103,20 @@ final class StatsPanel extends LinearLayout {
         return lp;
     }
 
+    private void showSensors(JSONObject r) {
+        JSONArray fans = r.optJSONArray("fans");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; fans != null && i < fans.length(); i++) {
+            JSONObject f = fans.optJSONObject(i);
+            if (f == null) continue;
+            sb.append(sb.length() == 0 ? "Fans   " : "   ·   ").append(f.optString("name")).append(' ')
+                    .append(f.optInt("rpm")).append(" rpm");
+        }
+        if (sb.length() == 0) sb.append(r.optString("sensors_hint", ""));
+        sensors.setText(sb.toString());
+        sensors.setVisibility(sb.length() == 0 ? GONE : VISIBLE);
+    }
+
     static String bytes(double b) {
         String[] units = {"B", "KB", "MB", "GB", "TB"};
         int u = 0;
@@ -109,7 +132,10 @@ final class StatsPanel extends LinearLayout {
         cpu.value.setText(Math.round(c) + "%");
         String mhz = r.has("cpu_mhz") ? String.format(Locale.US, "   %.2f GHz", r.optInt("cpu_mhz") / 1000.0) : "";
         JSONArray cores = r.optJSONArray("cores");
-        cpu.detail.setText(r.optString("cpu_name") + (cores != null ? "   " + cores.length() + " threads" : "") + mhz);
+        String cpuTemp = r.has("cpu_temp") ? String.format(Locale.US, "   %.0f °C", r.optDouble("cpu_temp")) : "";
+        cpu.detail.setText(r.optString("cpu_name") + (cores != null ? "   " + cores.length() + " threads" : "") + mhz
+                + cpuTemp);
+        showSensors(r);
         cpu.graph.add((float) c);
 
         if (r.has("gpu")) {

@@ -8,6 +8,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 /** Screenshots, region snips, screen recording, and sending pictures or files to the PC. */
 final class CapturePanel extends ScrollView {
@@ -77,6 +78,74 @@ final class CapturePanel extends ScrollView {
         });
         row2.addView(file, cell(c));
         box.addView(row2, Ui.fillWidth(c, 0));
+
+        TextView clip = Ui.text(c, "Clipboard text", 13, Ui.ACCENT);
+        clip.setPadding(Ui.dp(c, 6), Ui.dp(c, 12), 0, Ui.dp(c, 4));
+        box.addView(clip);
+        LinearLayout row3 = Ui.row(c);
+        LinearLayout toPc = ControlsPanel.tile(c, Icon.Kind.CLIPBOARD, "Phone to PC");
+        toPc.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                copyToPc(client);
+            }
+        });
+        row3.addView(toPc, cell(c));
+        LinearLayout fromPc = ControlsPanel.tile(c, Icon.Kind.CLIPBOARD, "PC to phone");
+        fromPc.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                copyFromPc(client);
+            }
+        });
+        row3.addView(fromPc, cell(c));
+        box.addView(row3, Ui.fillWidth(c, 0));
+    }
+
+    @SuppressWarnings("deprecation")
+    private android.content.ClipboardManager clipboard() {
+        return (android.content.ClipboardManager) getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+    }
+
+    /** Copies the phone's clipboard text onto the PC clipboard. */
+    private void copyToPc(DockClient client) {
+        android.content.ClipData data = clipboard().getPrimaryClip();
+        CharSequence text = data == null || data.getItemCount() == 0 ? null
+                : data.getItemAt(0).coerceToText(getContext());
+        if (text == null || text.length() == 0) {
+            toast("The phone clipboard has no text");
+            return;
+        }
+        client.request("clipboard.set_text", DockClient.args("text", text.toString()), new DockClient.Callback() {
+            @Override
+            public void done(JSONObject r) {
+                toast(r.optBoolean("ok") ? "Copied to the PC. Paste with Ctrl+V." : r.optString("error", "Failed"));
+            }
+        });
+    }
+
+    /** Puts the PC's clipboard text on the phone clipboard. */
+    private void copyFromPc(DockClient client) {
+        client.request("clipboard.get_text", null, new DockClient.Callback() {
+            @Override
+            public void done(JSONObject r) {
+                if (!r.optBoolean("ok")) {
+                    toast(r.optString("error", "Failed"));
+                    return;
+                }
+                String text = r.optString("text", "");
+                if (text.length() == 0) {
+                    toast("The PC clipboard has no text");
+                    return;
+                }
+                clipboard().setPrimaryClip(android.content.ClipData.newPlainText("From PC", text));
+                toast("Copied from the PC");
+            }
+        });
+    }
+
+    private void toast(String s) {
+        android.widget.Toast.makeText(getContext(), s, android.widget.Toast.LENGTH_SHORT).show();
     }
 
     private static LinearLayout.LayoutParams cell(Context c) {

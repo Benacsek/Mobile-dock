@@ -15,11 +15,13 @@ It works on your local network or over USB. There is no account, no cloud servic
 - Long press a tile and drag it to a new spot. Drop it on the red bar to unpin it.
 - Add apps from a searchable list of everything installed on the PC. Pin them from the phone or from the PC window.
 - Open Spotify or another music app and the phone switches to Now playing. You see the album art, title, artist and album, a progress bar you can drag, and buttons for play, skip, shuffle, repeat and volume. It reads Windows media controls or MPRIS on Linux, so it needs no Spotify account.
-- Shortcuts: tiles for the app in front on the PC. Pads for Figma, VS Code, browsers and Windows are built in. The page switches by itself when you switch apps. Edit pads and add your own in the PC window.
-- Stats: live graphs for CPU, GPU, memory, network and disk, plus the busiest apps, like Task Manager. GPU load works for AMD, NVIDIA and Intel.
+- Shortcuts: tiles for the app in front on the PC. Pads for Figma, VS Code, browsers and Windows are built in. The page switches by itself when you switch apps. Edit pads and add your own in the PC window. A tile can press keys, open a web page, start a program, type text and wait, in any order.
+- Stats: live graphs for CPU, GPU, memory, network and disk, plus the busiest apps, like Task Manager. GPU load works for AMD, NVIDIA and Intel. CPU and GPU temperatures and fan speeds show on Linux, and on Windows while LibreHardwareMonitor runs.
 - Send: share a photo to Mobile Dock from any app, or use Capture in the dock. Pictures go to the PC clipboard, so Ctrl+V pastes them into Figma. Other files land in Downloads/Mobile Dock.
-- Controls: volume, mute, lock the PC, turn the screen off, sleep, show the desktop and open Task Manager. There is no shutdown button on purpose.
-- Capture: take a screenshot, snip a region, and start or stop screen recording. Screenshots save in Pictures/Mobile Dock, videos in Videos/Mobile Dock.
+- Controls: volume, mute, lock the PC, turn the screen off, sleep, show the desktop and open Task Manager. A volume mixer has one slider per app, so Spotify, Discord and a game each get their own level. There is no shutdown button on purpose.
+- The phone's volume buttons change the PC volume while the dock is open. Turn it off in Settings.
+- Capture: take a screenshot, snip a region, and start or stop screen recording. Screenshots save in Pictures/Mobile Dock, videos in Videos/Mobile Dock. Copy clipboard text from the phone to the PC or back.
+- Wake PC: turn the PC on from the phone with Wake-on-LAN. See [host/README.md](host/README.md) for the PC settings it needs.
 - Touch & sign: the touchpad, the keyboard, and a signature pad. Sign with your finger, tap Send, and paste the signature into a PDF or document with Ctrl+V.
 - Settings: pick the accent color, the tile size, the background glow and whether the dock shows labels. See the phone and PC versions and check for updates now.
 - Arrange (the arrows icon on Apps): tap a tile to pick it up and drop it in its new place, or on the red bar to unpin it.
@@ -34,7 +36,7 @@ Both apps share one look: graphite surfaces, blue for actions and selection, and
 2. Install the APK on your phone. See [android/README.md](android/README.md).
 3. Start the host. On Windows, allow it through the firewall on private networks when asked.
 4. Open the app on the phone. Your PC shows up in the list if both are on the same Wi-Fi.
-5. Click Pair new phone on the PC. Type the 6 digit PIN on the phone.
+5. Click Pair new phone on the PC. Scan the QR code with the phone's camera, or type the 6 digit PIN on the phone.
 
 The phone remembers the PC. Next time it connects on its own.
 

@@ -92,6 +92,11 @@ Requests are JSON with `t` and an optional numeric `id`. If `id` is present, the
 | update.status | | pc_version, status, phone_ready (phone version kept on the PC, or empty) |
 | update.refresh | | same as update.status, after a fresh check on GitHub |
 | system | action: lock, sleep, display_off, desktop, task_manager | |
+| mixer.list | | apps: [{id, name, volume 0 to 100, muted}] |
+| mixer.set | id, volume (0 to 100) and/or muted | |
+| clipboard.set_text | text (at most 100,000 characters) | |
+| clipboard.get_text | | text |
+| host.info | | mac, the PC's network card address for Wake-on-LAN |
 | screenshot | | path |
 | record.start | | recording |
 | record.stop | | recording, path |
