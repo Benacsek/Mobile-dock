@@ -133,6 +133,11 @@ final class AppsPanel extends LinearLayout {
                     case DragEvent.ACTION_DROP:
                         unpin((App) e.getLocalState());
                         return true;
+                    case DragEvent.ACTION_DRAG_ENDED:
+                        // The bar ends the drag itself. A drop on a tile rebuilds the grid,
+                        // and removed tiles never hear that the drag ended.
+                        dragEnded();
+                        return true;
                     default:
                         return true;
                 }
@@ -322,7 +327,10 @@ final class AppsPanel extends LinearLayout {
         removeZone.setAlpha(0.7f);
         removeZone.setVisibility(VISIBLE);
         v.setAlpha(0.35f);
-        v.startDrag(ClipData.newPlainText("app", app.id), new DragShadowBuilder(v), app, 0);
+        if (!v.startDrag(ClipData.newPlainText("app", app.id), new DragShadowBuilder(v), app, 0)) {
+            v.setAlpha(1f);
+            dragEnded();
+        }
     }
 
     /** Arrange mode: a tap picks a tile up instead of opening the app. */
