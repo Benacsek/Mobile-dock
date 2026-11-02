@@ -69,8 +69,6 @@ TEXT, MUTED, FAINT = "#E6E8EB", "#8B919A", "#5C626B"
 ACCENT, ACCENT_HOVER, ACCENT_PRESS, ON_ACCENT = "#4C8DF6", "#6A9FF8", "#3A74D4", "#FFFFFF"
 SIGNAL, SIGNAL_BG = "#F2B33D", "#2E2618"
 HOVER, PRESS = "#2F343B", "#383E46"
-# Old names, still used by the dialogs below.
-CARD, CARD_HI, GREEN = SURFACE, SURFACE_HI, SIGNAL
 
 
 def apply_theme(root: tk.Tk) -> None:
@@ -191,6 +189,9 @@ class ScrollPage(tk.Frame):
             self.canvas.yview_moveto(0)
 
     def _wheel(self, event) -> None:
+        # A list scrolls itself. Scrolling the page too would move both at once.
+        if isinstance(event.widget, tk.Listbox):
+            return
         if self.bar.winfo_ismapped():
             self.canvas.yview_scroll(int(-event.delta / 120) or (-1 if event.delta > 0 else 1), "units")
 

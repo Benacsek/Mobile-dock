@@ -84,7 +84,6 @@ final class Ui {
         bg.addState(new int[] {}, rounded(c, 0x00000000, 14));
         tile.setBackground(bg);
         tile.setClickable(true);
-        tile.setMinimumWidth(size);
         int p = dp(c, 6);
         tile.setPadding(p, p, p, p);
         ImageView icon = new ImageView(c);
@@ -99,8 +98,9 @@ final class Ui {
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.topMargin = dp(c, 6);
         tile.addView(t, lp);
-        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(size, size);
-        int m = dp(c, 4);
+        // Tiles share the dock bar's width evenly. Only the height is fixed.
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, size, 1f);
+        int m = dp(c, 3);
         tlp.setMargins(m, 0, m, 0);
         tile.setLayoutParams(tlp);
         return tile;

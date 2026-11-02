@@ -511,7 +511,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private int current;
     private boolean fullscreen;
     private LinearLayout dockBar;
-    private View barScroll, exitFull;
+    private View exitFull;
     private CapturePanel capture;
     private UpdatesPanel updates;
 
@@ -638,11 +638,8 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                     select(index);
                 }
             });
-            LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, tile.getLayoutParams().height, 1f);
-            int m = Ui.dp(this, 3);
-            tlp.setMargins(m, 0, m, 0);
             tabs.add(tile);
-            dockBar.addView(tile, tlp);
+            dockBar.addView(tile);
         }
         // Fullscreen sits at the end of the bar, so it is there on every page.
         ImageView full = Ui.iconButton(this, Icon.Kind.EXPAND, 44, 0x00000000, Ui.SURFACE_HI, Ui.MUTED);
@@ -656,7 +653,6 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         LinearLayout.LayoutParams flp = new LinearLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44));
         flp.setMargins(Ui.dp(this, 4), 0, Ui.dp(this, 2), 0);
         dockBar.addView(full, flp);
-        barScroll = dockBar;
         LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         blp.topMargin = Ui.dp(this, 8);
@@ -684,7 +680,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     /** Fullscreen hides the dock bar so the open page gets the whole screen. */
     private void setFullscreen(boolean on) {
         fullscreen = on;
-        barScroll.setVisibility(on ? View.GONE : View.VISIBLE);
+        dockBar.setVisibility(on ? View.GONE : View.VISIBLE);
         exitFull.setVisibility(on ? View.VISIBLE : View.GONE);
     }
 

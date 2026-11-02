@@ -18,7 +18,7 @@ final class Icon extends Drawable {
         PLAY, PAUSE, PREV, NEXT, SHUFFLE, REPEAT, REPEAT_ONE, VOL_DOWN, VOL_UP, MUTE,
         APPS, MUSIC, TOUCHPAD, KEYBOARD, CAMERA, RECORD, STOP, POWER, BACK, PLUS, REFRESH,
         SHORTCUTS, CHART, SEND, FOLLOW,
-        SLIDERS, SUN, PENCIL, MONITOR, LOCK, MOON, PEN, PICTURE, FILE, SCISSORS, MOVE, EXPAND, SHRINK, DOWNLOAD
+        SLIDERS, SUN, MONITOR, LOCK, MOON, PEN, PICTURE, FILE, SCISSORS, MOVE, EXPAND, SHRINK
     }
 
     private final Kind kind;
@@ -207,10 +207,6 @@ final class Icon extends Drawable {
                     seg(c, 0.5f + cx * 0.26f, 0.5f + cy * 0.26f, 0.5f + cx * 0.36f, 0.5f + cy * 0.36f);
                 }
                 break;
-            case PENCIL:
-                c.drawPath(poly(0.66f, 0.18f, 0.82f, 0.34f, 0.38f, 0.78f, 0.2f, 0.82f, 0.24f, 0.62f), line);
-                seg(c, 0.58f, 0.26f, 0.74f, 0.42f);
-                break;
             case MONITOR:
                 c.drawRoundRect(box(0.14f, 0.2f, 0.86f, 0.66f), s * 0.07f, s * 0.07f, line);
                 seg(c, 0.5f, 0.66f, 0.5f, 0.8f);
@@ -274,14 +270,6 @@ final class Icon extends Drawable {
                 seg(c, 0.64f, 0.64f, 0.64f, 0.84f);
                 seg(c, 0.36f, 0.84f, 0.36f, 0.64f);
                 seg(c, 0.36f, 0.64f, 0.16f, 0.64f);
-                break;
-            case DOWNLOAD:
-                seg(c, 0.5f, 0.14f, 0.5f, 0.62f);
-                seg(c, 0.32f, 0.46f, 0.5f, 0.64f);
-                seg(c, 0.68f, 0.46f, 0.5f, 0.64f);
-                seg(c, 0.18f, 0.66f, 0.18f, 0.84f);
-                seg(c, 0.18f, 0.84f, 0.82f, 0.84f);
-                seg(c, 0.82f, 0.84f, 0.82f, 0.66f);
                 break;
             case REFRESH:
             default:
