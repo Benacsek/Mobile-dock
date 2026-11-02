@@ -130,7 +130,7 @@ class FlatButton(tk.Label):
         base = base or bg
         super().__init__(parent, text=text, background=base, foreground=fg, padx=16, pady=7, cursor="hand2",
                          takefocus=1, highlightthickness=1, highlightbackground=base, highlightcolor=ACCENT,
-                         font=parent.winfo_toplevel()._fonts["strong" if kind == "primary" else "body"])
+                         font=parent._root()._fonts["strong" if kind == "primary" else "body"])
         self._colors, self._command, self._inside = (base, hover, press), command, False
         self.bind("<Enter>", lambda e: self._paint(1, True))
         self.bind("<Leave>", lambda e: self._paint(0, False))
@@ -151,7 +151,7 @@ class FlatButton(tk.Label):
 
 def section(parent, title: str, hint: str = "") -> tk.Frame:
     """A surface block with a title, optional hint, and a body frame to fill."""
-    fonts = parent.winfo_toplevel()._fonts
+    fonts = parent._root()._fonts
     box = tk.Frame(parent, background=SURFACE, padx=20, pady=18)
     tk.Label(box, text=title, background=SURFACE, foreground=TEXT, font=fonts["h2"], anchor="w").pack(fill="x")
     if hint:
@@ -166,7 +166,7 @@ def section(parent, title: str, hint: str = "") -> tk.Frame:
 def themed_listbox(parent, **kw) -> tk.Listbox:
     return tk.Listbox(parent, background=SURFACE_HI, foreground=TEXT, selectbackground=ACCENT,
                       selectforeground=ON_ACCENT, highlightthickness=0, borderwidth=0, activestyle="none",
-                      **{"font": parent.winfo_toplevel()._fonts["body"], **kw})
+                      **{"font": parent._root()._fonts["body"], **kw})
 
 
 def dot(parent, color: str, bg: str, size: int = 10) -> tk.Canvas:

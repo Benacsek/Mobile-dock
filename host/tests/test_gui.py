@@ -31,9 +31,12 @@ def test_window_builds(tmp_path):
 
     app = App(server, queue.Queue(), updater=FakeUpdater())
     app.start_pairing()
+    assert all(box.cget("text").isdigit() for box in app.pin_boxes)
     app.show_connection([{"id": "x", "name": "Test phone", "since": 0, "via": "USB"}])
-    assert "Test phone" in app.banner_title.cget("text")
+    assert "Test phone" in app.pill_text.cget("text")
     app.show_connection([])
+    for i in range(len(app.TABS)):
+        app.show_tab(i)
     app.add_apps()
     app.edit_pads()
     import time
