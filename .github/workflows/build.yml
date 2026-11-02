@@ -149,7 +149,7 @@ jobs:
           adb="$ANDROID_HOME/platform-tools/adb"
           "$adb" install -r "$(find apk -name app-debug.apk | head -1)"
           mkdir shots
-          pages="-1:connect 0:apps 1:playing 2:shortcuts 3:controls 4:capture 5:touch 6:stats 7:settings"
+          pages="-1:connect 0:apps 1:playing 2:shortcuts 3:controls 4:capture 5:touch 6:stats 7:settings 99:night"
           n=0
           for entry in $pages; do
             page="${entry%%:*}"; name="${entry#*:}"; n=$((n + 1))

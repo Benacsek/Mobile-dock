@@ -3,6 +3,8 @@
 
     <!-- LAN and USB (adb reverse) connections to the PC. Nothing leaves your network. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- A short buzz when you press a button. Turn it off in Settings. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Reads the Wi-Fi subnet to find PCs by broadcast. -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- Optional "wake when my PC turns on". Off until you turn it on in the app. -->

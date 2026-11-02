@@ -119,6 +119,11 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             return true;
         }
         if (dockView == null || dockView.getVisibility() != View.VISIBLE) onState(DockClient.CONNECTED, "Alex-PC");
+        if (dimmed) wake();
+        if (page == 99) {  // the dim night clock
+            dim();
+            return true;
+        }
         select(page);
         return true;
     }
@@ -167,9 +172,86 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 || (a == 169 && b == 254) || (a == 100 && b >= 64 && b <= 127);
     }
 
+    // Night dimming and tap feedback ----------------------------------------------
+
+    /** Every touch restarts the idle timer. While dimmed, the first touch only wakes the dock. */
+    @Override
+    public boolean dispatchTouchEvent(android.view.MotionEvent ev) {
+        int action = ev.getActionMasked();
+        if (action == android.view.MotionEvent.ACTION_DOWN) {
+            if (dimmed) {
+                wake();
+                swallowGesture = true;
+                return true;
+            }
+            swallowGesture = false;
+            if (isDocked() && WatchService.prefs(this).getBoolean(Haptics.PREF, true)
+                    && Haptics.onPressable(getWindow().getDecorView(), ev.getX(), ev.getY())) {
+                Haptics.tick(this);
+            }
+            resetIdle();
+        }
+        if (swallowGesture) {
+            if (action == android.view.MotionEvent.ACTION_UP || action == android.view.MotionEvent.ACTION_CANCEL) {
+                swallowGesture = false;
+            }
+            return true;
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
+    private boolean isDocked() {
+        return dockView != null && dockView.getVisibility() == View.VISIBLE;
+    }
+
+    private final Runnable dimTask = new Runnable() {
+        @Override
+        public void run() {
+            if (isDocked() && !dimmed) dim();
+        }
+    };
+
+    /** Starts the countdown to the dim clock, or stops it when dimming is off or the dock is closed. */
+    private void resetIdle() {
+        if (root == null) return;
+        root.removeCallbacks(dimTask);
+        int minutes = WatchService.prefs(this).getInt(AppearancePanel.PREF_DIM, 5);
+        if (minutes > 0 && isDocked()) root.postDelayed(dimTask, minutes * 60_000L);
+    }
+
+    private void dim() {
+        if (night == null) {
+            night = new NightView(this, client);
+            root.addView(night);
+        }
+        night.setVisibility(View.VISIBLE);
+        night.bringToFront();
+        night.start();
+        setBrightness(0.02f);
+        dimmed = true;
+    }
+
+    private void wake() {
+        if (night != null) {
+            night.stop();
+            night.setVisibility(View.GONE);
+        }
+        setBrightness(WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE);
+        dimmed = false;
+        resetIdle();
+    }
+
+    private void setBrightness(float value) {
+        WindowManager.LayoutParams lp = getWindow().getAttributes();
+        lp.screenBrightness = value;
+        getWindow().setAttributes(lp);
+    }
+
     /** Phone volume buttons turn the PC volume up and down while the dock is open. */
     @Override
     public boolean onKeyDown(int keyCode, android.view.KeyEvent event) {
+        if (dimmed) wake();
+        else resetIdle();
         if (volumeKeysForPc() && (keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP
                 || keyCode == android.view.KeyEvent.KEYCODE_VOLUME_DOWN)) {
             client.fire("media", DockClient.args("action",
@@ -214,6 +296,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     protected void onPause() {
         super.onPause();
         WatchService.dockVisible = false;
+        if (root != null) root.removeCallbacks(dimTask);
     }
 
     @Override
@@ -225,6 +308,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             root.post(statusTick);
         }
         immersive();
+        if (!dimmed) resetIdle();
     }
 
     @Override
@@ -251,6 +335,10 @@ public final class MainActivity extends Activity implements DockClient.Listener 
 
     /** Back leaves fullscreen or arrange mode, then returns to Apps, then leaves the app. */
     private void handleBack() {
+        if (dimmed) {
+            wake();
+            return;
+        }
         boolean docked = dockView != null && dockView.getVisibility() == View.VISIBLE;
         if (docked && fullscreen) {
             setFullscreen(false);
@@ -307,6 +395,8 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         if (connectView == null) connectView = buildConnect();
         wakeButton.setVisibility(store.mac(store.lastHost()).length() > 0 ? View.VISIBLE : View.GONE);
         if (connectView.getParent() == null) root.addView(connectView);
+        if (dimmed) wake();
+        root.removeCallbacks(dimTask);
         connectView.setVisibility(View.VISIBLE);
         root.removeCallbacks(statusTick);
         root.post(statusTick);
@@ -644,6 +734,8 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private LinearLayout dockBar;
     private View exitFull;
     private CapturePanel capture;
+    private NightView night;
+    private boolean dimmed, swallowGesture;
     private ControlsPanel controls;
     private UpdatesPanel updates;
 
@@ -656,6 +748,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         if (connectView != null) connectView.setVisibility(View.GONE);
         dockBanner.setVisibility(View.GONE);
         apps.load();
+        resetIdle();
     }
 
     /** Rebuilds the dock after an Appearance change. The connection stays up. */

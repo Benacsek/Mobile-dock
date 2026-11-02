@@ -13,6 +13,9 @@ import android.widget.TextView;
 /** Accent color, tile size, background glow and labels. Saved on the phone and applied at once. */
 final class AppearancePanel extends ScrollView {
     static final String PREF_VOLUME_KEYS = "volume_keys";
+    static final String PREF_DIM = "dim_minutes";
+    private static final int[] DIM_MINUTES = {0, 1, 5, 15};
+    private static final String[] DIM_NAMES = {"Off", "1 min", "5 min", "15 min"};
     private final SharedPreferences prefs;
     private final Runnable apply;
 
@@ -75,7 +78,30 @@ final class AppearancePanel extends ScrollView {
         box.addView(toggle(c, "Background glow", "glow", Ui.GLOW), Ui.fillWidth(c, 4));
         box.addView(toggle(c, "Labels under dock icons", "labels", Ui.LABELS), Ui.fillWidth(c, 4));
 
+        box.addView(section(c, "Dim to a clock when idle"));
+        LinearLayout dims = Ui.row(c);
+        int dim = prefs.getInt(PREF_DIM, 5);
+        for (int i = 0; i < DIM_MINUTES.length; i++) {
+            final int minutes = DIM_MINUTES[i];
+            Button b = Ui.button(c, DIM_NAMES[i]);
+            if (dim == minutes) {
+                b.setBackground(Ui.pressable(c, Ui.ACCENT, Ui.accentPressed(), 14));
+                b.setTextColor(Ui.onAccent());
+            }
+            b.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    save(PREF_DIM, minutes);
+                }
+            });
+            dims.addView(b, new LinearLayout.LayoutParams(0, Ui.dp(c, 48), 1f));
+            if (i < DIM_MINUTES.length - 1) dims.addView(new View(c), new LinearLayout.LayoutParams(Ui.dp(c, 8), 1));
+        }
+        box.addView(dims, Ui.fillWidth(c, 4));
+
         box.addView(section(c, "Buttons"));
+        box.addView(toggle(c, "Vibrate when you press a button", Haptics.PREF,
+                prefs.getBoolean(Haptics.PREF, true)), Ui.fillWidth(c, 4));
         box.addView(toggle(c, "Phone volume buttons change the PC volume", PREF_VOLUME_KEYS,
                 prefs.getBoolean(PREF_VOLUME_KEYS, true)), Ui.fillWidth(c, 4));
     }

@@ -20,6 +20,8 @@ It works on your local network or over USB. There is no account, no cloud servic
 - Send: share a photo to Mobile Dock from any app, or use Capture in the dock. Pictures go to the PC clipboard, so Ctrl+V pastes them into Figma. Other files land in Downloads/Mobile Dock.
 - Controls: volume, mute, lock the PC, turn the screen off, sleep, show the desktop and open Task Manager. A volume mixer has one slider per app, so Spotify, Discord and a game each get their own level. There is no shutdown button on purpose.
 - The phone's volume buttons change the PC volume while the dock is open. Turn it off in Settings.
+- Night dimming: after a few idle minutes the dock dims to a quiet clock with the current song. A touch brings it back.
+- Tap vibration: a short buzz when you press a button, so you can use the dock without looking at it.
 - Capture: take a screenshot, snip a region, and start or stop screen recording. Screenshots save in Pictures/Mobile Dock, videos in Videos/Mobile Dock. Copy clipboard text from the phone to the PC or back.
 - Wake PC: turn the PC on from the phone with Wake-on-LAN. See [host/README.md](host/README.md) for the PC settings it needs.
 - Touch & sign: the touchpad, the keyboard, and a signature pad. Sign with your finger, tap Send, and paste the signature into a PDF or document with Ctrl+V.

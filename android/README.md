@@ -42,9 +42,13 @@ App icons all get the same rounded-square shape. Names can use two lines. The gr
   - Keyboard: type in the box and the text goes to the PC as you type. Tap Ctrl, Alt, Shift or Win before a key to make a shortcut.
   - Sign: draw with your finger. Send to PC puts a PNG with a clear background on the clipboard. Paste it with Ctrl+V.
 - Stats: CPU, GPU, memory, network and disk graphs for the last minute, plus the busiest apps. Temperatures and fan speeds show when the PC can read them.
-- Settings: accent color, tile size, background glow, dock labels and the volume buttons switch on the left. Phone and PC versions, the PC's update status and Check now on the right.
+- Settings: accent color, tile size, background glow, dock labels, night dimming, tap vibration and the volume buttons switch on the left. Phone and PC versions, the PC's update status and Check now on the right.
 - Arrange: the arrows icon on Apps. A tap picks a tile up. Tap the icon again or press Back when you are done.
 - Fullscreen: the corners icon at the right end of the dock bar hides the bar on any page. Tap the small button in the corner or press Back to bring it back.
+
+Night dimming: after 5 minutes without a touch, the dock dims to a quiet clock with the current song on black. The first touch brings the dock back and does not press anything. The clock moves a little every 20 seconds so no pixel stays lit in one place. Pick Off, 1, 5 or 15 minutes in Settings.
+
+Tap vibration: a short buzz when you press a tile or button, so you know it worked without looking. The touchpad, signature pad and sliders do not buzz. Turn it off in Settings.
 
 Volume buttons: while the dock is open and connected, the phone's volume buttons change the PC volume. Turn this off in Settings.
 
@@ -122,7 +126,7 @@ If you lose the key, phones can't update anymore. You'd have to uninstall and re
 
 ## Privacy
 
-- Permissions: Internet, to reach your PC. Wi-Fi state, to find PCs on the subnet. Install packages, to open the installer for updates. No storage permission: updates stay in app-private storage until they are installed.
+- Permissions: Internet, to reach your PC. Vibrate, for the buzz when you press a button. Wi-Fi state, to find PCs on the subnet. Install packages, to open the installer for updates. No storage permission: updates stay in app-private storage until they are installed.
 - For the optional PC watcher: foreground service, wake lock, start at boot, notifications, display over other apps and the battery exemption. None of them do anything until you turn the watcher on.
 - No analytics, no ads, no Google services.
 - Pairing keys stay in app private storage. Backup and device transfer are turned off for them. On Android 6 and newer they are also encrypted with a Keystore key that never leaves the phone.
