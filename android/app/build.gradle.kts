@@ -12,7 +12,7 @@ android {
         minSdk = 16
         targetSdk = 36
         // CI sets these from the run number. Each release must have a higher code to update phones.
-        versionCode = (System.getenv("MDOCK_VERSION_CODE") ?: "1").toInt()
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toInt()?.plus(100) ?: 1
         versionName = System.getenv("MDOCK_VERSION_NAME") ?: "1.0.0-dev"
     }
 

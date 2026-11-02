@@ -11,8 +11,8 @@ permissions:
 
 env:
   # Every run gets a higher version, so the auto-updaters on PC and phone see it as newer.
-  VERSION: "1.1.${{ github.run_number }}"
-  MDOCK_VERSION_CODE: "${{ github.run_number }}"
+  # 1.2.x and phone codes above 100 stay ahead of the 1.1.x builds made before the move to a new repository.
+  VERSION: "1.2.${{ github.run_number }}"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -129,7 +129,7 @@ jobs:
           if [ -f "$signed" ]; then
             cp "$signed" "out/MobileDock-$VERSION.apk"
             apk_sha=$(sha256sum "out/MobileDock-$VERSION.apk" | cut -d' ' -f1)
-            android="{\"file\":\"MobileDock-$VERSION.apk\",\"code\":$MDOCK_VERSION_CODE,\"sha256\":\"$apk_sha\"}"
+            android="{\"file\":\"MobileDock-$VERSION.apk\",\"code\":$((GITHUB_RUN_NUMBER + 100)),\"sha256\":\"$apk_sha\"}"
           else
             # Without the signing secrets each build has a different key, so phones could not update.
             echo "::warning::No release signing key. Phones will not auto-update. See android/README.md."
