@@ -31,12 +31,43 @@ from .config import Config, config_dir
 
 log = logging.getLogger("mobiledock.update")
 
+# Public half of the update signing key. CI signs latest.json with the private half, which lives only
+# in the MDOCK_UPDATE_KEY repository secret and on the owner's backup. latest.json holds the SHA-256 of
+# every download, so a valid signature vouches for the .exe and the APK too. Without a matching
+# signature nothing is installed, even if the repository itself were taken over.
+UPDATE_PUBLIC_KEY = ""
+
 CHECK_EVERY = 6 * 3600
 FIRST_CHECK_DELAY = 20
 MAX_DOWNLOAD = 200 * 1024 * 1024
 CHUNK = 256 * 1024
 RETRY_FIRST = 120
 RETRY_MAX = 30 * 60
+
+
+class UpdateRefused(ValueError):
+    """The release is not signed with the update key. Nothing is installed."""
+
+
+def verify_manifest(raw: bytes, signature: bytes, public_key: str | None = None) -> None:
+    """Raises UpdateRefused unless signature is a valid Ed25519 signature of raw by the update key."""
+    import base64
+    import binascii
+
+    from cryptography.exceptions import InvalidSignature
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+    from cryptography.hazmat.primitives.serialization import load_ssh_public_key
+
+    key_text = UPDATE_PUBLIC_KEY if public_key is None else public_key
+    if not key_text:
+        raise UpdateRefused("this build has no update key, so it cannot check releases")
+    key = load_ssh_public_key(key_text.encode())
+    if not isinstance(key, Ed25519PublicKey):
+        raise UpdateRefused("the update key is not an Ed25519 key")
+    try:
+        key.verify(base64.b64decode(signature.strip(), validate=True), raw)
+    except (InvalidSignature, binascii.Error, ValueError) as exc:
+        raise UpdateRefused("the release signature does not match") from exc
 
 
 def parse_version(text: str) -> tuple[int, ...]:
@@ -148,8 +179,11 @@ class Updater:
             release = json.loads(_fetch(f"https://api.github.com/repos/{self.repo}/releases/latest", 1 << 20,
                                         self.token, "application/vnd.github+json"))
             raw = self._asset(release, "", "latest.json", 65536)
+            signature = self._asset(release, "", "latest.json.sig", 4096)
         else:
             raw = _fetch(f"https://github.com/{self.repo}/releases/latest/download/latest.json", 65536)
+            signature = _fetch(f"https://github.com/{self.repo}/releases/latest/download/latest.json.sig", 4096)
+        verify_manifest(raw, signature)
         manifest = json.loads(raw)
         if not isinstance(manifest, dict) or "version" not in manifest:
             raise ValueError("bad latest.json")
@@ -188,6 +222,9 @@ class Updater:
                 self.offline = True
                 self.status = "Could not reach GitHub. Is the PC online? Trying again in a few minutes."
                 log.warning("update check failed: %s", exc)
+            except UpdateRefused as exc:
+                log.error("update refused: %s", exc)
+                self.status = f"Update refused: {exc}. Nothing was installed."
             except Exception as exc:  # noqa: BLE001 - updates must never crash the dock
                 log.warning("update check failed: %s", exc)
                 self.status = f"Update check failed: {exc}"

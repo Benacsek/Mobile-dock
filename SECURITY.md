@@ -17,7 +17,7 @@ Mobile Dock lets a phone type and click on your PC. Treat a paired phone like a 
 | Brute force on reconnect | 8 failed attempts from one address in 5 minutes block that address for 5 minutes. |
 | Files sent from the phone | Only paired phones can send. Up to 200 MB. The file name is cut down to a plain name, so it cannot point outside Downloads/Mobile Dock. A SHA-256 check rejects damaged files. |
 | Oversized messages | Frames over 1 MiB close the connection. Text, mouse and scroll values are clamped. |
-| A fake update | Updates come only from this repository's GitHub releases over HTTPS. Every file must match the SHA-256 in that release's latest.json. Android refuses an APK signed with a different key. |
+| A fake update | Updates come only from this repository's GitHub releases over HTTPS. latest.json is signed with an Ed25519 update key, and the PC app checks that signature with the public key built into it. latest.json holds the SHA-256 of every download, so even someone who took over the repository or the GitHub account could not get a fake .exe or APK installed. Android also refuses an APK signed with a different key. |
 | Someone on the internet | The PC only accepts connections and discovery from your own network: LAN, USB, link-local and VPN ranges. Internet addresses are dropped before any data is read. |
 | Using the PC to flood others | Discovery answers at most 5 times per second per address. |
 | A stolen copy of the PC config | On Windows, pairing keys and the GitHub token are encrypted with DPAPI, tied to your Windows account. A copy is useless on another PC or account. On Linux the file is readable only by you. |
@@ -65,6 +65,12 @@ The code and its history contain no passwords, tokens or keys. These steps are a
 6. Once the repository is public, the PC no longer needs a GitHub token. Revoke it on GitHub, then click GitHub token in the PC window and save it empty.
 
 Repository secrets stay secret in a public repository. Pull requests from forks never receive them, and only pushes to main can publish releases.
+
+## Update signing key
+
+The private half of the update key is the `MDOCK_UPDATE_KEY` repository secret. The public half is `UPDATE_PUBLIC_KEY` in `host/mobiledock_host/updater.py`. The release job signs latest.json and refuses to publish if the secret is missing or does not match the public key.
+
+Keep a backup of the private key file next to the Android keystore. If it is lost, make a new pair, put the new public key in `updater.py` and ship one release signed with the old key, so installed apps accept the new one.
 
 ## Check a download
 
