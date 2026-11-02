@@ -61,7 +61,12 @@ final class AppsPanel extends LinearLayout {
         void launched(String appName);
     }
 
-    AppsPanel(Context c, DockClient client, LaunchListener onLaunch) {
+    private final TextView pcName;
+    private final View pcDot;
+    private ImageView arrangeButton;
+    private int width;
+
+    AppsPanel(Context c, DockClient client, LaunchListener onLaunch, final Runnable fullscreen) {
         super(c);
         this.client = client;
         this.onLaunch = onLaunch;
@@ -71,29 +76,54 @@ final class AppsPanel extends LinearLayout {
         FrameLayout top = new FrameLayout(c);
         header = Ui.row(c);
         header.addView(Ui.title(c, "Pinned apps"));
-        hint = Ui.text(c, "   Long press a tile to move it", 13, Ui.MUTED);
-        header.addView(hint);
-        header.addView(Ui.spacer(c));
-        ImageView refresh = Ui.flatIcon(c, Icon.Kind.REFRESH, 44);
-        refresh.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                load();
-            }
-        });
-        header.addView(refresh);
-        Button add = Ui.accentButton(c, "Add app");
-        add.setCompoundDrawablePadding(Ui.dp(c, 6));
-        Icon plus = new Icon(Icon.Kind.PLUS, Ui.onAccent());
-        plus.setBounds(0, 0, Ui.dp(c, 18), Ui.dp(c, 18));
-        add.setCompoundDrawables(plus, null, null, null);
+        // Which PC this phone is driving, with the same amber dot as the PC window.
+        LinearLayout pc = Ui.row(c);
+        pc.setBackground(Ui.rounded(c, Ui.SURFACE, 12));
+        pc.setPadding(Ui.dp(c, 10), Ui.dp(c, 4), Ui.dp(c, 12), Ui.dp(c, 4));
+        pcDot = new View(c);
+        pcDot.setBackground(Ui.rounded(c, Ui.SIGNAL, 4));
+        pc.addView(pcDot, new LayoutParams(Ui.dp(c, 8), Ui.dp(c, 8)));
+        pcName = Ui.text(c, "", 13, Ui.SIGNAL);
+        pcName.setSingleLine(true);
+        pcName.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        pcName.setMaxWidth(Ui.dp(c, 180));
+        pcName.setPadding(Ui.dp(c, 8), 0, 0, 0);
+        pc.addView(pcName);
+        LayoutParams pclp = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+        pclp.leftMargin = Ui.dp(c, 12);
+        header.addView(pc, pclp);
+        hint = Ui.text(c, "", 13, Ui.MUTED);
+        hint.setSingleLine(true);
+        hint.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        hint.setPadding(Ui.dp(c, 12), 0, Ui.dp(c, 8), 0);
+        header.addView(hint, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
+        ImageView add = Ui.iconButton(c, Icon.Kind.PLUS, 44, 0x00000000, Ui.SURFACE_HI, Ui.ACCENT);
+        add.setContentDescription("Add app");
         add.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
                 showPicker();
             }
         });
-        header.addView(add, Ui.wrap(c, 4));
+        header.addView(add);
+        arrangeButton = Ui.iconButton(c, Icon.Kind.MOVE, 44, 0x00000000, Ui.SURFACE_HI, Ui.TEXT);
+        arrangeButton.setContentDescription("Arrange");
+        arrangeButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                setArrange(!arrange);
+            }
+        });
+        header.addView(arrangeButton);
+        ImageView full = Ui.iconButton(c, Icon.Kind.EXPAND, 44, 0x00000000, Ui.SURFACE_HI, Ui.TEXT);
+        full.setContentDescription("Fullscreen");
+        full.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                fullscreen.run();
+            }
+        });
+        header.addView(full);
         top.addView(header);
 
         removeZone = Ui.text(c, "Drop here to unpin", 16, Ui.TEXT);
@@ -135,7 +165,8 @@ final class AppsPanel extends LinearLayout {
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
-        int cols = Math.max(3, w / Ui.dp(getContext(), 118 * Ui.TILE_SCALE));
+        width = w;
+        int cols = balancedColumns();
         if (cols != columns) {
             columns = cols;
             post(new Runnable() {
@@ -175,15 +206,30 @@ final class AppsPanel extends LinearLayout {
         Toast.makeText(getContext(), s, Toast.LENGTH_SHORT).show();
     }
 
+    /**
+     * As many columns as fit, then spread evenly over the rows needed,
+     * so 8 apps make two rows of 4 instead of 6 and a ragged 2.
+     */
+    private int balancedColumns() {
+        if (width <= 0) return columns;
+        int max = Math.max(3, width / Ui.dp(getContext(), 112 * Ui.TILE_SCALE));
+        int n = apps.size();
+        if (n == 0) return max;
+        int rows = (n + max - 1) / max;
+        return Math.max(3, (n + rows - 1) / rows);
+    }
+
     private void rebuild() {
         Context c = getContext();
+        columns = balancedColumns();
+        if (hint != null) updateHint();
         grid.removeAllViews();
         empty.setVisibility(apps.isEmpty() ? VISIBLE : GONE);
         LinearLayout row = null;
         for (int i = 0; i < apps.size(); i++) {
             if (i % columns == 0) {
                 row = Ui.row(c);
-                grid.addView(row, new LayoutParams(LayoutParams.MATCH_PARENT, Ui.dp(c, 116 * Ui.TILE_SCALE)));
+                grid.addView(row, new LayoutParams(LayoutParams.MATCH_PARENT, Ui.dp(c, 124 * Ui.TILE_SCALE)));
             }
             row.addView(tile(apps.get(i), i), cell(c));
         }
@@ -210,11 +256,10 @@ final class AppsPanel extends LinearLayout {
         FrameLayout iconBox = new FrameLayout(c);
         TextView letters = Ui.text(c, Ui.initials(app.name), 20, Ui.TEXT);
         letters.setGravity(Gravity.CENTER);
-        letters.setBackground(Ui.rounded(c, Ui.colorFor(app.id), 14));
+        letters.setBackground(Ui.rounded(c, Ui.colorFor(app.id), 12 * Ui.TILE_SCALE));
         iconBox.addView(letters, new FrameLayout.LayoutParams(Ui.dp(c, 56 * Ui.TILE_SCALE), Ui.dp(c, 56 * Ui.TILE_SCALE)));
         ImageView image = new ImageView(c);
         image.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        image.setBackgroundColor(Ui.SURFACE);
         image.setVisibility(GONE);
         iconBox.addView(image, new FrameLayout.LayoutParams(Ui.dp(c, 56 * Ui.TILE_SCALE), Ui.dp(c, 56 * Ui.TILE_SCALE)));
         icons.load(app.id, image);
@@ -222,7 +267,7 @@ final class AppsPanel extends LinearLayout {
 
         TextView label = Ui.text(c, app.name, 12, Ui.TEXT);
         label.setGravity(Gravity.CENTER);
-        label.setSingleLine(true);
+        label.setMaxLines(2);  // two lines, like a launcher, so "Minecraft Launcher" fits
         label.setEllipsize(android.text.TextUtils.TruncateAt.END);
         LayoutParams lp = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
         lp.topMargin = Ui.dp(c, 6);
@@ -294,9 +339,22 @@ final class AppsPanel extends LinearLayout {
     /** Arrange mode: a tap picks a tile up instead of opening the app. */
     void setArrange(boolean on) {
         arrange = on;
-        hint.setText(on ? "   Arranging. Tap a tile, then drop it on its new place" : "   Long press a tile to move it");
-        hint.setTextColor(on ? Ui.ACCENT : Ui.MUTED);
+        ((Icon) arrangeButton.getDrawable()).setColor(on ? Ui.onAccent() : Ui.TEXT);  // blue fill while on
+        arrangeButton.setSelected(on);
+        updateHint();
         rebuild();
+    }
+
+    /** The tip shows until you have moved an app once. */
+    private void updateHint() {
+        boolean learned = WatchService.prefs(getContext()).getBoolean("moved_once", false);
+        hint.setText(arrange ? "Tap a tile, then drop it on its new place" : learned ? "" : "Long press a tile to move it");
+        hint.setTextColor(arrange ? Ui.ACCENT : Ui.MUTED);
+    }
+
+    /** Shows which PC this phone is connected to. */
+    void setPc(String name) {
+        pcName.setText(name == null || name.length() == 0 ? "Your PC" : name);
     }
 
     boolean arranging() {
@@ -311,6 +369,8 @@ final class AppsPanel extends LinearLayout {
     private void move(final App app, final int target) {
         int from = apps.indexOf(app);
         if (from < 0 || from == target) return;
+        WatchService.prefs(getContext()).edit().putBoolean("moved_once", true).commit();
+        updateHint();
         apps.remove(from);
         apps.add(Math.min(target, apps.size()), app);
         JSONArray ids = new JSONArray();

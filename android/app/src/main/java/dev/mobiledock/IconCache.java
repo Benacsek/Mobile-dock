@@ -67,11 +67,54 @@ final class IconCache {
                 }
                 Bitmap bmp = BitmapFactory.decodeByteArray(data, 0, data.length);
                 if (bmp == null) return;
+                bmp = shape(bmp);
                 memory.put(appId, bmp);
                 save(appId, data);
                 if (appId.equals(view.getTag())) show(view, bmp);
             }
         });
+    }
+
+    /**
+     * Gives every icon the same rounded-square outline, like a phone launcher.
+     * Square icons are clipped to it. Round or odd-shaped icons sit on a plate of that shape.
+     */
+    static Bitmap shape(Bitmap src) {
+        int size = Math.max(32, Math.min(192, Math.max(src.getWidth(), src.getHeight())));
+        Bitmap out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        android.graphics.Canvas canvas = new android.graphics.Canvas(out);
+        android.graphics.Paint paint = new android.graphics.Paint(
+                android.graphics.Paint.ANTI_ALIAS_FLAG | android.graphics.Paint.FILTER_BITMAP_FLAG);
+        android.graphics.RectF box = new android.graphics.RectF(0, 0, size, size);
+        float radius = size * 0.22f;
+        if (fullBleed(src)) {
+            android.graphics.Matrix m = new android.graphics.Matrix();
+            m.setRectToRect(new android.graphics.RectF(0, 0, src.getWidth(), src.getHeight()), box,
+                    android.graphics.Matrix.ScaleToFit.FILL);
+            android.graphics.BitmapShader shader = new android.graphics.BitmapShader(src,
+                    android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP);
+            shader.setLocalMatrix(m);
+            paint.setShader(shader);
+            canvas.drawRoundRect(box, radius, radius, paint);
+        } else {
+            paint.setColor(Ui.SURFACE_HI);
+            canvas.drawRoundRect(box, radius, radius, paint);
+            float inset = size * 0.12f;
+            android.graphics.RectF inner = new android.graphics.RectF(inset, inset, size - inset, size - inset);
+            paint.setColor(0xFFFFFFFF);
+            canvas.drawBitmap(src, null, inner, paint);
+        }
+        return out;
+    }
+
+    /** True when all four corners are opaque, so the icon fills its square edge to edge. */
+    private static boolean fullBleed(Bitmap b) {
+        int w = b.getWidth(), h = b.getHeight(), dx = Math.max(1, w / 20), dy = Math.max(1, h / 20);
+        int[][] pts = {{dx, dy}, {w - 1 - dx, dy}, {dx, h - 1 - dy}, {w - 1 - dx, h - 1 - dy}};
+        for (int[] p : pts) {
+            if (android.graphics.Color.alpha(b.getPixel(p[0], p[1])) < 200) return false;
+        }
+        return true;
     }
 
     private static void show(ImageView view, Bitmap bmp) {
@@ -86,7 +129,10 @@ final class IconCache {
         try {
             in = new FileInputStream(f);
             Bitmap bmp = BitmapFactory.decodeStream(in);
-            if (bmp != null) memory.put(appId, bmp);
+            if (bmp != null) {
+                bmp = shape(bmp);
+                memory.put(appId, bmp);
+            }
             return bmp;
         } catch (IOException e) {
             return null;

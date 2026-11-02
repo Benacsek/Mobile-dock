@@ -165,7 +165,6 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         if (docked && apps.arranging()) {
             select(APPS);
             apps.setArrange(false);
-            Ui.setTileSelected(arrangeTile, false);
             return;
         }
         if (docked && current != APPS) {
@@ -508,10 +507,10 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     // Dock -------------------------------------------------------------------
 
     private static final int APPS = 0, PLAYING = 1, SHORTCUTS = 2, CONTROLS = 3, CAPTURE = 4, TOUCH = 5,
-            STATS = 6, APPEARANCE = 7, UPDATES = 8;
+            STATS = 6, SETTINGS = 7;
     private int current;
     private boolean fullscreen;
-    private LinearLayout dockBar, arrangeTile;
+    private LinearLayout dockBar;
     private View barScroll, exitFull;
     private CapturePanel capture;
     private UpdatesPanel updates;
@@ -562,6 +561,11 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 // Opening a music app jumps to Now playing, like a car dashboard.
                 if (MUSIC_APPS.matcher(appName).find()) select(PLAYING);
             }
+        }, new Runnable() {
+            @Override
+            public void run() {
+                setFullscreen(true);
+            }
         });
         media = new MediaPanel(this, client, new Runnable() {
             @Override
@@ -605,26 +609,31 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             }
         }));
         panels.add(stats);
-        panels.add(new AppearancePanel(this, WatchService.prefs(this), new Runnable() {
+        // Settings: Appearance on the left, Updates on the right.
+        LinearLayout settings = Ui.row(this);
+        settings.setGravity(Gravity.TOP);
+        settings.addView(new AppearancePanel(this, WatchService.prefs(this), new Runnable() {
             @Override
             public void run() {
                 rebuildDock();
             }
-        }));
-        panels.add(updates);
+        }), new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f));
+        LinearLayout.LayoutParams ulp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f);
+        ulp.leftMargin = Ui.dp(this, 16);
+        settings.addView(updates, ulp);
+        panels.add(settings);
         for (View p : panels) content.addView(p);
         capture.setRecording(recording);
         dock.addView(content, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
-        // The dock bar: rounded tiles in one row, centered, scrolling sideways on narrow phones.
+        // The dock bar: eight tiles sharing the width, so all of them are always on screen.
         dockBar = Ui.row(this);
         int bp = Ui.dp(this, 6);
         dockBar.setPadding(bp, bp, bp, bp);
         dockBar.setBackground(Ui.rounded(this, Ui.SURFACE, 18));
-        String[] names = {"Apps", "Playing", "Shortcuts", "Controls", "Capture", "Touch & sign", "Stats",
-            "Appearance", "Updates"};
+        String[] names = {"Apps", "Playing", "Shortcuts", "Controls", "Capture", "Touch", "Stats", "Settings"};
         Icon.Kind[] kinds = {Icon.Kind.APPS, Icon.Kind.MUSIC, Icon.Kind.SHORTCUTS, Icon.Kind.SLIDERS,
-            Icon.Kind.CAMERA, Icon.Kind.PEN, Icon.Kind.CHART, Icon.Kind.SUN, Icon.Kind.DOWNLOAD};
+            Icon.Kind.CAMERA, Icon.Kind.PEN, Icon.Kind.CHART, Icon.Kind.SUN};
         for (int i = 0; i < names.length; i++) {
             final int index = i;
             LinearLayout tile = Ui.dockTile(this, kinds[i], names[i]);
@@ -634,42 +643,17 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                     select(index);
                 }
             });
+            LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, tile.getLayoutParams().height, 1f);
+            int m = Ui.dp(this, 3);
+            tlp.setMargins(m, 0, m, 0);
             tabs.add(tile);
-            dockBar.addView(tile);
+            dockBar.addView(tile, tlp);
         }
-        View divider = new View(this);
-        divider.setBackgroundColor(Ui.LINE);
-        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(Ui.dp(this, 1), Ui.dp(this, 40));
-        dlp.setMargins(Ui.dp(this, 6), 0, Ui.dp(this, 6), 0);
-        dockBar.addView(divider, dlp);
-        arrangeTile = Ui.dockTile(this, Icon.Kind.MOVE, "Arrange");
-        arrangeTile.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                boolean on = !apps.arranging();
-                select(APPS);
-                apps.setArrange(on);
-                Ui.setTileSelected(arrangeTile, on);
-            }
-        });
-        dockBar.addView(arrangeTile);
-        LinearLayout full = Ui.dockTile(this, Icon.Kind.EXPAND, "Fullscreen");
-        full.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                setFullscreen(true);
-            }
-        });
-        dockBar.addView(full);
-        android.widget.HorizontalScrollView scroll = new android.widget.HorizontalScrollView(this);
-        scroll.setHorizontalScrollBarEnabled(false);
-        scroll.addView(dockBar);
-        barScroll = scroll;
+        barScroll = dockBar;
         LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        blp.gravity = Gravity.CENTER_HORIZONTAL;
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         blp.topMargin = Ui.dp(this, 8);
-        dock.addView(scroll, blp);
+        dock.addView(dockBar, blp);
         frame.addView(dock);
 
         ImageView exit = Ui.iconButton(this, Icon.Kind.SHRINK, 44, Ui.SURFACE, Ui.SURFACE_HI, Ui.TEXT);
@@ -710,14 +694,11 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             panels.get(i).setVisibility(i == index ? View.VISIBLE : View.GONE);
             Ui.setTileSelected(tabs.get(i), i == index);
         }
-        if (index != APPS && apps.arranging()) {
-            apps.setArrange(false);
-            Ui.setTileSelected(arrangeTile, false);
-        }
+        if (index != APPS && apps.arranging()) apps.setArrange(false);
         media.setActive(index == PLAYING);
         stats.setActive(index == STATS);
         if (index == SHORTCUTS) shortcuts.load();
-        if (index == UPDATES) updates.refresh(false);
+        if (index == SETTINGS) updates.refresh(false);
     }
 
     private void screenshot() {
@@ -765,6 +746,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 break;
             case DockClient.CONNECTED:
                 showDock();
+                apps.setPc(client.hostName);
                 updater.check();
                 shortcuts.load();
                 if (pendingShare != null) {

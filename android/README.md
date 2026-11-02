@@ -28,22 +28,23 @@ Debug builds from the Actions tab are signed with a different key on every run. 
 
 ## Use
 
-The dock bar sits at the bottom of the screen. Tap a tile to open its page.
+The dock bar sits at the bottom of the screen with eight tiles. Tap a tile to open its page.
 
-- Apps: tap a tile to open it on the PC. Long press a tile to drag it. Drop it on another tile to move it there, or on the red bar to unpin. Tap + Add app to pin more.
+App icons all get the same rounded-square shape. Names can use two lines. The grid spreads apps evenly over the rows, so 8 apps make two rows of 4.
+
+- Apps: tap a tile to open it on the PC. Long press a tile to drag it. Drop it on another tile to move it there, or on the red bar to unpin. The header shows which PC you are connected to. Its icons are + to pin more apps, the arrows for Arrange and the corners for Fullscreen.
 - Playing: album art, title, artist, album and a progress bar you can drag to seek. Play, skip, shuffle, repeat and volume. Opening Spotify or another music app from Apps jumps here.
 - Shortcuts: tiles for the app in front on the PC. The target icon in the header turns Follow on or off. Tap the pad name to pick another pad.
 - Controls: volume, mute, lock, screen off, sleep, show desktop, Task Manager and Disconnect. Sleep asks first.
 - Capture: screenshot, snip a region (Win+Shift+S on Windows), record, picture to the PC clipboard and file to Downloads.
-- Touch & sign: switch between Touchpad, Keyboard and Sign at the top.
+- Touch: switch between Touchpad, Keyboard and Sign at the top.
   - Touchpad: one finger moves. Tap to click. Two finger tap is right click, three finger tap is middle click. Two fingers scroll. Hold Left and move to drag.
   - Keyboard: type in the box and the text goes to the PC as you type. Tap Ctrl, Alt, Shift or Win before a key to make a shortcut.
   - Sign: draw with your finger. Send to PC puts a PNG with a clear background on the clipboard. Paste it with Ctrl+V.
 - Stats: CPU, GPU, memory, network and disk graphs for the last minute, plus the busiest apps.
-- Appearance: accent color, tile size, background glow and dock labels. Changes apply at once and stay on the phone.
-- Updates: phone and PC versions, the PC's update status and Check now.
-- Arrange: opens Apps in arrange mode. A tap picks a tile up. Tap Arrange again or press Back when you are done.
-- Fullscreen: hides the dock bar. Tap the small button in the corner or press Back to bring it back.
+- Settings: accent color, tile size, background glow and dock labels on the left. Phone and PC versions, the PC's update status and Check now on the right.
+- Arrange: the arrows icon on Apps. A tap picks a tile up. Tap the icon again or press Back when you are done.
+- Fullscreen: the corners icon on Apps hides the dock bar. Tap the small button in the corner or press Back to bring it back.
 
 ## Start with your PC
 
