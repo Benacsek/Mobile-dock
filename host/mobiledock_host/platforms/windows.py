@@ -510,8 +510,12 @@ class WindowsPlatform(Platform):
             from pycaw.pycaw import AudioUtilities
         except ImportError as exc:
             raise PlatformError("The volume mixer needs the pycaw package") from exc
+        try:
+            sessions = AudioUtilities.GetAllSessions()
+        except Exception as exc:  # noqa: BLE001 - COMError when Windows has no sound output at all
+            raise PlatformError("No sound output found on the PC") from exc
         groups: dict[str, list] = {}
-        for s in AudioUtilities.GetAllSessions():
+        for s in sessions:
             if s.Process is None:
                 key, name = "system", "System sounds"
             else:
