@@ -185,11 +185,23 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 return true;
             }
             swallowGesture = false;
-            int buzz = Haptics.length(WatchService.prefs(this));
-            if (buzz > 0 && isDocked() && Haptics.onPressable(getWindow().getDecorView(), ev.getX(), ev.getY())) {
-                Haptics.tick(this, buzz);
-            }
+            // Remember a press on a button. It only buzzes on lift, if it turned out to be a tap.
+            tapPending = isDocked() && Haptics.length(WatchService.prefs(this)) > 0
+                    && Haptics.onPressable(getWindow().getDecorView(), ev.getX(), ev.getY());
+            tapX = ev.getX();
+            tapY = ev.getY();
+            tapAt = ev.getEventTime();
             resetIdle();
+        } else if (tapPending && action == android.view.MotionEvent.ACTION_MOVE) {
+            float slop = android.view.ViewConfiguration.get(this).getScaledTouchSlop();
+            if (Math.abs(ev.getX() - tapX) > slop || Math.abs(ev.getY() - tapY) > slop) tapPending = false;  // a scroll
+        } else if (tapPending && action == android.view.MotionEvent.ACTION_UP) {
+            tapPending = false;
+            if (ev.getEventTime() - tapAt < android.view.ViewConfiguration.getLongPressTimeout()) {
+                Haptics.tick(this, Haptics.length(WatchService.prefs(this)));
+            }
+        } else if (action == android.view.MotionEvent.ACTION_CANCEL) {
+            tapPending = false;
         }
         if (swallowGesture) {
             if (action == android.view.MotionEvent.ACTION_UP || action == android.view.MotionEvent.ACTION_CANCEL) {
@@ -735,7 +747,9 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private View exitFull;
     private CapturePanel capture;
     private NightView night;
-    private boolean dimmed, swallowGesture;
+    private boolean dimmed, swallowGesture, tapPending;
+    private float tapX, tapY;
+    private long tapAt;
     private ControlsPanel controls;
     private UpdatesPanel updates;
 
