@@ -46,7 +46,9 @@ On Android 4.1 to 4.3, `SecureRandom` had a seeding bug. The app reads `/dev/ura
 
 - The Android app has zero third-party dependencies.
 - The host depends on `cryptography`, and `evdev` on Linux.
-- GitHub Actions are pinned to commit hashes. Dependabot opens update PRs weekly.
+- GitHub Actions are pinned to commit hashes. Dependabot opens one grouped update PR per ecosystem each week.
+- CodeQL scans the Python, Java and workflow code for security bugs on every push and every week.
+- Every release carries a signed build attestation. It proves the file was built by this repository's workflow from a specific commit. See "Check a download" below.
 - Workflows run with read-only tokens. Only the release job gets write access, and only for pushes to main.
 
 ## Before you make the repository public
@@ -62,6 +64,16 @@ The code and its history contain no passwords, tokens or keys. These steps are a
 
 Repository secrets stay secret in a public repository. Pull requests from forks never receive them, and only pushes to main can publish releases.
 
+## Check a download
+
+With the GitHub CLI installed, run this in the folder with the downloaded file:
+
+```bash
+gh attestation verify MobileDockHost.exe --repo Benacsek/Mobile-dock
+```
+
+It works the same for the APK. A file that was changed after the build fails this check.
+
 ## Report a problem
 
-Open a private security advisory on GitHub for this repository. Please do not file a public issue for security bugs.
+Use "Report a vulnerability" on the repository's Security tab, or the private report link offered when you open a new issue. Please do not file a public issue for security bugs.

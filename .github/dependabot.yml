@@ -4,11 +4,20 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      updates:
+        patterns: ["*"]
   - package-ecosystem: gradle
     directory: /android
     schedule:
       interval: weekly
+    groups:
+      updates:
+        patterns: ["*"]
   - package-ecosystem: pip
     directory: /host
     schedule:
       interval: weekly
+    groups:
+      updates:
+        patterns: ["*"]
