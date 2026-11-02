@@ -122,8 +122,10 @@ jobs:
           sdk="$ANDROID_HOME/cmdline-tools/latest/bin"
           image="system-images;android-34;default;x86_64"
           yes | "$sdk/sdkmanager" "emulator" "platform-tools" "$image" > /dev/null
-          echo no | "$sdk/avdmanager" create avd -n dock -k "$image" -d pixel --force
-          cfg="$HOME/.android/avd/dock.avd/config.ini"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/avd"  # one known place, for avdmanager and the emulator alike
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo no | "$sdk/avdmanager" create avd -n dock -k "$image" -d pixel --force -p "$ANDROID_AVD_HOME/dock.avd"
+          cfg="$ANDROID_AVD_HOME/dock.avd/config.ini"
           sed -i '/^hw.lcd/d;/^hw.gpu/d;/^showDeviceFrame/d' "$cfg"
           printf 'hw.lcd.width=1280\nhw.lcd.height=720\nhw.lcd.density=320\nhw.gpu.enabled=yes\nhw.gpu.mode=swiftshader_indirect\nshowDeviceFrame=no\n' >> "$cfg"
           nohup "$ANDROID_HOME/emulator/emulator" -avd dock -no-window -no-audio -no-boot-anim -no-snapshot \
