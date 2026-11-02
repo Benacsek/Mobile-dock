@@ -37,6 +37,9 @@ def test_window_builds(tmp_path):
     app.show_connection([])
     for i in range(len(app.TABS)):
         app.show_tab(i)
+    app.edit_pads(1)
+    app.root.geometry("560x420")  # smallest size: pages must still build and scroll
+    app.root.update()
     app.add_apps()
     app.edit_pads()
     import time

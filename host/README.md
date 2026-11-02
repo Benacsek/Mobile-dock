@@ -28,6 +28,14 @@ The `windows-media` extra powers Now playing on the phone: album art, progress, 
 4. Type that PIN in the phone app.
 5. On the Settings tab, turn Start with Windows on if you want the dock ready after every login.
 
+### Window tips
+
+- Ctrl+1 to Ctrl+4 switch between the Phone, Apps, Shortcuts and Settings tabs.
+- On the Apps tab, Alt+Up and Alt+Down move the selected app. Delete unpins it.
+- In Add apps, double-click an app to pin it.
+- Copy address puts this PC's address on the clipboard, for Connect by address on the phone.
+- On a small screen, pages scroll and the pairing buttons move under the PIN.
+
 ### Shortcut pads
 
 On the Shortcuts tab, click Edit shortcut pads. Each pad has a name, the programs it belongs to (for example `Figma.exe`) and its tiles. Write a shortcut like `Ctrl+Shift+G`. Separate steps with commas, like `Win+Left, Enter`. The Windows pad is used when no other pad matches.

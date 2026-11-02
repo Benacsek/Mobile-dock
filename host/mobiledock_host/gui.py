@@ -113,7 +113,9 @@ def apply_theme(root: tk.Tk) -> None:
     style.configure("TEntry", fieldbackground=SURFACE_HI, foreground=TEXT, insertcolor=TEXT, padding=6)
     style.configure("TCombobox", fieldbackground=SURFACE_HI, foreground=TEXT, background=SURFACE_HI, arrowcolor=TEXT)
     style.map("TCombobox", fieldbackground=[("readonly", SURFACE_HI)], foreground=[("readonly", TEXT)])
-    style.configure("Vertical.TScrollbar", background=SURFACE_HI, troughcolor=SURFACE, arrowcolor=MUTED)
+    style.configure("Vertical.TScrollbar", background=SURFACE_HI, troughcolor=BG, arrowcolor=MUTED,
+                    bordercolor=BG, lightcolor=SURFACE_HI, darkcolor=SURFACE_HI, gripcount=0, arrowsize=12)
+    style.map("Vertical.TScrollbar", background=[("active", HOVER)])
 
 
 class FlatButton(tk.Label):
@@ -131,22 +133,66 @@ class FlatButton(tk.Label):
         super().__init__(parent, text=text, background=base, foreground=fg, padx=16, pady=7, cursor="hand2",
                          takefocus=1, highlightthickness=1, highlightbackground=base, highlightcolor=ACCENT,
                          font=parent._root()._fonts["strong" if kind == "primary" else "body"])
-        self._colors, self._command, self._inside = (base, hover, press), command, False
+        self._colors, self._command, self._inside, self._fg, self.enabled = (base, hover, press), command, False, fg, True
         self.bind("<Enter>", lambda e: self._paint(1, True))
         self.bind("<Leave>", lambda e: self._paint(0, False))
         self.bind("<ButtonPress-1>", lambda e: self._paint(2, True))
         self.bind("<ButtonRelease-1>", self._release)
-        self.bind("<Return>", lambda e: self._command())
-        self.bind("<space>", lambda e: self._command())
+        self.bind("<Return>", lambda e: self._run())
+        self.bind("<space>", lambda e: self._run())
+
+    def set_enabled(self, on: bool) -> None:
+        """A disabled button stays visible but greyed out, so you can see what becomes possible."""
+        self.enabled = on
+        self.configure(foreground=self._fg if on else FAINT, cursor="hand2" if on else "arrow")
+        self._paint(0, False)
+
+    def _run(self) -> None:
+        if self.enabled:
+            self._command()
 
     def _paint(self, state: int, inside: bool) -> None:
         self._inside = inside
-        self.configure(background=self._colors[state])
+        self.configure(background=self._colors[state if self.enabled else 0])
 
     def _release(self, _event) -> None:
         self._paint(1 if self._inside else 0, self._inside)
         if self._inside:
-            self._command()
+            self._run()
+
+
+class ScrollPage(tk.Frame):
+    """A page that scrolls when the window is too small for it. The scrollbar only shows when needed."""
+
+    def __init__(self, parent):
+        super().__init__(parent, background=BG)
+        self.canvas = tk.Canvas(self, background=BG, highlightthickness=0, borderwidth=0)
+        self.bar = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.bar.set)
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.inner = tk.Frame(self.canvas, background=BG)
+        self.window = self.canvas.create_window(0, 0, window=self.inner, anchor="nw")
+        self.inner.bind("<Configure>", lambda e: self._fit())
+        self.canvas.bind("<Configure>", lambda e: self._fit())
+        self.canvas.bind("<Enter>", lambda e: self.canvas.bind_all("<MouseWheel>", self._wheel))
+        self.canvas.bind("<Leave>", lambda e: self.canvas.unbind_all("<MouseWheel>"))
+
+    def _fit(self) -> None:
+        width, height = self.canvas.winfo_width(), self.canvas.winfo_height()
+        need = self.inner.winfo_reqheight()
+        # Fill the window when there is room, so lists can stretch. Scroll when there is not.
+        self.canvas.itemconfigure(self.window, width=width, height=max(height, need))
+        self.canvas.configure(scrollregion=(0, 0, width, max(height, need)))
+        if need > height + 1:
+            if not self.bar.winfo_ismapped():
+                self.bar.pack(side="right", fill="y", before=self.canvas)
+        elif self.bar.winfo_ismapped():
+            self.bar.pack_forget()
+            self.canvas.yview_moveto(0)
+
+    def _wheel(self, event) -> None:
+        if self.bar.winfo_ismapped():
+            self.canvas.yview_scroll(int(-event.delta / 120) or (-1 if event.delta > 0 else 1), "units")
 
 
 def section(parent, title: str, hint: str = "") -> tk.Frame:
@@ -194,8 +240,10 @@ class App:
 
         apply_theme(self.root)
         f = self.root._fonts
-        self.root.minsize(760, 660)
-        self.root.geometry("860x700")
+        self.root.minsize(560, 420)
+        screen_w, screen_h = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
+        self.root.geometry(f"{min(860, screen_w - 60)}x{min(700, screen_h - 100)}")
+        self.say_job = None
 
         # Top bar: brand on the left, live connection on the right.
         top = tk.Frame(self.root, background=BG, padx=24, pady=18)
@@ -226,6 +274,7 @@ class App:
             line.pack(fill="x")
             lbl.bind("<Button-1>", lambda e, k=i: self.show_tab(k))
             lbl.bind("<Return>", lambda e, k=i: self.show_tab(k))
+            self.root.bind(f"<Control-Key-{i + 1}>", lambda e, k=i: self.show_tab(k))
             self.tab_labels.append(lbl)
             self.tab_lines.append(line)
         tk.Frame(self.root, background=LINE, height=1).pack(fill="x", padx=24)
@@ -237,11 +286,11 @@ class App:
         self.status.pack(side="left", fill="x", expand=True)
         tk.Label(foot, text=f"v{__version__}", background=SURFACE, foreground=FAINT, font=f["small"]).pack(side="right")
 
-        body = tk.Frame(self.root, background=BG, padx=24, pady=20)
+        body = tk.Frame(self.root, background=BG, padx=24, pady=16)
         body.pack(fill="both", expand=True)
         for build in (self._phone_page, self._apps_page, self._pads_page, self._settings_page):
-            page = tk.Frame(body, background=BG)
-            build(page)
+            page = ScrollPage(body)
+            build(page.inner)
             self.pages.append(page)
 
         self.show_tab(0)
@@ -256,9 +305,10 @@ class App:
 
     def _phone_page(self, page: tk.Frame) -> None:
         f = self.root._fonts
-        addrs = ", ".join(local_addresses()) or "no network"
-        pair = section(page, "Pair a phone", f"Open Mobile Dock on the phone and type this PIN.   "
-                       f"{self.server.config.data['host_name']}  ·  {addrs}  ·  port {self.server.port}")
+        self.addresses = local_addresses()
+        addrs = ", ".join(self.addresses) or "no network"
+        pair = section(page, "Pair a phone", f"This PC: {self.server.config.data['host_name']}  ·  {addrs}  ·  "
+                       f"port {self.server.port}")
         pair.pack(fill="x", pady=(0, 16))
         digits = tk.Frame(pair.body, background=SURFACE)
         digits.pack(side="left")
@@ -269,11 +319,30 @@ class App:
             self.pin_boxes.append(box)
         side = tk.Frame(pair.body, background=SURFACE)
         side.pack(side="left", fill="both", expand=True, padx=(18, 0))
-        self.pin_hint = tk.Label(side, text="No active PIN", background=SURFACE, foreground=MUTED,
-                                 font=f["body"], anchor="w")
+        self.pin_hint = tk.Label(side, text="Click Pair new phone to get a PIN.", background=SURFACE,
+                                 foreground=MUTED, font=f["body"], anchor="w", justify="left")
         self.pin_hint.pack(fill="x", pady=(2, 10))
         FlatButton(side, "Pair new phone", self.start_pairing, "primary").pack(anchor="w")
-        FlatButton(side, "Use USB", self.usb, "ghost").pack(anchor="w", pady=(6, 0))
+        more = tk.Frame(side, background=SURFACE)
+        more.pack(anchor="w", pady=(6, 0))
+        FlatButton(more, "Use USB", self.usb, "ghost").pack(side="left")
+        if self.addresses:
+            FlatButton(more, "Copy address", self.copy_address, "ghost").pack(side="left")
+
+        def reflow(event, digits=digits, side=side):
+            # On a narrow window the buttons move under the PIN instead of getting cut off.
+            narrow = event.width < 600
+            if narrow != getattr(side, "narrow", None):
+                side.narrow = narrow
+                side.pack_forget()
+                if narrow:
+                    side.pack(side="top", fill="x", pady=(14, 0))
+                    digits.pack_configure(side="top", anchor="w")
+                else:
+                    digits.pack_configure(side="left")
+                    side.pack(side="left", fill="both", expand=True, padx=(18, 0))
+
+        pair.body.bind("<Configure>", reflow)
 
         phones = section(page, "Paired phones", "A connected phone shows an amber dot.")
         phones.pack(fill="both", expand=True)
@@ -284,21 +353,37 @@ class App:
         apps.pack(fill="both", expand=True)
         wrap = tk.Frame(apps.body, background=SURFACE)
         wrap.pack(fill="both", expand=True)
-        self.pinned = themed_listbox(wrap, height=10, font=self.root._fonts["tab"])
-        self.pinned.pack(side="left", fill="both", expand=True)
         side = tk.Frame(wrap, background=SURFACE)
-        side.pack(side="left", fill="y", padx=(14, 0))
+        side.pack(side="right", fill="y", padx=(14, 0))
+        self.pinned = themed_listbox(wrap, height=8, font=self.root._fonts["tab"], exportselection=False)
+        self.pinned.pack(side="left", fill="both", expand=True)
         FlatButton(side, "Add apps", self.add_apps, "primary").pack(fill="x")
-        FlatButton(side, "Move up", lambda: self.move_pinned(-1)).pack(fill="x", pady=(14, 0))
-        FlatButton(side, "Move down", lambda: self.move_pinned(1)).pack(fill="x", pady=(6, 0))
-        FlatButton(side, "Unpin", self.unpin, "ghost").pack(fill="x", pady=(14, 0))
+        self.app_buttons = [
+            FlatButton(side, "Move up", lambda: self.move_pinned(-1)),
+            FlatButton(side, "Move down", lambda: self.move_pinned(1)),
+            FlatButton(side, "Unpin", self.unpin, "ghost"),
+        ]
+        self.app_buttons[0].pack(fill="x", pady=(14, 0))
+        self.app_buttons[1].pack(fill="x", pady=(6, 0))
+        self.app_buttons[2].pack(fill="x", pady=(14, 0))
+        self.pinned.bind("<<ListboxSelect>>", lambda e: self._app_selection())
+        self.pinned.bind("<Delete>", lambda e: self.unpin())
+        self.pinned.bind("<Alt-Up>", lambda e: self.move_pinned(-1))
+        self.pinned.bind("<Alt-Down>", lambda e: self.move_pinned(1))
         self.pinned_count = tk.Label(apps.body, text="", background=SURFACE, foreground=FAINT,
                                      font=self.root._fonts["small"], anchor="w")
         self.pinned_count.pack(fill="x", pady=(10, 0))
 
+    def _app_selection(self) -> None:
+        sel = self.pinned.curselection()
+        n = len(getattr(self, "pinned_items", []))
+        self.app_buttons[0].set_enabled(bool(sel) and sel[0] > 0)
+        self.app_buttons[1].set_enabled(bool(sel) and sel[0] < n - 1)
+        self.app_buttons[2].set_enabled(bool(sel))
+
     def _pads_page(self, page: tk.Frame) -> None:
         pads = section(page, "Shortcut pads", "Buttons the phone shows for the app in front. "
-                       "Write shortcuts like Ctrl+Shift+G.")
+                       "Click a pad to edit it.")
         pads.pack(fill="both", expand=True)
         head = tk.Frame(pads.body, background=SURFACE)
         head.pack(fill="x")
@@ -361,6 +446,7 @@ class App:
     def start_pairing(self) -> None:
         self._show_pin(self.server.pairing.start())
         self.show_tab(0)
+        self.say("On the phone, tap this PC and type the PIN.")
         if self.pin_job:
             self.root.after_cancel(self.pin_job)
         self.check_pin()
@@ -374,7 +460,7 @@ class App:
             self.pin_job = self.root.after(1000, self.check_pin)
         else:
             self._show_pin(None)
-            self.pin_hint.configure(text="No active PIN", foreground=MUTED)
+            self.pin_hint.configure(text="Click Pair new phone to get a PIN.", foreground=MUTED)
             self.pin_job = None
             self.refresh_devices()
 
@@ -393,8 +479,12 @@ class App:
         for child in self.device_rows.winfo_children():
             child.destroy()
         if not self.device_ids:
-            tk.Label(self.device_rows, text="No phones yet. Click Pair new phone to add one.", background=SURFACE,
-                     foreground=MUTED, font=f["body"], anchor="w").pack(fill="x")
+            steps = ("No phones yet. To add one:\n"
+                     "1. Install Mobile Dock on the phone and open it.\n"
+                     "2. Click Pair new phone here.\n"
+                     "3. Tap this PC on the phone and type the PIN.")
+            tk.Label(self.device_rows, text=steps, background=SURFACE, foreground=MUTED, font=f["body"],
+                     anchor="w", justify="left").pack(fill="x")
         for device_id, name in self.device_ids:
             s = live.get(device_id)
             row = tk.Frame(self.device_rows, background=SURFACE_HI, padx=14, pady=10)
@@ -414,7 +504,8 @@ class App:
     def show_connection(self, live: list[dict]) -> None:
         if live:
             names = ", ".join(s["name"] for s in live)
-            text, color, bg = f"Connected to {names}", SIGNAL, SIGNAL_BG
+            short = names if len(names) <= 28 else names[:27] + "…"
+            text, color, bg = f"Connected to {short}", SIGNAL, SIGNAL_BG
             self.root.title(f"Mobile Dock  ●  {names}")
         else:
             text, color, bg = "No phone connected", FAINT, SURFACE
@@ -429,19 +520,55 @@ class App:
         if messagebox.askyesno("Mobile Dock", f"Remove {name}? It will need a new PIN to connect."):
             self.server.revoke(device_id)
             self.refresh_devices()
+            self.say(f"Removed {name}")
 
     def refresh_pads(self) -> None:
         f = self.root._fonts
         for child in self.pad_rows.winfo_children():
             child.destroy()
-        for pad in self.server.config.data.get("pads", []):
-            row = tk.Frame(self.pad_rows, background=SURFACE_HI, padx=14, pady=9)
+        for index, pad in enumerate(self.server.config.data.get("pads", [])):
+            row = tk.Frame(self.pad_rows, background=SURFACE_HI, padx=14, pady=9, cursor="hand2")
             row.pack(fill="x", pady=(0, 6))
-            tk.Label(row, text=pad["name"], background=SURFACE_HI, foreground=TEXT, font=f["strong"]).pack(side="left")
-            apps = ", ".join(pad.get("apps", [])) or "when no other pad matches"
-            tk.Label(row, text=f"  {apps}", background=SURFACE_HI, foreground=MUTED, font=f["small"]).pack(side="left")
-            tk.Label(row, text=f"{len(pad.get('tiles', []))} shortcuts", background=SURFACE_HI, foreground=FAINT,
-                     font=f["small"]).pack(side="right")
+            top = tk.Frame(row, background=SURFACE_HI)
+            top.pack(fill="x")
+            name = tk.Label(top, text=pad["name"], background=SURFACE_HI, foreground=TEXT, font=f["strong"])
+            name.pack(side="left")
+            count = tk.Label(top, text=f"{len(pad.get('tiles', []))} shortcuts", background=SURFACE_HI,
+                             foreground=FAINT, font=f["small"])
+            count.pack(side="right")
+            apps = pad.get("apps", [])
+            # Long app lists get shortened, so the row never runs off a small screen.
+            text = ", ".join(apps[:3]) + (f" and {len(apps) - 3} more" if len(apps) > 3 else "") if apps \
+                else "Used when no other pad matches"
+            sub = tk.Label(row, text=text, background=SURFACE_HI, foreground=MUTED, font=f["small"], anchor="w",
+                           justify="left")
+            sub.pack(fill="x", pady=(2, 0))
+            sub.bind("<Configure>", lambda e, w=sub: w.configure(wraplength=max(120, e.width)))
+            for w in (row, top, name, count, sub):
+                w.bind("<Button-1>", lambda e, i=index: self.edit_pads(i))
+                w.bind("<Enter>", lambda e, r=row: self._hover_row(r, True))
+                w.bind("<Leave>", lambda e, r=row: self._hover_row(r, False))
+
+    @staticmethod
+    def _hover_row(row: tk.Frame, on: bool) -> None:
+        color = HOVER if on else SURFACE_HI
+        stack = [row]
+        while stack:
+            w = stack.pop()
+            w.configure(background=color)
+            stack.extend(w.winfo_children())
+
+    def say(self, text: str) -> None:
+        """Short feedback in the status line. It fades after a few seconds."""
+        self.status.configure(text=text)
+        if self.say_job:
+            self.root.after_cancel(self.say_job)
+        self.say_job = self.root.after(6000, lambda: self.status.configure(text=""))
+
+    def copy_address(self) -> None:
+        self.root.clipboard_clear()
+        self.root.clipboard_append(self.addresses[0])
+        self.say(f"Copied {self.addresses[0]}. On the phone, use Connect by address.")
 
     # Pinned apps ----------------------------------------------------------
 
@@ -451,7 +578,12 @@ class App:
         for app in self.pinned_items:
             self.pinned.insert("end", f"  {app['name']}")
         n = len(self.pinned_items)
-        self.pinned_count.configure(text=f"{n} app{'s' if n != 1 else ''} pinned. Select one to move or unpin it.")
+        if n:
+            self.pinned_count.configure(text=f"{n} app{'s' if n != 1 else ''} pinned. Select one to move or unpin "
+                                             "it. Alt+Up and Alt+Down move it, Delete unpins it.")
+        else:
+            self.pinned_count.configure(text="Nothing pinned yet. Click Add apps to choose what the phone shows.")
+        self._app_selection()
 
     def move_pinned(self, step: int) -> None:
         sel = self.pinned.curselection()
@@ -465,20 +597,27 @@ class App:
         self.server.set_pinned(items)
         self.refresh_pinned()
         self.pinned.selection_set(j)
+        self.pinned.see(j)
+        self._app_selection()
 
     def unpin(self) -> None:
         sel = self.pinned.curselection()
         if sel:
+            name = self.pinned_items[sel[0]]["name"]
             self.server.set_pinned([a for k, a in enumerate(self.pinned_items) if k != sel[0]])
             self.refresh_pinned()
+            if self.pinned_items:
+                self.pinned.selection_set(min(sel[0], len(self.pinned_items) - 1))
+                self._app_selection()
+            self.say(f"Unpinned {name}")
 
     def add_apps(self) -> None:
         win = tk.Toplevel(self.root)
         win.title("Add apps")
-        win.minsize(420, 480)
+        win.minsize(380, 360)
         win.configure(background=BG)
-        ttk.Label(win, text="Search your apps. Select one or more, then click Pin selected.").pack(
-            anchor="w", padx=16, pady=(16, 6))
+        ttk.Label(win, text="Search your apps. Double-click one to pin it, or select several and click "
+                            "Pin selected.", wraplength=380, justify="left").pack(anchor="w", padx=16, pady=(16, 6))
         query = tk.StringVar()
         entry = ttk.Entry(win, textvariable=query)
         entry.pack(fill="x", padx=16)
@@ -497,22 +636,36 @@ class App:
                     shown.append(app)
                     listbox.insert("end", app["name"])
 
-        def add():
+        def add(*_):
             pinned = self.server.config.pinned()
             have = {a["id"] for a in pinned}
+            names = []
             for i in listbox.curselection():
-                if shown[i]["id"] not in have:
+                if i < len(shown) and shown[i]["id"] not in have:
                     pinned.append(dict(shown[i]))
+                    names.append(shown[i]["name"])
+            if not names:
+                return
             self.server.set_pinned(pinned)
             self.refresh_pinned()
             fill()
+            done.configure(text=f"Pinned {', '.join(names)}")
+            self.say(f"Pinned {', '.join(names)}")
 
         def loaded(result):
             apps.extend(result)
             fill()
 
         query.trace_add("write", fill)
-        ttk.Button(win, text="Pin selected", style="Accent.TButton", command=add).pack(anchor="e", padx=16, pady=(0, 16))
+        listbox.bind("<Double-Button-1>", add)
+        listbox.bind("<Return>", add)
+        bottom = ttk.Frame(win)
+        bottom.pack(fill="x", padx=16, pady=(0, 16))
+        done = ttk.Label(bottom, text="", style="Footer.TLabel")
+        done.pack(side="left")
+        ttk.Button(bottom, text="Pin selected", style="Accent.TButton", command=add).pack(side="right")
+        ttk.Button(bottom, text="Done", command=win.destroy).pack(side="right", padx=8)
+        win.bind("<Escape>", lambda e: win.destroy())
         listbox.insert("end", "Loading apps...")
         entry.focus_set()
 
@@ -534,14 +687,14 @@ class App:
 
     # Shortcut pads --------------------------------------------------------
 
-    def edit_pads(self) -> None:
+    def edit_pads(self, select: int = 0) -> None:
         from . import pads as padlib
         import copy
 
         data = copy.deepcopy(self.server.config.data["pads"])
         win = tk.Toplevel(self.root)
         win.title("Shortcut pads")
-        win.minsize(760, 480)
+        win.minsize(600, 420)
         win.configure(background=BG)
         body = ttk.Frame(win, padding=16)
         body.pack(fill="both", expand=True)
@@ -725,7 +878,7 @@ class App:
         tile_list.bind("<<ListboxSelect>>", pick_tile)
         running.bind("<<ComboboxSelected>>", add_running)
         running.set("Add a running app")
-        show_pads(0)
+        show_pads(select)
         threading.Thread(target=load_running, daemon=True).start()
 
     # Updates --------------------------------------------------------------
