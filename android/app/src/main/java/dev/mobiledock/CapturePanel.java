@@ -88,9 +88,9 @@ final class CapturePanel extends ScrollView {
 
     void setRecording(boolean on) {
         ((ImageView) recordTile.getChildAt(0)).setImageDrawable(
-                new Icon(on ? Icon.Kind.STOP : Icon.Kind.RECORD, on ? Ui.DANGER : Ui.TEXT));
+                new Icon(on ? Icon.Kind.STOP : Icon.Kind.RECORD, on ? Ui.SIGNAL : Ui.TEXT));
         TextView label = (TextView) recordTile.getChildAt(1);
         label.setText(on ? "Stop recording" : "Record");
-        label.setTextColor(on ? Ui.DANGER : Ui.TEXT);
+        label.setTextColor(on ? Ui.SIGNAL : Ui.TEXT);
     }
 }

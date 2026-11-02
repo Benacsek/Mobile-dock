@@ -24,7 +24,7 @@ final class GraphView extends View {
         this.fixedMax = fixedMax;
         this.colors = colors;
         data = new float[colors.length][POINTS];
-        grid.setColor(0x22FFFFFF);
+        grid.setColor(Ui.LINE);
         grid.setStrokeWidth(1);
         line.setStyle(Paint.Style.STROKE);
         line.setStrokeWidth(Ui.dp(c, 2));

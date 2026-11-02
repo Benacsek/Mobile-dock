@@ -13,8 +13,8 @@ import java.util.Locale;
 
 /** Live PC performance: CPU, GPU, memory, network, disk and the busiest apps. */
 final class StatsPanel extends LinearLayout {
-    private static final int CPU = 0xFF4F8CFF, GPU = 0xFFE5484D, RAM = 0xFFB57BFF, DOWN = 0xFF3DDC84,
-            UP = 0xFFFFB020, READ = 0xFF2FB5D8, WRITE = 0xFFFF7A59;
+    private static final int CPU = 0xFF4C8DF6, GPU = 0xFFE5484D, RAM = 0xFFB57BFF, DOWN = 0xFF3DDC84,
+            UP = 0xFFF2B33D, READ = 0xFF2FB5D8, WRITE = 0xFFFF7A59;
 
     private final DockClient client;
     private final Card cpu, gpu, ram, net, disk;

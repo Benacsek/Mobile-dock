@@ -15,18 +15,21 @@ import android.widget.TextView;
 
 /** Colors and small view factories. The whole UI is built in code, so it works on every Android version. */
 final class Ui {
-    // Navy base with translucent glass tiles, so the background glow shows through.
-    static final int BG = 0xFF0B1220;
-    static final int SURFACE = 0x14FFFFFF;
-    static final int SURFACE_HI = 0x24FFFFFF;
+    // Same three colors as the PC window: graphite surfaces, a blue accent, amber for live state.
+    static final int BG = 0xFF16181C;
+    static final int SURFACE = 0xFF1E2126;
+    static final int SURFACE_HI = 0xFF272B31;
+    static final int LINE = 0xFF33383F;
+    /** Amber: things happening right now, such as recording or a running countdown. */
+    static final int SIGNAL = 0xFFF2B33D;
     /** Set from the Appearance page. Everything reads it when it is built. */
-    static int ACCENT = 0xFF34D399;
+    static int ACCENT = 0xFF4C8DF6;
     static float TILE_SCALE = 1f;
     static boolean LABELS = true;
     static boolean GLOW = true;
 
-    static final int[] ACCENTS = {0xFF34D399, 0xFF60A5FA, 0xFFA78BFA, 0xFFFB923C};
-    static final String[] ACCENT_NAMES = {"Green", "Blue", "Purple", "Orange"};
+    static final int[] ACCENTS = {0xFF4C8DF6, 0xFF34D399, 0xFFA78BFA, 0xFFF2B33D};
+    static final String[] ACCENT_NAMES = {"Blue", "Green", "Purple", "Amber"};
     static final float[] TILE_SCALES = {0.85f, 1f, 1.2f};
     static final String[] TILE_SCALE_NAMES = {"Compact", "Comfortable", "Large"};
 
@@ -34,7 +37,7 @@ final class Ui {
         ACCENT = ACCENTS[Math.max(0, Math.min(ACCENTS.length - 1, p.getInt("accent", 0)))];
         TILE_SCALE = TILE_SCALES[Math.max(0, Math.min(TILE_SCALES.length - 1, p.getInt("tile_scale", 1)))];
         LABELS = p.getBoolean("labels", true);
-        GLOW = p.getBoolean("glow", true);
+        GLOW = p.getBoolean("glow", false);
     }
 
     /** The accent, a little darker, for the pressed state. */
@@ -50,12 +53,12 @@ final class Ui {
         return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? 0xFF0B1220 : 0xFFFFFFFF;
     }
 
-    /** Navy background with two soft glows at the bottom, like the dock bar in the reference. */
+    /** Flat graphite like the PC window. The optional glow adds the accent and amber at the bottom. */
     static Drawable background(Context c) {
         GradientDrawable base = new GradientDrawable();
         base.setColor(BG);
         if (!GLOW) return base;
-        int second = ACCENT == ACCENTS[2] ? ACCENTS[1] : ACCENTS[2];
+        int second = ACCENT == SIGNAL ? ACCENTS[0] : SIGNAL;
         return new android.graphics.drawable.LayerDrawable(new Drawable[] {
             base, glow(c, ACCENT, 0.12f, 1.0f), glow(c, second, 0.88f, 1.0f),
         });
@@ -76,19 +79,19 @@ final class Ui {
         LinearLayout tile = column(c);
         tile.setGravity(Gravity.CENTER);
         StateListDrawable bg = new StateListDrawable();
-        bg.addState(new int[] {android.R.attr.state_selected}, rounded(c, (ACCENT & 0x00FFFFFF) | 0x38000000, 18));
-        bg.addState(new int[] {android.R.attr.state_pressed}, rounded(c, SURFACE_HI, 18));
-        bg.addState(new int[] {}, rounded(c, SURFACE, 18));
+        bg.addState(new int[] {android.R.attr.state_selected}, rounded(c, (ACCENT & 0x00FFFFFF) | 0x2E000000, 14));
+        bg.addState(new int[] {android.R.attr.state_pressed}, rounded(c, SURFACE_HI, 14));
+        bg.addState(new int[] {}, rounded(c, 0x00000000, 14));
         tile.setBackground(bg);
         tile.setClickable(true);
         tile.setMinimumWidth(size);
         int p = dp(c, 6);
         tile.setPadding(p, p, p, p);
         ImageView icon = new ImageView(c);
-        icon.setImageDrawable(new Icon(kind, TEXT));
+        icon.setImageDrawable(new Icon(kind, MUTED));
         int iconSize = dp(c, 26 * TILE_SCALE);
         tile.addView(icon, new LinearLayout.LayoutParams(iconSize, iconSize));
-        TextView t = text(c, label, 11, TEXT);
+        TextView t = text(c, label, 11, MUTED);
         t.setGravity(Gravity.CENTER);
         t.setSingleLine(true);
         t.setVisibility(LABELS ? View.VISIBLE : View.GONE);
@@ -103,7 +106,8 @@ final class Ui {
         return tile;
     }
     static final int TEXT = 0xFFE8EAED;
-    static final int MUTED = 0xFF9AA0A6;
+    static final int MUTED = 0xFF8B919A;
+    static final int FAINT = 0xFF5C626B;
     static final int DANGER = 0xFFE5484D;
     static final int[] TILE_COLORS = {
         0xFF3B6FD8, 0xFF8E4FD8, 0xFFD8504F, 0xFFD88A2F, 0xFF2FA57A, 0xFF2F96B5, 0xFFB5408C, 0xFF6C7A2F,
@@ -221,6 +225,33 @@ final class Ui {
     /** Plain icon button with no fill until pressed. */
     static ImageView flatIcon(Context c, Icon.Kind kind, int sizeDp) {
         return iconButton(c, kind, sizeDp, 0x00000000, 0x33FFFFFF, TEXT);
+    }
+
+    /** Like the PC tabs: the selected tile gets a blue tint and a blue icon, the rest stay muted. */
+    static void setTileSelected(LinearLayout tile, boolean selected) {
+        tile.setSelected(selected);
+        ((Icon) ((ImageView) tile.getChildAt(0)).getDrawable()).setColor(selected ? ACCENT : MUTED);
+        ((TextView) tile.getChildAt(1)).setTextColor(selected ? TEXT : MUTED);
+    }
+
+    /** Four small squares, three blue and one amber. The same mark as the PC window. */
+    static View logo(Context c, int sizeDp) {
+        final int size = dp(c, sizeDp);
+        View v = new View(c) {
+            private final android.graphics.Paint paint = new android.graphics.Paint();
+            private final float cell = size * 11f / 26f, gap = size * 2f / 26f;
+
+            @Override
+            protected void onDraw(android.graphics.Canvas canvas) {
+                for (int i = 0; i < 4; i++) {
+                    float x = gap + (i % 2) * (gap + cell), y = gap + (i / 2) * (gap + cell);
+                    paint.setColor(i == 3 ? SIGNAL : ACCENT);
+                    canvas.drawRect(x, y, x + cell, y + cell, paint);
+                }
+            }
+        };
+        v.setLayoutParams(new LinearLayout.LayoutParams(size, size));
+        return v;
     }
 
     static String initials(String name) {

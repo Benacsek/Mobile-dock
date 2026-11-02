@@ -27,7 +27,7 @@ It works on your local network or over USB. There is no account, no cloud servic
 - Fullscreen: hide the dock bar so the open page gets the whole screen. Back brings the bar back.
 - Optional: turn on "Wake up and connect when my PC turns on". When your PC starts, or when you close and reopen the PC app, the phone turns its screen on, opens the dock and connects. It works best while the phone charges.
 
-The PC window shows the connected phone in an amber badge at the top. The Phone tab lists how it connects and since when.
+Both apps share one look: graphite surfaces, blue for actions and selection, and amber for anything live. The PC window shows the connected phone in an amber badge at the top. The Phone tab lists how it connects and since when.
 
 ## Quick start
 

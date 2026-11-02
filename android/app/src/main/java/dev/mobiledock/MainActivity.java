@@ -165,7 +165,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         if (docked && apps.arranging()) {
             select(APPS);
             apps.setArrange(false);
-            arrangeTile.setSelected(false);
+            Ui.setTileSelected(arrangeTile, false);
             return;
         }
         if (docked && current != APPS) {
@@ -204,9 +204,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         left.setBackground(Ui.rounded(this, Ui.SURFACE, 18));
         left.setPadding(cardPad, cardPad, cardPad, cardPad);
         LinearLayout brand = Ui.row(this);
-        ImageView logo = new ImageView(this);
-        logo.setImageDrawable(new Icon(Icon.Kind.APPS, Ui.ACCENT));
-        brand.addView(logo, new LinearLayout.LayoutParams(Ui.dp(this, 30), Ui.dp(this, 30)));
+        brand.addView(Ui.logo(this, 28));
         TextView name = Ui.title(this, "  Mobile Dock");
         brand.addView(name);
         left.addView(brand);
@@ -622,7 +620,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         dockBar = Ui.row(this);
         int bp = Ui.dp(this, 6);
         dockBar.setPadding(bp, bp, bp, bp);
-        dockBar.setBackground(Ui.rounded(this, 0x66101A2E, 24));
+        dockBar.setBackground(Ui.rounded(this, Ui.SURFACE, 18));
         String[] names = {"Apps", "Playing", "Shortcuts", "Controls", "Capture", "Touch & sign", "Stats",
             "Appearance", "Updates"};
         Icon.Kind[] kinds = {Icon.Kind.APPS, Icon.Kind.MUSIC, Icon.Kind.SHORTCUTS, Icon.Kind.SLIDERS,
@@ -640,7 +638,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             dockBar.addView(tile);
         }
         View divider = new View(this);
-        divider.setBackgroundColor(0x22FFFFFF);
+        divider.setBackgroundColor(Ui.LINE);
         LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(Ui.dp(this, 1), Ui.dp(this, 40));
         dlp.setMargins(Ui.dp(this, 6), 0, Ui.dp(this, 6), 0);
         dockBar.addView(divider, dlp);
@@ -651,7 +649,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 boolean on = !apps.arranging();
                 select(APPS);
                 apps.setArrange(on);
-                arrangeTile.setSelected(on);
+                Ui.setTileSelected(arrangeTile, on);
             }
         });
         dockBar.addView(arrangeTile);
@@ -674,7 +672,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         dock.addView(scroll, blp);
         frame.addView(dock);
 
-        ImageView exit = Ui.iconButton(this, Icon.Kind.SHRINK, 44, 0x99101A2E, Ui.SURFACE_HI, Ui.TEXT);
+        ImageView exit = Ui.iconButton(this, Icon.Kind.SHRINK, 44, Ui.SURFACE, Ui.SURFACE_HI, Ui.TEXT);
         exit.setContentDescription("Exit fullscreen");
         exit.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -710,11 +708,11 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         current = index;
         for (int i = 0; i < panels.size(); i++) {
             panels.get(i).setVisibility(i == index ? View.VISIBLE : View.GONE);
-            tabs.get(i).setSelected(i == index);
+            Ui.setTileSelected(tabs.get(i), i == index);
         }
         if (index != APPS && apps.arranging()) {
             apps.setArrange(false);
-            arrangeTile.setSelected(false);
+            Ui.setTileSelected(arrangeTile, false);
         }
         media.setActive(index == PLAYING);
         stats.setActive(index == STATS);
