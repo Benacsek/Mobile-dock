@@ -18,7 +18,7 @@ final class Icon extends Drawable {
         PLAY, PAUSE, PREV, NEXT, SHUFFLE, REPEAT, REPEAT_ONE, VOL_DOWN, VOL_UP, MUTE,
         APPS, MUSIC, TOUCHPAD, KEYBOARD, CAMERA, RECORD, STOP, POWER, BACK, PLUS, REFRESH,
         SHORTCUTS, CHART, SEND, FOLLOW,
-        SLIDERS, SUN, MONITOR, LOCK, MOON, PEN, PICTURE, FILE, SCISSORS, MOVE, EXPAND, SHRINK, CLIPBOARD
+        SLIDERS, SUN, MONITOR, LOCK, MOON, PEN, PICTURE, FILE, SCISSORS, GRIP, EXPAND, SHRINK, CLIPBOARD
     }
 
     private final Kind kind;
@@ -243,13 +243,9 @@ final class Icon extends Drawable {
                 seg(c, 0.36f, 0.62f, 0.72f, 0.16f);
                 seg(c, 0.64f, 0.62f, 0.28f, 0.16f);
                 break;
-            case MOVE:
-                seg(c, 0.5f, 0.14f, 0.5f, 0.86f);
-                seg(c, 0.14f, 0.5f, 0.86f, 0.5f);
-                c.drawPath(poly(0.5f, 0.1f, 0.4f, 0.24f, 0.6f, 0.24f), fill);
-                c.drawPath(poly(0.5f, 0.9f, 0.4f, 0.76f, 0.6f, 0.76f), fill);
-                c.drawPath(poly(0.1f, 0.5f, 0.24f, 0.4f, 0.24f, 0.6f), fill);
-                c.drawPath(poly(0.9f, 0.5f, 0.76f, 0.4f, 0.76f, 0.6f), fill);
+            case GRIP:
+                // Six dots: the usual "drag to reorder" handle, so it never looks like the + next to it.
+                for (int i = 0; i < 6; i++) c.drawCircle(x(0.38f + (i % 2) * 0.24f), y(0.26f + (i / 2) * 0.24f), s * 0.065f, fill);
                 break;
             case EXPAND:
                 seg(c, 0.16f, 0.36f, 0.16f, 0.16f);

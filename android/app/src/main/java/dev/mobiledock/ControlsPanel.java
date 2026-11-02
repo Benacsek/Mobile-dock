@@ -15,50 +15,26 @@ import android.widget.Toast;
 
 import org.json.JSONObject;
 
-/** PC controls: volume, lock, sleep, screen off, desktop, Task Manager, and leaving the dock. */
-final class ControlsPanel extends ScrollView {
+/** PC controls on the left, master volume and the per-app volume mixer on the right. */
+final class ControlsPanel extends LinearLayout {
     private final DockClient client;
     private final LinearLayout mixerRows;
 
     ControlsPanel(Context c, DockClient client, final Runnable disconnect) {
         super(c);
         this.client = client;
-        LinearLayout box = Ui.column(c);
-        addView(box);
+        setOrientation(HORIZONTAL);
 
-        box.addView(Ui.title(c, "Controls"), Ui.fillWidth(c, 4));
-        box.addView(section(c, "Sound"));
-        LinearLayout sound = Ui.row(c);
-        sound.addView(control(c, Icon.Kind.VOL_DOWN, "Volume down", "media", "vol_down", null), cell(c));
-        sound.addView(control(c, Icon.Kind.MUTE, "Mute", "media", "mute", null), cell(c));
-        sound.addView(control(c, Icon.Kind.VOL_UP, "Volume up", "media", "vol_up", null), cell(c));
-        box.addView(sound, Ui.fillWidth(c, 0));
-
-        // Volume mixer: one slider per app that plays sound, like the Windows volume mixer.
-        LinearLayout mixerHead = Ui.row(c);
-        mixerHead.addView(section(c, "Volume mixer"));
-        mixerHead.addView(Ui.spacer(c));
-        ImageView refresh = Ui.flatIcon(c, Icon.Kind.REFRESH, 40);
-        refresh.setContentDescription("Refresh the mixer");
-        refresh.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                load();
-            }
-        });
-        mixerHead.addView(refresh);
-        box.addView(mixerHead, Ui.fillWidth(c, 0));
-        mixerRows = Ui.column(c);
-        box.addView(mixerRows, Ui.fillWidth(c, 0));
-
-        box.addView(section(c, "PC"));
+        // Left: PC controls, two rows of three. They always fit, so this side never scrolls.
+        LinearLayout left = Ui.column(c);
+        left.addView(section(c, "PC"));
         LinearLayout pc = Ui.row(c);
         pc.addView(control(c, Icon.Kind.LOCK, "Lock", "system", "lock", null), cell(c));
         pc.addView(control(c, Icon.Kind.MONITOR, "Screen off", "system", "display_off", null), cell(c));
         pc.addView(control(c, Icon.Kind.MOON, "Sleep", "system", "sleep", "Put the PC to sleep?"), cell(c));
-        box.addView(pc, Ui.fillWidth(c, 0));
+        left.addView(pc, Ui.fillWidth(c, 0));
         LinearLayout pc2 = Ui.row(c);
-        pc2.addView(control(c, Icon.Kind.APPS, "Show desktop", "system", "desktop", null), cell(c));
+        pc2.addView(control(c, Icon.Kind.APPS, "Desktop", "system", "desktop", null), cell(c));
         pc2.addView(control(c, Icon.Kind.CHART, "Task Manager", "system", "task_manager", null), cell(c));
         LinearLayout leave = tile(c, Icon.Kind.POWER, "Disconnect");
         leave.setOnClickListener(new OnClickListener() {
@@ -68,7 +44,50 @@ final class ControlsPanel extends ScrollView {
             }
         });
         pc2.addView(leave, cell(c));
-        box.addView(pc2, Ui.fillWidth(c, 0));
+        left.addView(pc2, Ui.fillWidth(c, 0));
+        addView(left, new LayoutParams(0, LayoutParams.MATCH_PARENT, 1f));
+
+        // Right: master volume, then one slider per app, like the Windows volume mixer. This side scrolls.
+        LinearLayout right = Ui.column(c);
+        LinearLayout head = Ui.row(c);
+        head.addView(section(c, "Sound"));
+        head.addView(Ui.spacer(c));
+        head.addView(master(c, Icon.Kind.VOL_DOWN, "Volume down", "vol_down"));
+        head.addView(master(c, Icon.Kind.MUTE, "Mute", "mute"));
+        head.addView(master(c, Icon.Kind.VOL_UP, "Volume up", "vol_up"));
+        ImageView refresh = Ui.flatIcon(c, Icon.Kind.REFRESH, 40);
+        refresh.setContentDescription("Refresh the mixer");
+        refresh.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                load();
+            }
+        });
+        head.addView(refresh);
+        right.addView(head, Ui.fillWidth(c, 0));
+        ScrollView scroll = new ScrollView(c);
+        mixerRows = Ui.column(c);
+        scroll.addView(mixerRows);
+        right.addView(scroll, new LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
+        LayoutParams rlp = new LayoutParams(0, LayoutParams.MATCH_PARENT, 1f);
+        rlp.leftMargin = Ui.dp(c, 12);
+        addView(right, rlp);
+    }
+
+    /** Master volume as small icon buttons in the Sound header. */
+    private ImageView master(Context c, Icon.Kind kind, String label, final String action) {
+        ImageView b = Ui.iconButton(c, kind, 40, Ui.SURFACE, Ui.SURFACE_HI, Ui.TEXT);
+        b.setContentDescription(label);
+        b.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                client.fire("media", DockClient.args("action", action));
+            }
+        });
+        LayoutParams lp = new LayoutParams(Ui.dp(c, 40), Ui.dp(c, 40));
+        lp.rightMargin = Ui.dp(c, 6);
+        b.setLayoutParams(lp);
+        return b;
     }
 
     /** Reloads the apps that play sound. Called when the Controls page opens. */

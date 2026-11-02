@@ -132,9 +132,10 @@ final class StatsPanel extends LinearLayout {
         cpu.value.setText(Math.round(c) + "%");
         String mhz = r.has("cpu_mhz") ? String.format(Locale.US, "   %.2f GHz", r.optInt("cpu_mhz") / 1000.0) : "";
         JSONArray cores = r.optJSONArray("cores");
-        String cpuTemp = r.has("cpu_temp") ? String.format(Locale.US, "   %.0f °C", r.optDouble("cpu_temp")) : "";
-        cpu.detail.setText(r.optString("cpu_name") + (cores != null ? "   " + cores.length() + " threads" : "") + mhz
-                + cpuTemp);
+        // The temperature goes first, so a long CPU name cannot push it out of sight.
+        String cpuTemp = r.has("cpu_temp") ? String.format(Locale.US, "%.0f °C   ", r.optDouble("cpu_temp")) : "";
+        cpu.detail.setText(cpuTemp + r.optString("cpu_name") + (cores != null ? "   " + cores.length() + " threads" : "")
+                + mhz);
         showSensors(r);
         cpu.graph.add((float) c);
 
@@ -145,8 +146,8 @@ final class StatsPanel extends LinearLayout {
             String vram = r.has("vram_used")
                     ? "   " + bytes(r.optLong("vram_used")) + (r.has("vram_total") ? " / " + bytes(r.optLong("vram_total")) : "")
                     : "";
-            String temp = r.has("gpu_temp") ? String.format(Locale.US, "   %.0f °C", r.optDouble("gpu_temp")) : "";
-            gpu.detail.setText(r.optString("gpu_name", "GPU") + vram + temp);
+            String temp = r.has("gpu_temp") ? String.format(Locale.US, "%.0f °C   ", r.optDouble("gpu_temp")) : "";
+            gpu.detail.setText(temp + r.optString("gpu_name", "GPU") + vram);
             gpu.graph.add((float) g);
         } else {
             gpu.value.setText("");

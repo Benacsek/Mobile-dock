@@ -63,7 +63,9 @@ final class AppsPanel extends LinearLayout {
     private final TextView pcName;
     private final View pcDot;
     private ImageView arrangeButton;
-    private int width;
+    private int width, gridHeight;
+    private ScrollView gridScroll;
+    private int iconPx;
 
     AppsPanel(Context c, DockClient client, LaunchListener onLaunch) {
         super(c);
@@ -105,7 +107,7 @@ final class AppsPanel extends LinearLayout {
             }
         });
         header.addView(add);
-        arrangeButton = Ui.iconButton(c, Icon.Kind.MOVE, 44, 0x00000000, Ui.SURFACE_HI, Ui.TEXT);
+        arrangeButton = Ui.iconButton(c, Icon.Kind.GRIP, 44, 0x00000000, Ui.SURFACE_HI, Ui.TEXT);
         arrangeButton.setContentDescription("Arrange");
         arrangeButton.setOnClickListener(new OnClickListener() {
             @Override
@@ -152,6 +154,7 @@ final class AppsPanel extends LinearLayout {
         addView(empty, Ui.fillWidth(c, 0));
 
         ScrollView scroll = new ScrollView(c);
+        gridScroll = scroll;
         grid = Ui.column(c);
         scroll.addView(grid);
         addView(scroll, new LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
@@ -162,7 +165,7 @@ final class AppsPanel extends LinearLayout {
         super.onSizeChanged(w, h, oldw, oldh);
         width = w;
         int cols = balancedColumns();
-        if (cols != columns) {
+        if (cols != columns || h != oldh) {  // a new height can change the row size
             columns = cols;
             post(new Runnable() {
                 @Override
@@ -220,11 +223,19 @@ final class AppsPanel extends LinearLayout {
         if (hint != null) updateHint();
         grid.removeAllViews();
         empty.setVisibility(apps.isEmpty() ? VISIBLE : GONE);
+        // Rows shrink, down to a minimum, so all rows fit on screen without scrolling.
+        int rows = Math.max(1, (apps.size() + columns - 1) / columns);
+        int rowPx = Ui.dp(c, 124 * Ui.TILE_SCALE);
+        gridHeight = gridScroll.getHeight();
+        if (gridHeight > 0 && rows * rowPx > gridHeight) {
+            rowPx = Math.max(Ui.dp(c, 92 * Ui.TILE_SCALE), gridHeight / rows);
+        }
+        iconPx = Math.max(Ui.dp(c, 36), Math.min(Ui.dp(c, 56 * Ui.TILE_SCALE), rowPx - Ui.dp(c, 52)));
         LinearLayout row = null;
         for (int i = 0; i < apps.size(); i++) {
             if (i % columns == 0) {
                 row = Ui.row(c);
-                grid.addView(row, new LayoutParams(LayoutParams.MATCH_PARENT, Ui.dp(c, 124 * Ui.TILE_SCALE)));
+                grid.addView(row, new LayoutParams(LayoutParams.MATCH_PARENT, rowPx));
             }
             row.addView(tile(apps.get(i), i), cell(c));
         }
@@ -252,13 +263,13 @@ final class AppsPanel extends LinearLayout {
         TextView letters = Ui.text(c, Ui.initials(app.name), 20, Ui.TEXT);
         letters.setGravity(Gravity.CENTER);
         letters.setBackground(Ui.rounded(c, Ui.colorFor(app.id), 12 * Ui.TILE_SCALE));
-        iconBox.addView(letters, new FrameLayout.LayoutParams(Ui.dp(c, 56 * Ui.TILE_SCALE), Ui.dp(c, 56 * Ui.TILE_SCALE)));
+        iconBox.addView(letters, new FrameLayout.LayoutParams(iconPx, iconPx));
         ImageView image = new ImageView(c);
         image.setScaleType(ImageView.ScaleType.FIT_CENTER);
         image.setVisibility(GONE);
-        iconBox.addView(image, new FrameLayout.LayoutParams(Ui.dp(c, 56 * Ui.TILE_SCALE), Ui.dp(c, 56 * Ui.TILE_SCALE)));
+        iconBox.addView(image, new FrameLayout.LayoutParams(iconPx, iconPx));
         icons.load(app.id, image);
-        t.addView(iconBox, new LayoutParams(Ui.dp(c, 56 * Ui.TILE_SCALE), Ui.dp(c, 56 * Ui.TILE_SCALE)));
+        t.addView(iconBox, new LayoutParams(iconPx, iconPx));
 
         TextView label = Ui.text(c, app.name, 12, Ui.TEXT);
         label.setGravity(Gravity.CENTER);

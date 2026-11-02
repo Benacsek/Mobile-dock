@@ -31,7 +31,7 @@ final class Ui {
     static final int[] ACCENTS = {0xFF4C8DF6, 0xFF34D399, 0xFFA78BFA, 0xFFF2B33D};
     static final String[] ACCENT_NAMES = {"Blue", "Green", "Purple", "Amber"};
     static final float[] TILE_SCALES = {0.85f, 1f, 1.2f};
-    static final String[] TILE_SCALE_NAMES = {"Compact", "Comfortable", "Large"};
+    static final String[] TILE_SCALE_NAMES = {"Small", "Normal", "Large"};
 
     static void loadTheme(android.content.SharedPreferences p) {
         ACCENT = ACCENTS[Math.max(0, Math.min(ACCENTS.length - 1, p.getInt("accent", 0)))];

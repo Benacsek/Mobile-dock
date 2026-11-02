@@ -24,82 +24,111 @@ final class CapturePanel extends ScrollView {
 
     CapturePanel(Context c, final DockClient client, final Actions actions) {
         super(c);
-        LinearLayout box = Ui.column(c);
+        LinearLayout box = Ui.row(c);
+        box.setGravity(android.view.Gravity.TOP);
         addView(box);
-        box.addView(Ui.title(c, "Capture"), Ui.fillWidth(c, 4));
-        box.addView(Ui.text(c, "Screenshots and recordings are saved on the PC.", 13, Ui.MUTED), Ui.fillWidth(c, 4));
 
-        LinearLayout row = Ui.row(c);
-        LinearLayout shot = ControlsPanel.tile(c, Icon.Kind.CAMERA, "Screenshot");
-        shot.setOnClickListener(new OnClickListener() {
+        // Left: capture on the PC. Files save on the PC.
+        LinearLayout left = Ui.column(c);
+        left.addView(section(c, "Capture on the PC"));
+        left.addView(wide(c, Icon.Kind.CAMERA, "Screenshot", new OnClickListener() {
             @Override
             public void onClick(View v) {
                 actions.screenshot();
             }
-        });
-        row.addView(shot, cell(c));
-        LinearLayout snip = ControlsPanel.tile(c, Icon.Kind.SCISSORS, "Snip a region");
-        snip.setOnClickListener(new OnClickListener() {
+        }), cell(c));
+        left.addView(wide(c, Icon.Kind.SCISSORS, "Snip a region", new OnClickListener() {
             @Override
             public void onClick(View v) {
                 // Opens the snipping bar on Windows. The result goes to the PC clipboard.
                 client.fire("input.key", DockClient.args("key", "s", "mods", new JSONArray().put("meta").put("shift")));
             }
-        });
-        row.addView(snip, cell(c));
-        recordTile = ControlsPanel.tile(c, Icon.Kind.RECORD, "Record");
-        recordTile.setOnClickListener(new OnClickListener() {
+        }), cell(c));
+        recordTile = wide(c, Icon.Kind.RECORD, "Record", new OnClickListener() {
             @Override
             public void onClick(View v) {
                 actions.toggleRecording();
             }
         });
-        row.addView(recordTile, cell(c));
-        box.addView(row, Ui.fillWidth(c, 0));
+        left.addView(recordTile, cell(c));
+        box.addView(left, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView send = Ui.text(c, "Send from this phone", 13, Ui.ACCENT);
-        send.setPadding(Ui.dp(c, 6), Ui.dp(c, 12), 0, Ui.dp(c, 4));
-        box.addView(send);
-        LinearLayout row2 = Ui.row(c);
-        LinearLayout pic = ControlsPanel.tile(c, Icon.Kind.PICTURE, "Picture to clipboard");
-        pic.setOnClickListener(new OnClickListener() {
+        // Right: send from the phone, two by two.
+        LinearLayout right = Ui.column(c);
+        right.addView(section(c, "Send from this phone"));
+        LinearLayout row1 = Ui.row(c);
+        row1.addView(wide(c, Icon.Kind.PICTURE, "Picture to clipboard", new OnClickListener() {
             @Override
             public void onClick(View v) {
                 actions.pick(true);
             }
-        });
-        row2.addView(pic, cell(c));
-        LinearLayout file = ControlsPanel.tile(c, Icon.Kind.FILE, "File to Downloads");
-        file.setOnClickListener(new OnClickListener() {
+        }), half(c));
+        row1.addView(wide(c, Icon.Kind.FILE, "File to Downloads", new OnClickListener() {
             @Override
             public void onClick(View v) {
                 actions.pick(false);
             }
-        });
-        row2.addView(file, cell(c));
-        box.addView(row2, Ui.fillWidth(c, 0));
-
-        TextView clip = Ui.text(c, "Clipboard text", 13, Ui.ACCENT);
-        clip.setPadding(Ui.dp(c, 6), Ui.dp(c, 12), 0, Ui.dp(c, 4));
-        box.addView(clip);
-        LinearLayout row3 = Ui.row(c);
-        LinearLayout toPc = ControlsPanel.tile(c, Icon.Kind.CLIPBOARD, "Phone to PC");
-        toPc.setOnClickListener(new OnClickListener() {
+        }), half(c));
+        right.addView(row1);
+        right.addView(section(c, "Clipboard text"));
+        LinearLayout row2 = Ui.row(c);
+        row2.addView(wide(c, Icon.Kind.CLIPBOARD, "Phone to PC", new OnClickListener() {
             @Override
             public void onClick(View v) {
                 copyToPc(client);
             }
-        });
-        row3.addView(toPc, cell(c));
-        LinearLayout fromPc = ControlsPanel.tile(c, Icon.Kind.CLIPBOARD, "PC to phone");
-        fromPc.setOnClickListener(new OnClickListener() {
+        }), half(c));
+        row2.addView(wide(c, Icon.Kind.CLIPBOARD, "PC to phone", new OnClickListener() {
             @Override
             public void onClick(View v) {
                 copyFromPc(client);
             }
-        });
-        row3.addView(fromPc, cell(c));
-        box.addView(row3, Ui.fillWidth(c, 0));
+        }), half(c));
+        right.addView(row2);
+        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f);
+        rlp.leftMargin = Ui.dp(c, 12);
+        box.addView(right, rlp);
+    }
+
+    private static TextView section(Context c, String label) {
+        TextView t = Ui.text(c, label, 13, Ui.ACCENT);
+        t.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        t.setPadding(Ui.dp(c, 6), Ui.dp(c, 8), 0, Ui.dp(c, 4));
+        return t;
+    }
+
+    /** A wide tile: icon on the left, label beside it. Child 0 is the icon and child 1 the label. */
+    private static LinearLayout wide(Context c, Icon.Kind kind, String label, OnClickListener click) {
+        LinearLayout t = Ui.row(c);
+        t.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.SURFACE_HI, 14));
+        t.setClickable(true);
+        t.setPadding(Ui.dp(c, 14), 0, Ui.dp(c, 10), 0);
+        ImageView icon = new ImageView(c);
+        icon.setImageDrawable(new Icon(kind, Ui.TEXT));
+        int s = Ui.dp(c, 24);
+        t.addView(icon, new LinearLayout.LayoutParams(s, s));
+        TextView l = Ui.text(c, label, 14, Ui.TEXT);
+        l.setSingleLine(true);
+        l.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        l.setPadding(Ui.dp(c, 12), 0, 0, 0);
+        t.addView(l);
+        t.setOnClickListener(click);
+        return t;
+    }
+
+    private static LinearLayout.LayoutParams cell(Context c) {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(c, 52 * Ui.TILE_SCALE));
+        int m = Ui.dp(c, 4);
+        lp.setMargins(m, m, m, m);
+        return lp;
+    }
+
+    private static LinearLayout.LayoutParams half(Context c) {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Ui.dp(c, 52 * Ui.TILE_SCALE), 1f);
+        int m = Ui.dp(c, 4);
+        lp.setMargins(m, m, m, m);
+        return lp;
     }
 
     @SuppressWarnings("deprecation")
@@ -146,13 +175,6 @@ final class CapturePanel extends ScrollView {
 
     private void toast(String s) {
         android.widget.Toast.makeText(getContext(), s, android.widget.Toast.LENGTH_SHORT).show();
-    }
-
-    private static LinearLayout.LayoutParams cell(Context c) {
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Ui.dp(c, 92 * Ui.TILE_SCALE), 1f);
-        int m = Ui.dp(c, 5);
-        lp.setMargins(m, m, m, m);
-        return lp;
     }
 
     void setRecording(boolean on) {
