@@ -41,13 +41,15 @@ Debug builds from the Actions tab are signed with a different key on every run. 
 
 Turn on "Wake up and connect when my PC turns on" on the connect page. Tap Disconnect in the rail to reach it.
 
-- A small background service sends the discovery probe every 6 seconds while charging and every 60 seconds on battery.
+- A small background service sends the discovery probe every 5 seconds while charging and every 60 seconds on battery.
 - When a paired PC answers after being off, or after the PC app restarted, the phone turns its screen on, opens the dock and connects.
 - Android 10 and newer only let an app open itself when you allow "Display over other apps". The app asks for it. Without it, you get a "Your PC is on" notification to tap.
 - On Android 13 and newer, allow notifications, or the service's notification stays hidden.
 - Allow the battery exemption when asked, or Android may stop the service.
 - After you tap Disconnect, the phone stays quiet until the PC app starts again.
 - "Show the dock over the lock screen" is a separate switch and off by default. With it on, anyone near the phone can use the dock.
+- The status box under the switches shows the app version, what the watcher saw last, and each permission. Fix permissions asks for the next missing one. Show log lists the last 30 watcher events, such as "PC app is running", "Woke the phone" or why it could not open.
+- The PC app starts when you log in to Windows, not at power on. Until you log in, the phone has nothing to find.
 
 ## Build
 

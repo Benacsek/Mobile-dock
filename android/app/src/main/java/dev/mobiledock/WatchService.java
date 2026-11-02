@@ -41,6 +41,10 @@ public final class WatchService extends Service {
     /** Set when you tap Disconnect. The watcher waits until the PC goes off and on again. */
     static volatile boolean quietUntilOffline;
 
+    /** What the watcher saw last, for the status panel on the connect page. */
+    static volatile String status = "Not running";
+    static volatile long lastCheck;
+
     private volatile boolean running;
     private Thread thread;
     private PowerManager.WakeLock cpuLock;
@@ -94,6 +98,8 @@ public final class WatchService extends Service {
     @Override
     public void onDestroy() {
         running = false;
+        status = "Not running";
+        log(this, "Watcher stopped");
         if (thread != null) thread.interrupt();
         holdLocks(false);
         super.onDestroy();
@@ -153,27 +159,59 @@ public final class WatchService extends Service {
         }
     }
 
+    /** Keeps the last 30 watcher events with the time, so you can see what happened. */
+    static synchronized void log(Context c, String message) {
+        SharedPreferences p = prefs(c);
+        String line = new java.text.SimpleDateFormat("dd.MM HH:mm:ss", java.util.Locale.US)
+                .format(new java.util.Date()) + "  " + message;
+        String old = p.getString("watch_log", "");
+        String[] lines = old.length() == 0 ? new String[0] : old.split("\n");
+        StringBuilder sb = new StringBuilder(line);
+        for (int i = 0; i < Math.min(29, lines.length); i++) sb.append('\n').append(lines[i]);
+        p.edit().putString("watch_log", sb.toString()).commit();
+    }
+
+    static String logText(Context c) {
+        String t = prefs(c).getString("watch_log", "");
+        return t.length() == 0 ? "Nothing logged yet." : t;
+    }
+
     private void loop() {
         Store store = new Store(this);
         boolean online = false;
         String lastBoot = null;
         int misses = 0;
+        boolean wasPlugged = !charging();
+        log(this, "Watcher started");
         while (running) {
             boolean plugged = charging();
+            if (plugged != wasPlugged) {
+                log(this, plugged ? "Charging: checking every 5 seconds" : "On battery: checking every 60 seconds");
+                wasPlugged = plugged;
+            }
             holdLocks(plugged);
             String boot = probe(store);
+            lastCheck = System.currentTimeMillis();
             if (boot != null) {
                 misses = 0;
                 // A new boot id means the PC app started again: after a PC restart, or when you
                 // closed and reopened the app. Both should bring the dock up and connect.
                 boolean restarted = !online || !boot.equals(lastBoot);
-                if (restarted) quietUntilOffline = false;
-                if (restarted && !quietUntilOffline) wake(!dockVisible);
+                if (restarted) {
+                    quietUntilOffline = false;
+                    log(this, "PC app is running (start " + boot + ")");
+                    status("PC online");
+                    wake(!dockVisible);
+                }
                 online = true;
                 lastBoot = boot;
-            } else if (++misses >= 3) {
+            } else if (++misses >= 3 && online) {
                 online = false;
                 quietUntilOffline = false;
+                log(this, "PC went offline");
+                status("Waiting for your PC");
+            } else if (!online) {
+                status = "Waiting for your PC";
             }
             try {
                 Thread.sleep(plugged ? 5000 : 60000);
@@ -218,8 +256,36 @@ public final class WatchService extends Service {
         return null;
     }
 
+    private void status(String text) {
+        status = text;
+        Notification n = notification(text, "Mobile Dock opens when your PC app starts.", false);
+        if (Build.VERSION.SDK_INT >= 26) {
+            WatchCompat.notify(this, NOTIFICATION_ID, n);
+        } else {
+            ((android.app.NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE)).notify(NOTIFICATION_ID, n);
+        }
+    }
+
+    private void fallbackNotification(String why) {
+        if (Build.VERSION.SDK_INT >= 33 && !WatchCompat.notificationsAllowed(this)) {
+            log(this, why + " Notifications are off too, so nothing could be shown. Open Mobile Dock and tap Fix.");
+            return;
+        }
+        log(this, why + " Sent a notification to tap.");
+        if (Build.VERSION.SDK_INT >= 26) {
+            WatchCompat.notify(this, 8, notification("Your PC is on", "Tap to open Mobile Dock", true));
+        } else {
+            ((android.app.NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE))
+                    .notify(8, notification("Your PC is on", "Tap to open Mobile Dock", true));
+        }
+    }
+
     @SuppressWarnings("deprecation")
     private void wake(boolean turnScreenOn) {
+        if (quietUntilOffline) {
+            log(this, "Not opening: you tapped Disconnect");
+            return;
+        }
         if (turnScreenOn) {
             try {
                 PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
@@ -236,13 +302,14 @@ public final class WatchService extends Service {
         // Android 10 and newer only lets an app open itself from the background when it may
         // draw over other apps. Without that, a notification asks you to tap.
         if (Build.VERSION.SDK_INT >= 29 && !dockVisible && !WatchCompat.canDrawOverlays(this)) {
-            WatchCompat.notify(this, 8, notification("Your PC is on", "Tap to open Mobile Dock", true));
+            fallbackNotification("Could not open the dock: \"Display over other apps\" is off.");
             return;
         }
         try {
             startActivity(open);
+            log(this, dockVisible ? "Reconnecting the open dock" : "Woke the phone and opened the dock");
         } catch (RuntimeException e) {
-            WatchCompat.notify(this, 8, notification("Your PC is on", "Tap to open Mobile Dock", true));
+            fallbackNotification("Android blocked opening the dock (" + e.getClass().getSimpleName() + ").");
         }
     }
 }

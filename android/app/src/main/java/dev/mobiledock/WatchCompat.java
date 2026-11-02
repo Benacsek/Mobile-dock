@@ -65,6 +65,16 @@ final class WatchCompat {
         return bm != null && bm.isCharging();
     }
 
+    @TargetApi(33)
+    static boolean notificationsAllowed(Context c) {
+        return c.checkSelfPermission("android.permission.POST_NOTIFICATIONS") == PackageManager.PERMISSION_GRANTED;
+    }
+
+    static boolean batteryExempt(Context c) {
+        PowerManager pm = (PowerManager) c.getSystemService(Context.POWER_SERVICE);
+        return pm != null && pm.isIgnoringBatteryOptimizations(c.getPackageName());
+    }
+
     static boolean canDrawOverlays(Context c) {
         return Settings.canDrawOverlays(c);
     }

@@ -44,6 +44,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private FrameLayout content;
     private AppsPanel apps;
     private ShortcutsPanel shortcuts;
+    private TextView watchStatus;
     private StatsPanel stats;
     private FileSender sender;
     private Uri pendingShare;
@@ -123,6 +124,10 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     protected void onResume() {
         super.onResume();
         WatchService.dockVisible = true;
+        if (root != null) {
+            root.removeCallbacks(statusTick);
+            root.post(statusTick);
+        }
         immersive();
     }
 
@@ -171,6 +176,8 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         if (connectView == null) connectView = buildConnect();
         if (connectView.getParent() == null) root.addView(connectView);
         connectView.setVisibility(View.VISIBLE);
+        root.removeCallbacks(statusTick);
+        root.post(statusTick);
         if (dockView != null) dockView.setVisibility(View.GONE);
     }
 
@@ -272,6 +279,36 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         });
         right.addView(lockBox, Ui.fillWidth(this, 2));
         right.addView(Ui.text(this, "Works best while the phone charges. Over the lock screen, anyone near the phone can control your PC.", 12, Ui.MUTED), Ui.fillWidth(this, 4));
+        watchStatus = Ui.text(this, "", 13, Ui.TEXT);
+        watchStatus.setBackground(Ui.rounded(this, Ui.SURFACE_HI, 10));
+        int sp = Ui.dp(this, 10);
+        watchStatus.setPadding(sp, sp, sp, sp);
+        right.addView(watchStatus, Ui.fillWidth(this, 4));
+        LinearLayout watchButtons = Ui.row(this);
+        Button fix = Ui.accentButton(this, "Fix permissions");
+        fix.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                fixNextPermission(true);
+            }
+        });
+        watchButtons.addView(fix, Ui.wrap(this, 4));
+        Button showLog = Ui.button(this, "Show log");
+        showLog.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                TextView t = Ui.text(MainActivity.this, WatchService.logText(MainActivity.this), 12, Ui.TEXT);
+                int p = Ui.dp(MainActivity.this, 16);
+                t.setPadding(p, p, p, p);
+                t.setTextIsSelectable(true);
+                ScrollView sv = new ScrollView(MainActivity.this);
+                sv.addView(t);
+                new AlertDialog.Builder(MainActivity.this).setTitle("Watcher log").setView(sv)
+                        .setPositiveButton("Close", null).show();
+            }
+        });
+        watchButtons.addView(showLog, Ui.wrap(this, 4));
+        right.addView(watchButtons, Ui.fillWidth(this, 0));
 
         Button forget = Ui.button(this, "Forget paired PCs");
         forget.setOnClickListener(new View.OnClickListener() {
@@ -297,22 +334,84 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         return page;
     }
 
-    /** Android 10 and newer need extra permissions before an app may open itself. */
     private void explainWakePermissions() {
-        if (Build.VERSION.SDK_INT >= 33) WatchCompat.askNotifications(this);
-        if (Build.VERSION.SDK_INT < 29 || WatchCompat.canDrawOverlays(this)) {
-            if (Build.VERSION.SDK_INT >= 26) WatchCompat.askBatteryExemption(this);
+        fixNextPermission(false);
+    }
+
+    /** Asks for the first missing permission. Tap Fix again for the next one. */
+    private void fixNextPermission(boolean sayWhenDone) {
+        if (Build.VERSION.SDK_INT >= 33 && !WatchCompat.notificationsAllowed(this)) {
+            WatchCompat.askNotifications(this);
             return;
         }
-        new AlertDialog.Builder(this).setTitle("One more permission")
-                .setMessage("To open by itself when your PC starts, Android needs you to allow Mobile Dock to "
-                        + "display over other apps. Without it, you get a notification to tap instead.")
-                .setPositiveButton("Open settings", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface d, int w) {
-                        WatchCompat.askOverlay(MainActivity.this);
-                    }
-                }).setNegativeButton("Use notification", null).show();
+        if (Build.VERSION.SDK_INT >= 29 && !WatchCompat.canDrawOverlays(this)) {
+            new AlertDialog.Builder(this).setTitle("Allow opening by itself")
+                    .setMessage("Android only lets Mobile Dock open itself when your PC starts if you allow "
+                            + "\"Display over other apps\". In the next screen, find Mobile Dock and turn it on.")
+                    .setPositiveButton("Open settings", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface d, int w) {
+                            WatchCompat.askOverlay(MainActivity.this);
+                        }
+                    }).setNegativeButton("Later", null).show();
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= 23 && !WatchCompat.batteryExempt(this)) {
+            WatchCompat.askBatteryExemption(this);
+            return;
+        }
+        if (sayWhenDone) toast("All permissions are set. Keep the phone charging for instant wake.");
+    }
+
+    private final Runnable statusTick = new Runnable() {
+        @Override
+        public void run() {
+            updateWatchStatus();
+            if (connectView != null && connectView.getVisibility() == View.VISIBLE) {
+                root.postDelayed(this, 2000);
+            }
+        }
+    };
+
+    @SuppressWarnings("deprecation")
+    private void updateWatchStatus() {
+        if (watchStatus == null) return;
+        StringBuilder sb = new StringBuilder();
+        String version = "?";
+        try {
+            version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (android.content.pm.PackageManager.NameNotFoundException ignored) {
+        }
+        sb.append("App version ").append(version).append('\n');
+        if (!WatchService.enabled(this)) {
+            sb.append("Wake on PC start is off.");
+            watchStatus.setText(sb.toString());
+            return;
+        }
+        sb.append("Watcher: ").append(WatchService.status);
+        if (WatchService.lastCheck > 0) {
+            sb.append(", checked ").append(new java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US)
+                    .format(new java.util.Date(WatchService.lastCheck)));
+        }
+        sb.append('\n');
+        if (Build.VERSION.SDK_INT >= 29) {
+            sb.append("Display over other apps: ").append(WatchCompat.canDrawOverlays(this) ? "allowed" : "NEEDED").append('\n');
+        }
+        if (Build.VERSION.SDK_INT >= 33) {
+            sb.append("Notifications: ").append(WatchCompat.notificationsAllowed(this) ? "allowed" : "NEEDED").append('\n');
+        }
+        if (Build.VERSION.SDK_INT >= 23) {
+            sb.append("Battery limits: ").append(WatchCompat.batteryExempt(this) ? "off" : "ON, may stop the watcher").append('\n');
+        }
+        android.content.Intent battery = registerReceiverForBattery();
+        boolean plugged = battery != null && battery.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED, 0) != 0;
+        sb.append("Charging: ").append(plugged ? "yes" : "no, checks only every 60 seconds");
+        watchStatus.setText(sb.toString());
+    }
+
+    @android.annotation.SuppressLint("UnspecifiedRegisterReceiverFlag") // sticky read, no receiver
+    private Intent registerReceiverForBattery() {
+        return registerReceiver(null, new android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED));
     }
 
     private void connectTyped() {
