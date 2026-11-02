@@ -66,7 +66,7 @@ final class AppsPanel extends LinearLayout {
     private ImageView arrangeButton;
     private int width;
 
-    AppsPanel(Context c, DockClient client, LaunchListener onLaunch, final Runnable fullscreen) {
+    AppsPanel(Context c, DockClient client, LaunchListener onLaunch) {
         super(c);
         this.client = client;
         this.onLaunch = onLaunch;
@@ -115,15 +115,6 @@ final class AppsPanel extends LinearLayout {
             }
         });
         header.addView(arrangeButton);
-        ImageView full = Ui.iconButton(c, Icon.Kind.EXPAND, 44, 0x00000000, Ui.SURFACE_HI, Ui.TEXT);
-        full.setContentDescription("Fullscreen");
-        full.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                fullscreen.run();
-            }
-        });
-        header.addView(full);
         top.addView(header);
 
         removeZone = Ui.text(c, "Drop here to unpin", 16, Ui.TEXT);

@@ -561,11 +561,6 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 // Opening a music app jumps to Now playing, like a car dashboard.
                 if (MUSIC_APPS.matcher(appName).find()) select(PLAYING);
             }
-        }, new Runnable() {
-            @Override
-            public void run() {
-                setFullscreen(true);
-            }
         });
         media = new MediaPanel(this, client, new Runnable() {
             @Override
@@ -649,6 +644,18 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             tabs.add(tile);
             dockBar.addView(tile, tlp);
         }
+        // Fullscreen sits at the end of the bar, so it is there on every page.
+        ImageView full = Ui.iconButton(this, Icon.Kind.EXPAND, 44, 0x00000000, Ui.SURFACE_HI, Ui.MUTED);
+        full.setContentDescription("Fullscreen");
+        full.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                setFullscreen(true);
+            }
+        });
+        LinearLayout.LayoutParams flp = new LinearLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44));
+        flp.setMargins(Ui.dp(this, 4), 0, Ui.dp(this, 2), 0);
+        dockBar.addView(full, flp);
         barScroll = dockBar;
         LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);

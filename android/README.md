@@ -32,7 +32,7 @@ The dock bar sits at the bottom of the screen with eight tiles. Tap a tile to op
 
 App icons all get the same rounded-square shape. Names can use two lines. The grid spreads apps evenly over the rows, so 8 apps make two rows of 4.
 
-- Apps: tap a tile to open it on the PC. Long press a tile to drag it. Drop it on another tile to move it there, or on the red bar to unpin. The header shows which PC you are connected to. Its icons are + to pin more apps, the arrows for Arrange and the corners for Fullscreen.
+- Apps: tap a tile to open it on the PC. Long press a tile to drag it. Drop it on another tile to move it there, or on the red bar to unpin. The header shows which PC you are connected to. Its icons are + to pin more apps and the arrows for Arrange.
 - Playing: album art, title, artist, album and a progress bar you can drag to seek. Play, skip, shuffle, repeat and volume. Opening Spotify or another music app from Apps jumps here.
 - Shortcuts: tiles for the app in front on the PC. The target icon in the header turns Follow on or off. Tap the pad name to pick another pad.
 - Controls: volume, mute, lock, screen off, sleep, show desktop, Task Manager and Disconnect. Sleep asks first.
@@ -44,7 +44,7 @@ App icons all get the same rounded-square shape. Names can use two lines. The gr
 - Stats: CPU, GPU, memory, network and disk graphs for the last minute, plus the busiest apps.
 - Settings: accent color, tile size, background glow and dock labels on the left. Phone and PC versions, the PC's update status and Check now on the right.
 - Arrange: the arrows icon on Apps. A tap picks a tile up. Tap the icon again or press Back when you are done.
-- Fullscreen: the corners icon on Apps hides the dock bar. Tap the small button in the corner or press Back to bring it back.
+- Fullscreen: the corners icon at the right end of the dock bar hides the bar on any page. Tap the small button in the corner or press Back to bring it back.
 
 ## Start with your PC
 
