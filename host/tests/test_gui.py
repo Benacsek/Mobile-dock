@@ -38,6 +38,9 @@ def test_window_builds(tmp_path):
     for i in range(len(app.TABS)):
         app.show_tab(i)
     app.edit_pads(1)
+    app.copy_diagnostics()
+    assert "Mobile Dock host" in app.root.clipboard_get()
+    app.whats_new()  # first run only remembers the version
     app.root.geometry("560x420")  # smallest size: pages must still build and scroll
     app.root.update()
     app.add_apps()

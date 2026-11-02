@@ -306,3 +306,20 @@ def test_sensors_parse_libre_hardware_monitor(monkeypatch):
     assert perf.read_sensors() == {"cpu_temp": 61.4, "gpu_temp": 55.0, "fans": [{"name": "Fan #1", "rpm": 1180}]}
     monkeypatch.setattr(subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, "", ""))
     assert "sensors_hint" in perf.read_sensors()
+
+
+def test_setup_export_and_import(server):
+    from mobiledock_host import pads
+
+    server.set_pinned([{"id": "firefox.desktop", "name": "Firefox"}])
+    data = server.export_setup()
+    assert "devices" not in str(data) and "secret" not in str(data)  # nothing secret leaves
+    server.set_pinned([])
+    assert "1 pinned apps" in server.import_setup(data)
+    assert server.config.pinned()[0]["id"] == "firefox.desktop"
+    for bad in ({}, {"mobile_dock_setup": 2}, "nope",
+                {"mobile_dock_setup": 1, "pads": [{"id": "x", "name": "X", "tiles": [{"label": "A", "keys": "Hyper+Q"}]}]}):
+        with pytest.raises(ValueError):
+            server.import_setup(bad)
+    assert server.config.pinned()[0]["id"] == "firefox.desktop"  # a bad file changes nothing
+    assert len(server.config.data["pads"]) == len(pads.defaults())

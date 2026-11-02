@@ -9,6 +9,24 @@ It works on your local network or over USB. There is no account, no cloud servic
 | PC host | [host](host/README.md) | Windows 10 and 11, Linux with Hyprland |
 | Phone app | [android](android/README.md) | Android 4.1 (API 16) up to Android 16 |
 
+## Screenshots
+
+The phone dock, 720p landscape. These come from the emulator in CI with sample data.
+
+| Apps | Now playing |
+| --- | --- |
+| ![Pinned apps with real icons](docs/screenshots/phone-apps.png) | ![Now playing with album art](docs/screenshots/phone-playing.png) |
+| Controls and volume mixer | Stats |
+| ![PC controls and a slider per app](docs/screenshots/phone-controls.png) | ![CPU, GPU, memory, network and disk](docs/screenshots/phone-stats.png) |
+
+After a few idle minutes the dock dims to a quiet clock:
+
+![Night clock](docs/screenshots/phone-night.png)
+
+The PC window while pairing:
+
+![PC window with the pairing PIN and QR code](docs/screenshots/pc-window.png)
+
 ## What you can do from the phone
 
 - Browse your pinned apps in a grid with their real icons. Tap one to open it on the PC.
@@ -53,7 +71,13 @@ This uses `adb reverse`, which needs Android 5.0 or newer. On Android 4.x, turn 
 
 ## Where to get the builds
 
-Every push to main creates a GitHub release with `MobileDockHost.exe` and the signed APK. Download both from the Releases page once. After that, they update themselves.
+Each release has `MobileDockHost.exe`, the signed APK and notes on what changed. Download both from the Releases page once. After that, they update themselves and show the notes once.
+
+A release happens when [CHANGELOG.md](CHANGELOG.md) gets a new version at the top and that reaches main. Other pushes build and test, but do not update anyone's apps.
+
+## Report a problem
+
+Copy diagnostics, in the PC window's Settings tab or on the phone's Settings page, copies the version and a short local error log to the clipboard. Paste it into a GitHub issue. Nothing is sent anywhere by itself. The logs never contain pairing keys.
 
 ## Automatic updates
 

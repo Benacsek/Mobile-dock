@@ -381,6 +381,24 @@ class DockServer:
             except OSError:
                 s.close()
 
+    # Setup backup ----------------------------------------------------------
+
+    def export_setup(self) -> dict:
+        """Pinned apps and shortcut pads. Never pairing keys, tokens or anything secret."""
+        return {"mobile_dock_setup": 1, "pinned": self.config.pinned(), "pads": self.config.data["pads"]}
+
+    def import_setup(self, data: dict) -> str:
+        """Checks a backup from export_setup and applies it. Raises ValueError with a readable reason."""
+        if not isinstance(data, dict) or data.get("mobile_dock_setup") != 1:
+            raise ValueError("This is not a Mobile Dock setup file")
+        pinned = []
+        for app in data.get("pinned", [])[:200]:
+            if isinstance(app, dict) and isinstance(app.get("id"), str) and isinstance(app.get("name"), str):
+                pinned.append({"id": app["id"][:400], "name": app["name"][:100]})
+        self.set_pads(data.get("pads", []))
+        self.set_pinned(pinned)
+        return f"Imported {len(pinned)} pinned apps and {len(self.config.data['pads'])} shortcut pads"
+
     def connected_sessions(self) -> list[dict]:
         """Name, how it connects, and since when, for every phone connected right now."""
         with self.lock:

@@ -210,11 +210,7 @@ final class AppsPanel extends LinearLayout {
      */
     private int balancedColumns() {
         if (width <= 0) return columns;
-        int max = Math.max(3, width / Ui.dp(getContext(), 112 * Ui.TILE_SCALE));
-        int n = apps.size();
-        if (n == 0) return max;
-        int rows = (n + max - 1) / max;
-        return Math.max(3, (n + rows - 1) / rows);
+        return Rules.balancedColumns(width, Ui.dp(getContext(), 112 * Ui.TILE_SCALE), apps.size());
     }
 
     private void rebuild() {

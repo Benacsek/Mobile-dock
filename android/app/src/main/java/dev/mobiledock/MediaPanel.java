@@ -219,6 +219,7 @@ final class MediaPanel extends LinearLayout {
         source.setText(appLabel(r.optString("app")));
         playing = r.optBoolean("playing");
         play.setImageDrawable(new Icon(playing ? Icon.Kind.PAUSE : Icon.Kind.PLAY, Ui.onAccent()));
+        play.setContentDescription(playing ? "Pause" : "Play");
         if (r.has("shuffle")) {
             shuffle.setVisibility(VISIBLE);
             shuffle.setSelected(r.optBoolean("shuffle"));
@@ -230,6 +231,7 @@ final class MediaPanel extends LinearLayout {
             repeat.setVisibility(VISIBLE);
             repeat.setSelected(!"none".equals(mode));
             repeat.setImageDrawable(new Icon("track".equals(mode) ? Icon.Kind.REPEAT_ONE : Icon.Kind.REPEAT, Ui.TEXT));
+            repeat.setContentDescription("track".equals(mode) ? "Repeat one" : "Repeat all");
         } else {
             repeat.setVisibility(GONE);
         }

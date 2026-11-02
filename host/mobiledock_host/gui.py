@@ -301,6 +301,7 @@ class App:
         if minimized:
             self.root.iconify()
         self.root.after(200, self.poll_events)
+        self.root.after(900, self.whats_new)
 
     # Pages -------------------------------------------------------------
 
@@ -416,6 +417,14 @@ class App:
             row.pack(fill="x")
             FlatButton(row, "Check for updates", self.check_updates, "primary").pack(side="left")
             FlatButton(row, "Private repository token", self.set_token, "ghost").pack(side="left", padx=8)
+        backup = section(page, "Backup and help", "Your pinned apps and shortcut pads, in one file. "
+                         "Pairing keys are never included. Diagnostics stay on this PC until you paste them.")
+        backup.pack(fill="x", pady=(16, 0))
+        brow = tk.Frame(backup.body, background=SURFACE)
+        brow.pack(fill="x")
+        FlatButton(brow, "Export setup", self.export_setup).pack(side="left")
+        FlatButton(brow, "Import setup", self.import_setup).pack(side="left", padx=8)
+        FlatButton(brow, "Copy diagnostics", self.copy_diagnostics, "ghost").pack(side="left")
 
     def show_tab(self, index: int) -> None:
         for i, page in enumerate(self.pages):
@@ -441,6 +450,22 @@ class App:
 
     def run(self) -> None:
         self.root.mainloop()
+
+    def whats_new(self) -> None:
+        """Shows the release notes once after an update. A first install only remembers the version."""
+        from . import __version__
+
+        seen = self.server.config.data.get("seen_version")
+        if seen == __version__:
+            return
+        self.server.config.data["seen_version"] = __version__
+        self.server.config.save()
+        try:
+            from ._notes import NOTES
+        except ImportError:  # source installs have no notes file
+            return
+        if seen and NOTES:
+            messagebox.showinfo(f"What's new in Mobile Dock {__version__}", NOTES, parent=self.root)
 
     def _show_pin(self, pin: str | None) -> None:
         for i, box in enumerate(self.pin_boxes):
@@ -594,6 +619,62 @@ class App:
         if self.say_job:
             self.root.after_cancel(self.say_job)
         self.say_job = self.root.after(6000, lambda: self.status.configure(text=""))
+
+    def export_setup(self) -> None:
+        import json
+        from tkinter import filedialog
+
+        path = filedialog.asksaveasfilename(parent=self.root, title="Export setup", defaultextension=".json",
+                                            initialfile="mobile-dock-setup.json",
+                                            filetypes=[("Mobile Dock setup", "*.json")])
+        if not path:
+            return
+        try:
+            Path(path).write_text(json.dumps(self.server.export_setup(), indent=2), encoding="utf-8")
+        except OSError as exc:
+            messagebox.showerror("Mobile Dock", f"Could not save the file: {exc}", parent=self.root)
+            return
+        self.say(f"Saved your setup to {Path(path).name}")
+
+    def import_setup(self) -> None:
+        import json
+        from tkinter import filedialog
+
+        path = filedialog.askopenfilename(parent=self.root, title="Import setup",
+                                          filetypes=[("Mobile Dock setup", "*.json")])
+        if not path:
+            return
+        if not messagebox.askyesno("Mobile Dock", "Replace your pinned apps and shortcut pads with the ones in "
+                                   "this file?", parent=self.root):
+            return
+        try:
+            data = json.loads(Path(path).read_text(encoding="utf-8"))
+            result = self.server.import_setup(data)
+        except (OSError, ValueError) as exc:
+            messagebox.showerror("Mobile Dock", f"Could not import: {exc}", parent=self.root)
+            return
+        self.refresh_pinned()
+        self.refresh_pads()
+        self.say(result)
+
+    def copy_diagnostics(self) -> None:
+        import platform as _platform
+
+        from . import __version__
+        from .config import config_dir
+
+        lines = [f"Mobile Dock host {__version__}", f"{_platform.platform()}  Python {_platform.python_version()}",
+                 f"Phones connected: {len(self.server.connected_sessions())}"]
+        if self.updater is not None:
+            lines.append(f"Updates: {self.updater.status}")
+        try:
+            log = (config_dir() / "mobile-dock.log").read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            log = []
+        lines += ["", "Errors:"] + (log[-120:] or ["none"])
+        self.root.clipboard_clear()
+        self.root.clipboard_append("\n".join(lines))
+        self.say("Diagnostics copied. Nothing was sent.")
 
     def copy_address(self) -> None:
         self.root.clipboard_clear()

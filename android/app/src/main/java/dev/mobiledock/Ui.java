@@ -84,6 +84,7 @@ final class Ui {
         bg.addState(new int[] {}, rounded(c, 0x00000000, 14));
         tile.setBackground(bg);
         tile.setClickable(true);
+        tile.setContentDescription(label);  // also spoken when labels are turned off
         int p = dp(c, 6);
         tile.setPadding(p, p, p, p);
         ImageView icon = new ImageView(c);
@@ -218,8 +219,33 @@ final class Ui {
         b.setBackground(pressable(c, bg, pressed, sizeDp / 2f));
         b.setClickable(true);
         b.setFocusable(true);
+        b.setContentDescription(spoken(kind));  // screen readers read this, since the button has no text
         b.setLayoutParams(new LinearLayout.LayoutParams(dp(c, sizeDp), dp(c, sizeDp)));
         return b;
+    }
+
+    /** What a screen reader says for an icon-only button. Callers can set a more specific text. */
+    static String spoken(Icon.Kind kind) {
+        switch (kind) {
+            case PLAY: return "Play";
+            case PAUSE: return "Pause";
+            case PREV: return "Previous track";
+            case NEXT: return "Next track";
+            case SHUFFLE: return "Shuffle";
+            case REPEAT: return "Repeat all";
+            case REPEAT_ONE: return "Repeat one";
+            case VOL_DOWN: return "Volume down";
+            case VOL_UP: return "Volume up";
+            case MUTE: return "Mute";
+            case BACK: return "Back";
+            case PLUS: return "Add";
+            case REFRESH: return "Refresh";
+            case FOLLOW: return "Follow the app in front";
+            case EXPAND: return "Fullscreen";
+            case SHRINK: return "Exit fullscreen";
+            case GRIP: return "Arrange apps";
+            default: return kind.name().toLowerCase(java.util.Locale.US).replace('_', ' ');
+        }
     }
 
     /** Plain icon button with no fill until pressed. */

@@ -48,3 +48,8 @@ android {
         abortOnError = true
     }
 }
+
+dependencies {
+    // Only for the unit tests on the build machine. The app itself still has no libraries.
+    testImplementation("junit:junit:4.13.2")
+}

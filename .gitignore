@@ -40,3 +40,7 @@ config.json
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Written by CI from CHANGELOG.md
+host/mobiledock_host/_notes.py
+android/app/src/main/assets/whats_new.txt

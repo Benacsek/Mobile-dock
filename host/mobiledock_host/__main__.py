@@ -13,7 +13,7 @@ import sys
 import threading
 
 from . import __version__
-from .config import Config
+from .config import Config, config_dir
 from .platforms import get_platform
 from .server import DockServer
 from .updater import Updater
@@ -38,6 +38,38 @@ def _signal_running_instance() -> bool:
         return False
 
 
+LOG_NAME = "mobile-dock.log"
+
+
+def setup_error_log() -> None:
+    """Keeps warnings and errors in a small file next to the config. It never leaves the PC.
+
+    Copy diagnostics in the window puts its last lines on the clipboard for a bug report.
+    """
+    from logging.handlers import RotatingFileHandler
+
+    try:
+        folder = config_dir()
+        folder.mkdir(parents=True, exist_ok=True)
+        handler = RotatingFileHandler(folder / LOG_NAME, maxBytes=256 * 1024, backupCount=1, encoding="utf-8")
+    except OSError:
+        return
+    handler.setLevel(logging.WARNING)
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    logging.getLogger().addHandler(handler)
+
+    def crashed(kind, value, tb):
+        logging.getLogger("crash").critical("Unhandled error", exc_info=(kind, value, tb))
+        sys.__excepthook__(kind, value, tb)
+
+    def thread_crashed(args):
+        logging.getLogger("crash").critical("Unhandled error in thread %s", getattr(args.thread, "name", "?"),
+                                            exc_info=(args.exc_type, args.exc_value, args.exc_traceback))
+
+    sys.excepthook = crashed
+    threading.excepthook = thread_crashed
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="mobile-dock-host", description="Turn your phone into a dock for this PC.")
     parser.add_argument("--headless", action="store_true", help="run without a window (PIN is printed)")
@@ -55,6 +87,7 @@ def main(argv: list[str] | None = None) -> int:
 
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING,
                         format="%(asctime)s %(levelname)s %(message)s")
+    setup_error_log()
     config = Config()
     if args.port:
         config.data["port"] = args.port

@@ -43,10 +43,31 @@ final class UpdatesPanel extends ScrollView {
                 refresh(true);
             }
         });
-        box.addView(check, Ui.wrap(c, 4));
+        LinearLayout actions = Ui.row(c);
+        actions.addView(check, Ui.wrap(c, 4));
+        Button diag = Ui.button(c, "Copy diagnostics");
+        diag.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                copyDiagnostics();
+            }
+        });
+        actions.addView(diag, Ui.wrap(c, 4));
+        box.addView(actions);
         box.addView(Ui.text(c, "The PC downloads new versions from the GitHub release. The phone gets its update "
                 + "from the PC and checks it before you install. Nothing else is contacted.", 13, Ui.MUTED),
                 Ui.fillWidth(c, 6));
+    }
+
+    /** Version, phone model and the local error log, ready to paste into a bug report. Nothing is sent. */
+    @SuppressWarnings("deprecation")
+    private void copyDiagnostics() {
+        android.content.ClipboardManager cm = (android.content.ClipboardManager)
+                getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+        cm.setPrimaryClip(android.content.ClipData.newPlainText("Mobile Dock diagnostics",
+                CrashLog.diagnostics(getContext())));
+        android.widget.Toast.makeText(getContext(), "Diagnostics copied. Nothing was sent.",
+                android.widget.Toast.LENGTH_SHORT).show();
     }
 
     private static View card(Context c, String label, TextView value) {

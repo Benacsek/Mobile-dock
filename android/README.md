@@ -95,7 +95,7 @@ The APK lands in `app/build/outputs/apk/debug/`.
 
 ## Screenshots in CI
 
-Every build starts a 720p landscape Android emulator, opens each page in demo mode and saves a picture of it. Download `phone-screenshots` from the build in the Actions tab.
+Every build starts a 720p landscape Android emulator, opens each page in demo mode and saves a picture of it. Three pages are shot again with large system text, to catch labels that no longer fit. Plain unit tests in `app/src/test` check the logic that has no screen, such as pairing links and the app grid. Download `phone-screenshots` from the build in the Actions tab.
 
 Demo mode shows sample data instead of a PC. It only works in debuggable builds, so the release app never uses it. To try it on a test phone with a debug build:
 

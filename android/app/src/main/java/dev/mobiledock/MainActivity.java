@@ -67,6 +67,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         super.onCreate(state);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        CrashLog.install(this);
         store = new Store(this);
         client = new DockClient(store, this);
         updater = new PhoneUpdater(this, client);
@@ -85,6 +86,12 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         }
         showConnect();
         if (startDemo(getIntent())) return;
+        root.post(new Runnable() {
+            @Override
+            public void run() {
+                whatsNew();
+            }
+        });
         String last = store.lastHost();
         if (last.length() > 0 && store.hasAnyPairing()) client.connect(last, store.lastPort());
         else scan();
@@ -112,13 +119,13 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         boolean debuggable = (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0;
         if (!debuggable || intent == null || !intent.getBooleanExtra("demo", false)) return false;
         Demo.on = true;
-        client.hostName = "Alex-PC";
+        client.hostName = "Desk-PC";
         int page = intent.getIntExtra("page", APPS);
         if (page < 0) {
             showConnect();
             return true;
         }
-        if (dockView == null || dockView.getVisibility() != View.VISIBLE) onState(DockClient.CONNECTED, "Alex-PC");
+        if (dockView == null || dockView.getVisibility() != View.VISIBLE) onState(DockClient.CONNECTED, "Desk-PC");
         if (dimmed) wake();
         if (page == 99) {  // the dim night clock
             dim();
@@ -146,7 +153,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         } catch (RuntimeException e) {
             port = -1;
         }
-        if (host == null || !isLocalAddress(host) || pin == null || !pin.matches("\\d{6}") || port < 1 || port > 65535) {
+        if (host == null || !Rules.isLocalAddress(host) || pin == null || !pin.matches("\\d{6}") || port < 1 || port > 65535) {
             toast("This pairing code is not valid");
             return;
         }
@@ -162,14 +169,45 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 }).setNegativeButton("Cancel", null).show();
     }
 
-    /** Private network addresses only, the same ranges the PC accepts. */
-    static boolean isLocalAddress(String host) {
-        if (!host.matches("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}")) return false;
-        String[] p = host.split("\\.");
-        int a = Integer.parseInt(p[0]), b = Integer.parseInt(p[1]);
-        for (String part : p) if (Integer.parseInt(part) > 255) return false;
-        return a == 10 || a == 127 || (a == 172 && b >= 16 && b <= 31) || (a == 192 && b == 168)
-                || (a == 169 && b == 254) || (a == 100 && b >= 64 && b <= 127);
+    /** Shows the notes for this version once after an update. A fresh install stays quiet. */
+    @SuppressWarnings("deprecation")
+    private void whatsNew() {
+        android.content.pm.PackageInfo info;
+        try {
+            info = getPackageManager().getPackageInfo(getPackageName(), 0);
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            return;
+        }
+        android.content.SharedPreferences p = WatchService.prefs(this);
+        int seen = p.getInt("seen_code", 0);
+        if (seen == info.versionCode) return;
+        p.edit().putInt("seen_code", info.versionCode).commit();
+        if (seen == 0 && !store.hasAnyPairing()) return;  // a new install, not an update
+        String notes = asset("whats_new.txt");
+        if (notes.length() == 0) return;
+        new AlertDialog.Builder(this).setTitle("What's new in " + info.versionName)
+                .setMessage(notes).setPositiveButton("OK", null).show();
+    }
+
+    private String asset(String name) {
+        java.io.InputStream in = null;
+        try {
+            in = getAssets().open(name);
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[4096];
+            int r;
+            while ((r = in.read(buf)) > 0) out.write(buf, 0, r);
+            return out.toString("UTF-8").trim();
+        } catch (java.io.IOException e) {
+            return "";  // builds outside CI have no notes
+        } finally {
+            if (in != null) {
+                try {
+                    in.close();
+                } catch (java.io.IOException ignored) {
+                }
+            }
+        }
     }
 
     // Night dimming and tap feedback ----------------------------------------------
@@ -194,10 +232,10 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             resetIdle();
         } else if (tapPending && action == android.view.MotionEvent.ACTION_MOVE) {
             float slop = android.view.ViewConfiguration.get(this).getScaledTouchSlop();
-            if (Math.abs(ev.getX() - tapX) > slop || Math.abs(ev.getY() - tapY) > slop) tapPending = false;  // a scroll
+            if (!Rules.isTap(ev.getX() - tapX, ev.getY() - tapY, slop, 0, 1)) tapPending = false;  // a scroll
         } else if (tapPending && action == android.view.MotionEvent.ACTION_UP) {
             tapPending = false;
-            if (ev.getEventTime() - tapAt < android.view.ViewConfiguration.getLongPressTimeout()) {
+            if (Rules.isTap(0, 0, 0, ev.getEventTime() - tapAt, android.view.ViewConfiguration.getLongPressTimeout())) {
                 Haptics.tick(this, Haptics.length(WatchService.prefs(this)));
             }
         } else if (action == android.view.MotionEvent.ACTION_CANCEL) {
@@ -1019,6 +1057,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 break;
             case DockClient.FAILED:
             default:
+                CrashLog.note(this, "Connection failed: " + message);
                 showConnect();
                 connectStatus.setText(message);
                 toast(message);

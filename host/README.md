@@ -143,6 +143,12 @@ Prefer a window? Run `mobile-dock-host` without flags. It uses Tk through XWayla
 
 Without wtype, typing falls back to the US layout and ASCII only.
 
+## Back up your setup
+
+On the Settings tab, Export setup saves your pinned apps and shortcut pads to a .json file. Import setup puts them back, for example after you reinstall Windows. Pairing keys are never in the file, so phones pair again with a new PIN.
+
+Warnings and errors go to `mobile-dock.log` next to the config file. Copy diagnostics puts its last lines on the clipboard for a bug report.
+
 ## Updates
 
 The host checks the latest GitHub release of this repository at start and every 6 hours. Check for updates on the Settings tab runs it now.
