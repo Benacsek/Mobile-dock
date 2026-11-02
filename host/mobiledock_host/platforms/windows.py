@@ -100,6 +100,18 @@ class BITMAPINFOHEADER(ctypes.Structure):
     ]
 
 
+def _audio_init() -> None:
+    """Lets comtypes set up COM on the audio thread in its own mode.
+
+    Setting it up here first in another mode makes comtypes fail with "Cannot change thread mode".
+    """
+    try:
+        import comtypes
+    except ImportError:
+        return  # the mixer then explains that pycaw is missing
+    comtypes.CoInitializeEx()  # a no-op when the import above already set up this thread
+
+
 def _key_input(vk: int = 0, scan: int = 0, flags: int = 0) -> INPUT:
     if vk in EXTENDED:
         flags |= KEYEVENTF_EXTENDEDKEY
@@ -145,10 +157,8 @@ class WindowsPlatform(Platform):
         self._apps_error = ""
         self._icons: dict[str, bytes | None] = {}
         self._icon_thread = ThreadPoolExecutor(max_workers=1, thread_name_prefix="icons")
-        # The volume mixer uses COM too, so it also gets one thread of its own.
-        self._audio_thread = ThreadPoolExecutor(
-            max_workers=1, thread_name_prefix="audio",
-            initializer=lambda: ctypes.WinDLL("ole32").CoInitializeEx(None, 0))  # COINIT_MULTITHREADED
+        # The volume mixer uses COM through comtypes, so it gets one thread of its own.
+        self._audio_thread = ThreadPoolExecutor(max_workers=1, thread_name_prefix="audio", initializer=_audio_init)
 
     def _send(self, *inputs: INPUT) -> None:
         arr = (INPUT * len(inputs))(*inputs)
