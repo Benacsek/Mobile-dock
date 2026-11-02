@@ -37,7 +37,7 @@ class Config:
             "screenshots_dir": "",
             "recordings_dir": "",
             "auto_update": True,
-            "update_repo": "Benacsek/Mobile-dock",
+            "update_repo": "MPLearry/Mobile-dock",
         }
         self._load()
 
@@ -47,6 +47,9 @@ class Config:
                 stored = json.load(fh)
             if isinstance(stored, dict):
                 self.data.update(stored)
+            if self.data.get("update_repo") == "Benacsek/Mobile-dock":
+                self.data["update_repo"] = "MPLearry/Mobile-dock"  # the GitHub account was renamed
+                self.save()
             self._encrypt_old_secrets()
         else:
             self.save()

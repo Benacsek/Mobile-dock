@@ -39,6 +39,14 @@ RETRY_FIRST = 120
 RETRY_MAX = 30 * 60
 
 
+# The GitHub account was renamed. Installs that saved the old address switch to the new one.
+# Until the rename happens on GitHub, the new address does not exist yet, so the old one is
+# tried as a fallback. A later release drops the fallback, because once the old name is free,
+# someone else could register it.
+REPO = "MPLearry/Mobile-dock"
+OLD_REPO = "Benacsek/Mobile-dock"
+
+
 def parse_version(text: str) -> tuple[int, ...]:
     try:
         return tuple(int(p) for p in text.strip().lstrip("v").split("."))
@@ -90,6 +98,7 @@ class Updater:
     def __init__(self, config: Config, on_restart: Callable[[], None] | None = None,
                  notify: Callable[[str, str], None] | None = None):
         self.config = config
+        self._active_repo: str | None = None
         self.on_restart = on_restart
         self.notify = notify or (lambda kind, text: None)
         self.dir = config_dir() / "updates"
@@ -102,7 +111,10 @@ class Updater:
 
     @property
     def repo(self) -> str:
-        return str(self.config.data.get("update_repo", "Benacsek/Mobile-dock"))
+        if self._active_repo:
+            return self._active_repo
+        configured = str(self.config.data.get("update_repo", REPO))
+        return REPO if configured == OLD_REPO else configured
 
     @property
     def enabled(self) -> bool:
@@ -143,6 +155,16 @@ class Updater:
         raise ValueError(f"{name} is missing from the release")
 
     def _latest(self) -> tuple[dict, dict | None]:
+        self._active_repo = None
+        try:
+            return self._latest_from()
+        except urllib.error.HTTPError as exc:
+            if exc.code != 404 or self.repo != REPO:
+                raise
+            self._active_repo = OLD_REPO  # the account has not been renamed yet
+            return self._latest_from()
+
+    def _latest_from(self) -> tuple[dict, dict | None]:
         release = None
         if self.token:
             release = json.loads(_fetch(f"https://api.github.com/repos/{self.repo}/releases/latest", 1 << 20,
