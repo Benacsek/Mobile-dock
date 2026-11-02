@@ -156,10 +156,10 @@ jobs:
             "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-$name.png"
           done
           ls -l shots
-          # Small JPEG copies in the log as base64, for tools that can read logs but not artifact downloads.
+          # Copies in the log as base64, for tools that can read logs but not artifact downloads.
           for f in shots/*.png; do
             echo "=== SHOT $(basename "$f" .png)"
-            convert "$f" -resize 960x -quality 72 jpg:- | base64 -w 0
+            base64 -w 0 "$f"
             echo
             echo "=== END"
           done
