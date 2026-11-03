@@ -78,6 +78,7 @@ Requests are JSON with `t` and an optional numeric `id`. If `id` is present, the
 | media.status | | title, artist, album, playing, position, duration, shuffle, repeat, art_id, app |
 | media.art | | art (base64 PNG or JPEG) |
 | media.seek | position (seconds) | same as media.status |
+| media.jump | seconds (-60 to 60, the buttons send -5 and 5) | same as media.status |
 | media.shuffle | | same as media.status |
 | media.repeat | | same as media.status. Cycles off, all, one. |
 | perf | | cpu, cores, cpu_name, cpu_mhz, ram_used, ram_total, gpu, gpu_name, vram_used, vram_total, gpu_temp, net_down, net_up, disk_read, disk_write (bytes per second), procs: [{name, cpu, mem}]. Missing keys are not available. |

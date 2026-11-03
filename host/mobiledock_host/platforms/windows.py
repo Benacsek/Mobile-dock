@@ -100,6 +100,29 @@ class BITMAPINFOHEADER(ctypes.Structure):
     ]
 
 
+def pick_session(manager):
+    """The player to control: one that is playing, so a paused Spotify does not hide a YouTube video.
+
+    With several playing, Spotify wins, since the dock is often used for music. With none playing,
+    a paused Spotify, then whatever Windows itself shows as current.
+    """
+    sessions = list(manager.get_sessions())
+
+    def playing(s) -> bool:
+        try:
+            return int(s.get_playback_info().playback_status) == 4  # GlobalSystemMediaTransportControlsPlaybackStatus.PLAYING
+        except Exception:  # noqa: BLE001 - a session can close while we look at it
+            return False
+
+    def is_spotify(s) -> bool:
+        return "spotify" in (s.source_app_user_model_id or "").lower()
+
+    now_playing = [s for s in sessions if playing(s)]
+    if now_playing:
+        return next((s for s in now_playing if is_spotify(s)), now_playing[0])
+    return next((s for s in sessions if is_spotify(s)), None) or manager.get_current_session()
+
+
 def _audio_init() -> None:
     """Lets comtypes set up COM on the audio thread in its own mode.
 
@@ -245,13 +268,7 @@ class WindowsPlatform(Platform):
 
         async def go():
             manager = await Manager.request_async()
-            session = None
-            for s in manager.get_sessions():
-                if "spotify" in (s.source_app_user_model_id or "").lower():
-                    session = s
-                    break
-            session = session or manager.get_current_session()
-            return None if session is None else await fn(session)
+            return None if (session := pick_session(manager)) is None else await fn(session)
 
         try:
             return asyncio.run(asyncio.wait_for(go(), 4))
@@ -327,6 +344,25 @@ class WindowsPlatform(Platform):
                 return bytes(data)
 
         return self._media_run(art)
+
+    def media_jump(self, delta: float) -> None:
+        """Moves the playing video or song by delta seconds. Works with the player's window in the background."""
+        async def jump(s):
+            from datetime import datetime, timezone
+
+            tl = s.get_timeline_properties()
+            position = tl.position.total_seconds()
+            # Windows updates the position only now and then. Add the time played since, so +5 is from now.
+            if int(s.get_playback_info().playback_status) == 4 and tl.last_updated_time:
+                position += (datetime.now(timezone.utc) - tl.last_updated_time).total_seconds()
+            end = (tl.end_time - tl.start_time).total_seconds()
+            target = max(0.0, position + delta)
+            if end > 0:
+                target = min(target, max(0.0, end - 1))
+            return await s.try_change_playback_position_async(int(target * 10_000_000))
+
+        if not self._media_run(jump):
+            raise PlatformError("This player does not allow jumping. Try Chrome or Edge.")
 
     def media_seek(self, seconds: float) -> None:
         async def seek(s):

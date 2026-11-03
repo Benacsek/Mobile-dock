@@ -59,6 +59,10 @@ class Platform:
     def media_seek(self, seconds: float) -> None:
         raise PlatformError("Seeking is not supported here")
 
+    def media_jump(self, delta: float) -> None:
+        """Moves the current track or video by delta seconds, for the -5 and +5 buttons."""
+        raise PlatformError("Jumping is not supported here")
+
     def media_shuffle(self) -> None:
         raise PlatformError("Shuffle is not supported here")
 

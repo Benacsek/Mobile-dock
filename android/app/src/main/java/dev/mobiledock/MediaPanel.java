@@ -86,13 +86,16 @@ final class MediaPanel extends LinearLayout {
         album = centered(c, "", 14, Ui.ACCENT);
         left.addView(album, Ui.fillWidth(c, 0));
 
-        // Fixed, compact sizes: 52 + 68 + 52 dp plus gaps always fits next to the cover.
+        // Fixed, compact sizes: 44 + 48 + 68 + 48 + 44 dp plus gaps fits next to the cover.
+        // -5 and +5 move the video or song. The arrows still skip whole tracks, which Spotify needs.
         LinearLayout transport = Ui.row(c);
         transport.setGravity(Gravity.CENTER);
-        transport.addView(control(c, Icon.Kind.PREV, 52, "media", "prev", false));
+        transport.addView(jump(c, Icon.Kind.BACK5, -5));
+        transport.addView(control(c, Icon.Kind.PREV, 48, "media", "prev", false));
         play = control(c, Icon.Kind.PLAY, 68, "media", "play_pause", true);
         transport.addView(play);
-        transport.addView(control(c, Icon.Kind.NEXT, 52, "media", "next", false));
+        transport.addView(control(c, Icon.Kind.NEXT, 48, "media", "next", false));
+        transport.addView(jump(c, Icon.Kind.FORWARD5, 5));
         left.addView(transport, Ui.fillWidth(c, 6));
 
         LinearLayout progress = Ui.row(c);
@@ -179,6 +182,21 @@ final class MediaPanel extends LinearLayout {
             @Override
             public void onClick(View v) {
                 send(cmd, action == null ? null : DockClient.args("action", action));
+            }
+        });
+        return b;
+    }
+
+    /** -5 or +5 seconds. Works with the player in the background, on any monitor. */
+    private ImageView jump(Context c, Icon.Kind kind, final int seconds) {
+        ImageView b = Ui.iconButton(c, kind, 44, 0x00000000, 0x33FFFFFF, Ui.TEXT);
+        LayoutParams lp = (LayoutParams) b.getLayoutParams();
+        int m = Ui.dp(c, 2);
+        lp.setMargins(m, 0, m, 0);
+        b.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                send("media.jump", DockClient.args("seconds", seconds));
             }
         });
         return b;

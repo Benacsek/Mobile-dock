@@ -323,3 +323,47 @@ def test_setup_export_and_import(server):
             server.import_setup(bad)
     assert server.config.pinned()[0]["id"] == "firefox.desktop"  # a bad file changes nothing
     assert len(server.config.data["pads"]) == len(pads.defaults())
+
+
+def test_media_jump(server):
+    jumps = []
+    server.platform.media_jump = lambda delta: jumps.append(delta)
+    server.platform.media_status = lambda: {"title": "Video", "position": 65.0, "playing": True}
+    channel, _ = pair(server, server.pairing.start())
+    reply = call(channel, "media.jump", 1, seconds=5)
+    assert reply["ok"] and reply["position"] == 65.0  # the phone gets the new position back at once
+    assert call(channel, "media.jump", 2, seconds=-5)["ok"]
+    assert call(channel, "media.jump", 3, seconds=9999)["ok"]
+    assert jumps == [5.0, -5.0, 60.0]  # clamped
+
+
+def test_windows_picks_the_playing_player():
+    from mobiledock_host.platforms import windows
+
+    class Info:
+        def __init__(self, status):
+            self.playback_status = status
+
+    class Session:
+        def __init__(self, app, status):
+            self.source_app_user_model_id, self.status = app, status
+
+        def get_playback_info(self):
+            return Info(self.status)
+
+    class Manager:
+        def __init__(self, *sessions):
+            self.sessions = sessions
+
+        def get_sessions(self):
+            return self.sessions
+
+        def get_current_session(self):
+            return self.sessions[-1] if self.sessions else None
+
+    spotify_paused, chrome_playing = Session("Spotify.exe", 5), Session("Chrome", 4)
+    assert windows.pick_session(Manager(spotify_paused, chrome_playing)) is chrome_playing  # the YouTube case
+    spotify_playing = Session("Spotify.exe", 4)
+    assert windows.pick_session(Manager(chrome_playing, spotify_playing)) is spotify_playing  # both play: music
+    assert windows.pick_session(Manager(Session("Chrome", 5), spotify_paused)) is spotify_paused  # none play
+    assert windows.pick_session(Manager()) is None

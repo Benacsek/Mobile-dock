@@ -18,12 +18,13 @@ final class Icon extends Drawable {
         PLAY, PAUSE, PREV, NEXT, SHUFFLE, REPEAT, REPEAT_ONE, VOL_DOWN, VOL_UP, MUTE,
         APPS, MUSIC, TOUCHPAD, KEYBOARD, CAMERA, RECORD, STOP, POWER, BACK, PLUS, REFRESH,
         SHORTCUTS, CHART, SEND, FOLLOW,
-        SLIDERS, SUN, MONITOR, LOCK, MOON, PEN, PICTURE, FILE, SCISSORS, GRIP, EXPAND, SHRINK, CLIPBOARD
+        SLIDERS, SUN, MONITOR, LOCK, MOON, PEN, PICTURE, FILE, SCISSORS, GRIP, EXPAND, SHRINK, CLIPBOARD, BACK5, FORWARD5
     }
 
     private final Kind kind;
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint label = new Paint(Paint.ANTI_ALIAS_FLAG);
     private float s, ox, oy;
 
     Icon(Kind kind, int color) {
@@ -34,11 +35,15 @@ final class Icon extends Drawable {
         line.setStyle(Paint.Style.STROKE);
         line.setStrokeCap(Paint.Cap.ROUND);
         line.setStrokeJoin(Paint.Join.ROUND);
+        label.setColor(color);
+        label.setTextAlign(Paint.Align.CENTER);
+        label.setFakeBoldText(true);
     }
 
     void setColor(int color) {
         fill.setColor(color);
         line.setColor(color);
+        label.setColor(color);
         invalidateSelf();
     }
 
@@ -272,6 +277,16 @@ final class Icon extends Drawable {
                 c.drawRoundRect(box(0.38f, 0.12f, 0.62f, 0.26f), s * 0.04f, s * 0.04f, fill);
                 seg(c, 0.34f, 0.46f, 0.66f, 0.46f);
                 seg(c, 0.34f, 0.62f, 0.58f, 0.62f);
+                break;
+            case BACK5:
+            case FORWARD5:
+                // A circle that is almost closed, an arrow head at the gap, and a 5 in the middle.
+                boolean back = kind == Kind.BACK5;
+                c.drawArc(box(0.16f, 0.16f, 0.84f, 0.84f), back ? 300 : 240, back ? -300 : 300, false, line);
+                if (back) c.drawPath(poly(0.5f, 0.06f, 0.5f, 0.26f, 0.34f, 0.16f), fill);
+                else c.drawPath(poly(0.5f, 0.06f, 0.5f, 0.26f, 0.66f, 0.16f), fill);
+                label.setTextSize(s * 0.34f);
+                c.drawText("5", x(0.5f), y(0.62f), label);
                 break;
             case REFRESH:
             default:

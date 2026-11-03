@@ -265,7 +265,7 @@ class Session:
 class DockServer:
     SLOW = {"pad.run", "mixer.list", "mixer.set", "clipboard.get_text", "clipboard.set_text", "host.info",
             "update.refresh", "system", "apps.available", "apps.launch", "apps.pin", "apps.icon", "screenshot", "record.start", "record.stop",
-            "media", "media.status", "media.art", "media.seek", "media.shuffle", "media.repeat", "update.chunk"}
+            "media", "media.status", "media.art", "media.seek", "media.jump", "media.shuffle", "media.repeat", "update.chunk"}
 
     def __init__(self, config: Config, platform: Platform, notify: Callable[[str, str], None] | None = None):
         self.config = config
@@ -500,6 +500,9 @@ class DockServer:
         if cmd == "media.art":
             art = pf.media_art()
             return {"art": base64.b64encode(art).decode() if art else ""}
+        if cmd == "media.jump":
+            pf.media_jump(max(-60.0, min(60.0, float(msg.get("seconds", 0)))))
+            return pf.media_status()
         if cmd == "media.seek":
             pf.media_seek(max(0.0, float(msg["position"])))
             return pf.media_status()

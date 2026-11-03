@@ -51,6 +51,23 @@ KEY_NAMES = {
 }
 
 
+def _playerctl() -> list[str]:
+    """playerctl aimed at the player that is playing, so a paused Spotify does not hide a browser video.
+
+    Spotify wins when several play. With none playing it falls back to Spotify, then any player.
+    """
+    try:
+        out = subprocess.run(["playerctl", "--all-players", "status", "--format", "{{playerName}}\t{{status}}"],
+                             capture_output=True, text=True, timeout=3).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return PLAYERCTL
+    playing = [line.split("\t")[0] for line in out.splitlines() if line.endswith("\tPlaying")]
+    if not playing:
+        return PLAYERCTL
+    name = next((p for p in playing if p.startswith("spotify")), playing[0])
+    return ["playerctl", f"--player={name}"]
+
+
 def _run(cmd: list[str], timeout: float = 5) -> str:
     if not shutil.which(cmd[0]):
         raise PlatformError(f"{cmd[0]} is not installed")
@@ -141,7 +158,7 @@ class LinuxPlatform(Platform):
         if action not in MEDIA_ACTIONS:
             raise PlatformError("Unknown media action")
         if action in ("play_pause", "next", "prev"):
-            _run([*PLAYERCTL, {"play_pause": "play-pause", "next": "next", "prev": "previous"}[action]])
+            _run([*_playerctl(), {"play_pause": "play-pause", "next": "next", "prev": "previous"}[action]])
             return
         if shutil.which("wpctl"):
             sink = "@DEFAULT_AUDIO_SINK@"
@@ -159,7 +176,7 @@ class LinuxPlatform(Platform):
             return {}
         fmt = "\t".join(["{{status}}", "{{artist}}", "{{title}}", "{{album}}", "{{mpris:artUrl}}",
                          "{{mpris:length}}", "{{position}}", "{{playerName}}"])
-        parts = _run([*PLAYERCTL, "metadata", "--format", fmt]).rstrip("\n").split("\t")
+        parts = _run([*_playerctl(), "metadata", "--format", fmt]).rstrip("\n").split("\t")
         if len(parts) != 8:
             return {}
         status, artist, title, album, art, length, position, player = parts
@@ -170,10 +187,10 @@ class LinuxPlatform(Platform):
                 out["position"] = int(position or 0) / 1e6
         except ValueError:
             pass
-        shuffle = _run([*PLAYERCTL, "shuffle"]).strip()
+        shuffle = _run([*_playerctl(), "shuffle"]).strip()
         if shuffle in ("On", "Off"):
             out["shuffle"] = shuffle == "On"
-        loop = _run([*PLAYERCTL, "loop"]).strip()
+        loop = _run([*_playerctl(), "loop"]).strip()
         if loop in ("None", "Track", "Playlist"):
             out["repeat"] = {"None": "none", "Track": "track", "Playlist": "list"}[loop]
         if art:
@@ -202,15 +219,19 @@ class LinuxPlatform(Platform):
         self._art_cache = {url: data}
         return data
 
+    def media_jump(self, delta: float) -> None:
+        # playerctl takes "5+" or "5-" as a relative position.
+        _run([*_playerctl(), "position", f"{abs(delta):.1f}{'+' if delta >= 0 else '-'}"])
+
     def media_seek(self, seconds: float) -> None:
-        _run([*PLAYERCTL, "position", f"{max(0.0, seconds):.1f}"])
+        _run([*_playerctl(), "position", f"{max(0.0, seconds):.1f}"])
 
     def media_shuffle(self) -> None:
-        _run([*PLAYERCTL, "shuffle", "Toggle"])
+        _run([*_playerctl(), "shuffle", "Toggle"])
 
     def media_repeat(self) -> None:
-        current = _run([*PLAYERCTL, "loop"]).strip()
-        _run([*PLAYERCTL, "loop", {"None": "Playlist", "Playlist": "Track"}.get(current, "None")])
+        current = _run([*_playerctl(), "loop"]).strip()
+        _run([*_playerctl(), "loop", {"None": "Playlist", "Playlist": "Track"}.get(current, "None")])
 
     # Foreground app and clipboard ------------------------------------------
 
