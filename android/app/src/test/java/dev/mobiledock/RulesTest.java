@@ -50,6 +50,22 @@ public class RulesTest {
         }
     }
 
+    @Test
+    public void sharedFilesCannotReachOurOwnStorage() {
+        String pkg = "dev.mobiledock", data = "/data/data/dev.mobiledock";
+        assertTrue(Rules.isSafeShare("content", "com.android.providers.media.documents", null, pkg, data));
+        assertTrue(Rules.isSafeShare("file", null, "/storage/emulated/0/DCIM/photo.jpg", pkg, data));
+        // Our own provider and our own private files, where the pairing keys are.
+        assertFalse(Rules.isSafeShare("content", "dev.mobiledock.apk", null, pkg, data));
+        assertFalse(Rules.isSafeShare("content", "dev.mobiledock", null, pkg, data));
+        assertFalse(Rules.isSafeShare("file", null, "/data/data/dev.mobiledock/shared_prefs/dock.xml", pkg, data));
+        assertFalse(Rules.isSafeShare("file", null, "/data/data/dev.mobiledock", pkg, data));
+        assertTrue(Rules.isSafeShare("file", null, "/data/data/dev.mobiledockother/x", pkg, data));  // not a prefix trick
+        assertFalse(Rules.isSafeShare("file", null, null, pkg, data));
+        assertFalse(Rules.isSafeShare("http", "example.com", null, pkg, data));
+        assertFalse(Rules.isSafeShare("content", null, null, pkg, data));
+    }
+
     @Test(expected = IllegalArgumentException.class)
     public void badMacIsRejected() {
         WakeOnLan.packet("not-a-mac");

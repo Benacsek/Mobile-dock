@@ -4,6 +4,10 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 1.3.2
+
+- Security fix on the phone: a file shared from another app can no longer point into Mobile Dock's own storage, where the pairing keys are kept. Such a share is refused before anything is read.
+
 ## 1.3.1
 
 - Now playing has -5 and +5 buttons beside the arrows. They move a YouTube video or a song by 5 seconds, even while the browser is in the background or on another monitor. They work in Chrome and Edge, and in any player that lets Windows move its position.

@@ -28,6 +28,28 @@ final class Rules {
         return Math.max(3, (apps + rows - 1) / rows);
     }
 
+    /**
+     * Whether a file another app hands us may be read and sent to the PC. It must never point into
+     * Mobile Dock's own storage or its own provider, where the pairing keys live: a malicious app could
+     * otherwise "share" those and have them copied to the PC. Old Android file pickers still return
+     * file:// paths, so those are allowed when they lie outside our data folder.
+     *
+     * @param canonicalPath the file's canonical path for file://, or null
+     * @param ourDataDir our app's canonical data folder, such as /data/data/dev.mobiledock
+     */
+    static boolean isSafeShare(String scheme, String authority, String canonicalPath, String ourPackage,
+                               String ourDataDir) {
+        if ("content".equals(scheme)) {
+            return authority != null && authority.length() > 0
+                    && !authority.equals(ourPackage) && !authority.startsWith(ourPackage + ".");
+        }
+        if ("file".equals(scheme)) {
+            if (canonicalPath == null || ourDataDir == null || ourDataDir.length() == 0) return false;
+            return !canonicalPath.equals(ourDataDir) && !canonicalPath.startsWith(ourDataDir + "/");
+        }
+        return false;
+    }
+
     /** A press counts as a tap when the finger stayed within the slop and lifted before a long press. */
     static boolean isTap(float dx, float dy, float slop, long heldMs, long longPressMs) {
         return Math.abs(dx) <= slop && Math.abs(dy) <= slop && heldMs < longPressMs;

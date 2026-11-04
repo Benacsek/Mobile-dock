@@ -22,7 +22,7 @@ Mobile Dock lets a phone type and click on your PC. Treat a paired phone like a 
 | Using the PC to flood others | Discovery answers at most 5 times per second per address. |
 | A stolen copy of the PC config | On Windows, pairing keys and the GitHub token are encrypted with DPAPI, tied to your Windows account. A copy is useless on another PC or account. On Linux the file is readable only by you. |
 | A stolen copy of the phone's app data | On Android 6 and newer, pairing keys are encrypted with a key held in the Android Keystore, which never leaves the phone. |
-| Another app on the phone | It cannot send files to your PC without your tap, and it cannot wake the dock or show it over the lock screen. |
+| Another app on the phone | It cannot send files to your PC without your tap, and it cannot wake the dock or show it over the lock screen. A shared file that points into Mobile Dock's own storage or its own provider is refused, so another app cannot trick the dock into copying the pairing keys to the PC. |
 | Stolen phone | Click Remove selected in the host window. The key stops working at once, and any open session closes. |
 
 ## Limits you should know

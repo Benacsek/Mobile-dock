@@ -73,10 +73,38 @@ final class FileSender {
                 }
             }
         }
-        send(Uri.fromFile(f), mode);
+        start(null, f, mode);  // our own file: read directly, never through a URI
     }
 
+    /** Sends a file another app or the picker handed us. Refuses anything inside Mobile Dock's own storage. */
     void send(final Uri uri, final String mode) {
+        if (!safe(uri)) {
+            CrashLog.note(activity, "Refused to send " + uri.getScheme() + ":// file from inside Mobile Dock");
+            toast("That file can't be sent");
+            return;
+        }
+        start(uri, null, mode);
+    }
+
+    private boolean safe(Uri uri) {
+        String path = null;
+        if ("file".equals(uri.getScheme()) && uri.getPath() != null) {
+            try {
+                path = new File(uri.getPath()).getCanonicalPath();  // resolves ../ and links
+            } catch (IOException e) {
+                return false;
+            }
+        }
+        String data;
+        try {
+            data = new File(activity.getApplicationInfo().dataDir).getCanonicalPath();
+        } catch (IOException e) {
+            return false;
+        }
+        return Rules.isSafeShare(uri.getScheme(), uri.getAuthority(), path, activity.getPackageName(), data);
+    }
+
+    private void start(final Uri uri, final File local, final String mode) {
         if (busy) {
             toast("Already sending a file");
             return;
@@ -88,7 +116,7 @@ final class FileSender {
         final AlertDialog dialog = new AlertDialog.Builder(activity)
                 .setTitle("clipboard".equals(mode) ? "Sending picture to the PC clipboard" : "Sending file to the PC")
                 .setView(text).setCancelable(false).setNegativeButton("Cancel", null).show();
-        final Job job = new Job(uri, mode, text, dialog);
+        final Job job = new Job(uri, local, mode, text, dialog);
         dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener(new android.view.View.OnClickListener() {
             @Override
             public void onClick(android.view.View v) {
@@ -115,6 +143,7 @@ final class FileSender {
 
     private final class Job {
         final Uri uri;
+        final File local;
         final String mode;
         final TextView text;
         final AlertDialog dialog;
@@ -125,8 +154,9 @@ final class FileSender {
         MessageDigest sha;
         volatile boolean cancelled;
 
-        Job(Uri uri, String mode, TextView text, AlertDialog dialog) {
+        Job(Uri uri, File local, String mode, TextView text, AlertDialog dialog) {
             this.uri = uri;
+            this.local = local;
             this.mode = mode;
             this.text = text;
             this.dialog = dialog;
@@ -135,44 +165,59 @@ final class FileSender {
         void open() {
             try {
                 sha = MessageDigest.getInstance("SHA-256");
-                if ("file".equals(uri.getScheme()) && uri.getLastPathSegment() != null) {
-                    name = uri.getLastPathSegment();  // only our own cache files use this scheme
-                }
-                Cursor c = "file".equals(uri.getScheme()) ? null
-                        : activity.getContentResolver().query(uri, null, null, null, null);
-                if (c != null) {
-                    try {
-                        if (c.moveToFirst()) {
-                            int n = c.getColumnIndex(OpenableColumns.DISPLAY_NAME);
-                            int s = c.getColumnIndex(OpenableColumns.SIZE);
-                            if (n >= 0 && !c.isNull(n)) name = c.getString(n);
-                            if (s >= 0 && !c.isNull(s)) size = c.getLong(s);
-                        }
-                    } finally {
-                        c.close();
-                    }
-                }
-                in = activity.getContentResolver().openInputStream(uri);
-                if (in == null) throw new IOException("cannot open the file");
-                if (size <= 0) {
-                    // Size unknown: copy first, so the PC knows how much is coming.
-                    temp = new File(activity.getCacheDir(), "outgoing.bin");
-                    FileOutputStream out = new FileOutputStream(temp);
-                    try {
-                        byte[] buf = new byte[65536];
-                        int r;
-                        while ((r = in.read(buf)) > 0) out.write(buf, 0, r);
-                    } finally {
-                        out.close();
-                        in.close();
-                    }
-                    size = temp.length();
-                    in = new FileInputStream(temp);
+                if (local != null) {
+                    name = local.getName();
+                    size = local.length();
+                    in = new FileInputStream(local);
+                } else {
+                    openShared();
                 }
             } catch (IOException | SecurityException | NoSuchAlgorithmException e) {
                 finish("Could not read the file: " + e.getMessage());
                 return;
             }
+            begin();
+        }
+
+        /** A file from another app or the picker, already checked by safe(). */
+        private void openShared() throws IOException {
+            if ("file".equals(uri.getScheme()) && uri.getLastPathSegment() != null) {
+                name = uri.getLastPathSegment();  // an old file picker, checked by safe()
+            }
+            Cursor c = "file".equals(uri.getScheme()) ? null
+                    : activity.getContentResolver().query(uri, null, null, null, null);
+            if (c != null) {
+                try {
+                    if (c.moveToFirst()) {
+                        int n = c.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                        int s = c.getColumnIndex(OpenableColumns.SIZE);
+                        if (n >= 0 && !c.isNull(n)) name = c.getString(n);
+                        if (s >= 0 && !c.isNull(s)) size = c.getLong(s);
+                    }
+                } finally {
+                    c.close();
+                }
+            }
+            in = activity.getContentResolver().openInputStream(uri);
+            if (in == null) throw new IOException("cannot open the file");
+            if (size <= 0) {
+                // Size unknown: copy first, so the PC knows how much is coming.
+                temp = new File(activity.getCacheDir(), "outgoing.bin");
+                FileOutputStream out = new FileOutputStream(temp);
+                try {
+                    byte[] buf = new byte[65536];
+                    int r;
+                    while ((r = in.read(buf)) > 0) out.write(buf, 0, r);
+                } finally {
+                    out.close();
+                    in.close();
+                }
+                size = temp.length();
+                in = new FileInputStream(temp);
+            }
+        }
+
+        private void begin() {
             main.post(new Runnable() {
                 @Override
                 public void run() {
