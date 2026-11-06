@@ -33,6 +33,7 @@ The dock bar sits at the bottom of the screen with eight tiles. Tap a tile to op
 App icons all get the same rounded-square shape. Names can use two lines. The grid spreads apps evenly over the rows, so 8 apps make two rows of 4.
 
 - Apps: tap a tile to open it on the PC. Long press a tile to drag it. Drop it on another tile to move it there, or on the red bar to unpin. The header shows which PC you are connected to. Its icons are + to pin more apps and the arrows for Arrange.
+- Search: type in the box and tap Search. Auto picks the place: a keyword like `yt lofi`, a site like `youtube` or `github.com`, the app in front on the PC, then the default search. Tap a preset chip to choose one yourself. Long press a chip to see its keyword. Your last 10 searches sit below, one tap to repeat.
 - Playing: album art, title, artist, album and a progress bar you can drag to seek. Play, skip, shuffle, repeat and volume. The -5 and +5 buttons move a video or song by 5 seconds, even with its window in the background. Opening Spotify or another music app from Apps jumps here.
 - Shortcuts: tiles for the app in front on the PC. The target icon in the header turns Follow on or off. Tap the pad name to pick another pad.
 - Controls: volume, mute, lock, screen off, sleep, show desktop, Task Manager and Disconnect. Sleep asks first. The volume mixer lists every app playing sound with its own slider and mute button. Tap the refresh icon after you start a new app.
@@ -103,7 +104,7 @@ Demo mode shows sample data instead of a PC. It only works in debuggable builds,
 adb shell am start -n dev.mobiledock/.MainActivity --ez demo true --ei page 0
 ```
 
-Pages: -1 connect, 0 Apps, 1 Playing, 2 Shortcuts, 3 Controls, 4 Capture, 5 Touch, 6 Stats, 7 Settings.
+Pages: -1 connect, 0 Apps, 1 Search, 2 Playing, 3 Shortcuts, 4 Controls, 5 Capture, 6 Touch, 7 Stats, 8 Settings, 99 the night clock.
 
 ## Release signing
 

@@ -90,6 +90,21 @@ final class Demo {
             r.put("available", false);
         } else if ("host.info".equals(cmd)) {
             r.put("mac", "");
+        } else if ("search.presets".equals(cmd)) {
+            String[][] list = {{"google", "Google", "g"}, {"youtube", "YouTube", "yt"}, {"maps", "Maps", "map"},
+                {"browser", "In browser", ""}, {"vscode", "In VS Code", ""}, {"windows", "Windows", "win"}};
+            JSONArray presets = new JSONArray();
+            for (String[] p : list) {
+                presets.put(new JSONObject().put("id", p[0]).put("name", p[1]).put("keyword", p[2]).put("icon_rev", "1"));
+            }
+            r.put("presets", presets);
+        } else if ("search.icon".equals(cmd)) {
+            String id = args.optString("id");
+            if ("maps".equals(id)) r.put("builtin", "pin");
+            else if ("windows".equals(id)) r.put("builtin", "windows");
+            else r.put("png", icon("demo" + ("google".equals(id) ? 7 : "youtube".equals(id) ? 2 : "browser".equals(id) ? 0 : 4)));
+        } else if ("search.run".equals(cmd)) {
+            r.put("did", "YouTube: " + args.optString("text"));
         } else if ("ping".equals(cmd)) {
             r.put("recording", false);
         }

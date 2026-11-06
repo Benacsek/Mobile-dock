@@ -120,6 +120,8 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         if (!debuggable || intent == null || !intent.getBooleanExtra("demo", false)) return false;
         Demo.on = true;
         client.hostName = "Desk-PC";
+        WatchService.prefs(this).edit().putString("search_recent",
+                "[\"lofi beats to study to\",\"figma auto layout tips\",\"weather this weekend\"]").commit();
         int page = intent.getIntExtra("page", APPS);
         if (page < 0) {
             showConnect();
@@ -777,8 +779,8 @@ public final class MainActivity extends Activity implements DockClient.Listener 
 
     // Dock -------------------------------------------------------------------
 
-    private static final int APPS = 0, PLAYING = 1, SHORTCUTS = 2, CONTROLS = 3, CAPTURE = 4, TOUCH = 5,
-            STATS = 6, SETTINGS = 7;
+    private static final int APPS = 0, SEARCH = 1, PLAYING = 2, SHORTCUTS = 3, CONTROLS = 4, CAPTURE = 5,
+            TOUCH = 6, STATS = 7, SETTINGS = 8;
     private int current;
     private boolean fullscreen;
     private LinearLayout dockBar;
@@ -789,6 +791,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private float tapX, tapY;
     private long tapAt;
     private ControlsPanel controls;
+    private SearchPanel search;
     private UpdatesPanel updates;
 
     private void showDock() {
@@ -865,6 +868,8 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         });
         updates = new UpdatesPanel(this, client, updater);
         panels.add(apps);
+        search = new SearchPanel(this, client);
+        panels.add(search);
         panels.add(media);
         panels.add(shortcuts);
         controls = new ControlsPanel(this, client, new Runnable() {
@@ -904,9 +909,10 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         int bp = Ui.dp(this, 6);
         dockBar.setPadding(bp, bp, bp, bp);
         dockBar.setBackground(Ui.rounded(this, Ui.SURFACE, 18));
-        String[] names = {"Apps", "Playing", "Shortcuts", "Controls", "Capture", "Touch", "Stats", "Settings"};
-        Icon.Kind[] kinds = {Icon.Kind.APPS, Icon.Kind.MUSIC, Icon.Kind.SHORTCUTS, Icon.Kind.SLIDERS,
-            Icon.Kind.CAMERA, Icon.Kind.PEN, Icon.Kind.CHART, Icon.Kind.SUN};
+        String[] names = {"Apps", "Search", "Playing", "Shortcuts", "Controls", "Capture", "Touch", "Stats",
+            "Settings"};
+        Icon.Kind[] kinds = {Icon.Kind.APPS, Icon.Kind.SEARCH, Icon.Kind.MUSIC, Icon.Kind.SHORTCUTS,
+            Icon.Kind.SLIDERS, Icon.Kind.CAMERA, Icon.Kind.PEN, Icon.Kind.CHART, Icon.Kind.SUN};
         for (int i = 0; i < names.length; i++) {
             final int index = i;
             LinearLayout tile = Ui.dockTile(this, kinds[i], names[i]);
@@ -980,6 +986,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         stats.setActive(index == STATS);
         if (index == SHORTCUTS) shortcuts.load();
         if (index == CONTROLS) controls.load();
+        if (index == SEARCH) search.load();
         if (index == SETTINGS) updates.refresh(false);
     }
 
@@ -1075,6 +1082,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         String e = event.optString("e");
         if ("apps".equals(e) && apps != null) apps.load();
         if ("pads".equals(e) && shortcuts != null) shortcuts.load();
+        if ("search".equals(e) && search != null) search.load();
         if ("context".equals(e) && shortcuts != null) shortcuts.onContext(event);
     }
 

@@ -18,7 +18,7 @@ final class Icon extends Drawable {
         PLAY, PAUSE, PREV, NEXT, SHUFFLE, REPEAT, REPEAT_ONE, VOL_DOWN, VOL_UP, MUTE,
         APPS, MUSIC, TOUCHPAD, KEYBOARD, CAMERA, RECORD, STOP, POWER, BACK, PLUS, REFRESH,
         SHORTCUTS, CHART, SEND, FOLLOW,
-        SLIDERS, SUN, MONITOR, LOCK, MOON, PEN, PICTURE, FILE, SCISSORS, GRIP, EXPAND, SHRINK, CLIPBOARD, BACK5, FORWARD5
+        SLIDERS, SUN, MONITOR, LOCK, MOON, PEN, PICTURE, FILE, SCISSORS, GRIP, EXPAND, SHRINK, CLIPBOARD, BACK5, FORWARD5, SEARCH, GLOBE, PIN
     }
 
     private final Kind kind;
@@ -287,6 +287,20 @@ final class Icon extends Drawable {
                 else c.drawPath(poly(0.5f, 0.06f, 0.5f, 0.26f, 0.66f, 0.16f), fill);
                 label.setTextSize(s * 0.34f);
                 c.drawText("5", x(0.5f), y(0.62f), label);
+                break;
+            case SEARCH:
+                c.drawCircle(x(0.42f), y(0.42f), s * 0.24f, line);
+                seg(c, 0.6f, 0.6f, 0.84f, 0.84f);
+                break;
+            case GLOBE:
+                c.drawCircle(x(0.5f), y(0.5f), s * 0.34f, line);
+                c.drawOval(box(0.34f, 0.16f, 0.66f, 0.84f), line);
+                seg(c, 0.16f, 0.5f, 0.84f, 0.5f);
+                break;
+            case PIN:
+                c.drawCircle(x(0.5f), y(0.38f), s * 0.22f, line);
+                c.drawPath(poly(0.32f, 0.5f, 0.5f, 0.88f, 0.68f, 0.5f), fill);
+                c.drawCircle(x(0.5f), y(0.38f), s * 0.08f, fill);
                 break;
             case REFRESH:
             default:

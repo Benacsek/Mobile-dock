@@ -392,6 +392,7 @@ class App:
         head = tk.Frame(pads.body, background=SURFACE)
         head.pack(fill="x")
         FlatButton(head, "Edit shortcut pads", self.edit_pads, "primary").pack(side="left")
+        FlatButton(head, "Search presets", self.edit_search).pack(side="left", padx=8)
         self.pad_rows = tk.Frame(pads.body, background=SURFACE)
         self.pad_rows.pack(fill="both", expand=True, pady=(14, 0))
 
@@ -797,6 +798,280 @@ class App:
         threading.Thread(target=work, daemon=True).start()
 
     # Shortcut pads --------------------------------------------------------
+
+    def edit_search(self) -> "tk.Toplevel":
+        """Search presets: what the phone's Search page does with the text you type."""
+        import base64
+        import copy
+
+        from . import search as searchlib
+
+        data = copy.deepcopy(self.server.search_presets())
+        stored = dict(self.server.config.data.get("search_icons", {}))
+        new_icons: dict[str, str] = {}
+        images: dict[str, tk.PhotoImage] = {}
+        small: dict[str, tk.PhotoImage] = {}
+        win = tk.Toplevel(self.root)
+        win.title("Search presets")
+        win.minsize(720, 600)
+        win.geometry("860x620")
+        win.configure(background=BG)
+        body = ttk.Frame(win, padding=16)
+        body.pack(fill="both", expand=True)
+
+        left = ttk.Frame(body)
+        left.pack(side="left", fill="y")
+        style = ttk.Style(win)
+        style.configure("Search.Treeview", background=SURFACE_HI, fieldbackground=SURFACE_HI, foreground=TEXT,
+                        rowheight=30, borderwidth=0)
+        style.map("Search.Treeview", background=[("selected", ACCENT)], foreground=[("selected", ON_ACCENT)])
+        tree = ttk.Treeview(left, style="Search.Treeview", columns=("keyword",), show="tree headings", height=10,
+                            selectmode="browse")
+        tree.heading("#0", text="Preset")
+        tree.heading("keyword", text="Keyword")
+        tree.column("#0", width=200)
+        tree.column("keyword", width=64)
+        tree.pack(fill="y", expand=True)
+        lbtn = ttk.Frame(left)
+        lbtn.pack(fill="x", pady=(6, 0))
+        lbtn2 = ttk.Frame(left)
+        lbtn2.pack(fill="x", pady=(4, 0))
+
+        mid = ttk.Frame(body)
+        mid.pack(side="left", fill="both", expand=True, padx=(16, 0))
+        name_var, key_var, apps_var, action_var = tk.StringVar(), tk.StringVar(), tk.StringVar(), tk.StringVar()
+        browser_var, default_var = tk.StringVar(), tk.BooleanVar()
+        for label, var in (("Name", name_var), ("Keyword, for example yt (optional)", key_var),
+                           ("Apps it belongs to, comma separated (optional)", apps_var)):
+            ttk.Label(mid, text=label).pack(anchor="w", pady=(6, 0))
+            ttk.Entry(mid, textvariable=var).pack(fill="x")
+        ttk.Label(mid, text="Action. {q} is the text you type").pack(anchor="w", pady=(6, 0))
+        ttk.Entry(mid, textvariable=action_var).pack(fill="x")
+        ttk.Label(mid, text="Web: open https://www.youtube.com/results?search_query={q}\nIn the app in front: "
+                            "Ctrl+L | type {q} | Enter", style="Footer.TLabel", justify="left").pack(anchor="w")
+        row = ttk.Frame(mid)
+        row.pack(fill="x", pady=(8, 0))
+        ttk.Label(row, text="Browser").pack(side="left")
+        ttk.Combobox(row, textvariable=browser_var, values=searchlib.BROWSERS, state="readonly",
+                     width=10).pack(side="left", padx=(6, 16))
+        ttk.Checkbutton(row, text="Use when nothing else matches", variable=default_var).pack(side="left")
+
+        ttk.Label(mid, text="Icon").pack(anchor="w", pady=(10, 0))
+        icon_row = ttk.Frame(mid)
+        icon_row.pack(fill="x")
+        preview = tk.Label(icon_row, background=SURFACE_HI, width=48, height=48)
+        preview.pack(side="left")
+        icon_note = ttk.Label(icon_row, text="", style="Footer.TLabel")
+        icon_note.pack(side="left", padx=8)
+        icon_btns = ttk.Frame(mid)
+        icon_btns.pack(fill="x", pady=(6, 0))
+        icon_btns2 = ttk.Frame(mid)
+        icon_btns2.pack(fill="x", pady=(6, 0))
+        apps_box = ttk.Combobox(icon_btns2, width=24, state="readonly")
+        builtin_box = ttk.Combobox(icon_btns2, width=12, state="readonly", values=searchlib.BUILTIN_ICONS)
+        state = {"i": 0}
+
+        def current():
+            return data[state["i"]] if data else None
+
+        def image_for(pid):
+            b64 = new_icons.get(pid) or stored.get(pid)
+            if not b64:
+                return None
+            try:
+                images[pid] = tk.PhotoImage(data=b64)
+            except tk.TclError:
+                return None
+            return images[pid]
+
+        def small_image_for(pid):
+            img = image_for(pid)
+            if img is None:
+                return None
+            small[pid] = img.subsample(max(1, img.width() // 24))  # about 24 px, to fit a list row
+            return small[pid]
+
+        def show_list(select=0):
+            tree.delete(*tree.get_children())
+            for i, p in enumerate(data):
+                img = small_image_for(p["id"])
+                tree.insert("", "end", iid=str(i), text=("  " + p["name"]) + ("   (default)" if p.get("default") else ""),
+                            values=(p.get("keyword", ""),), **({"image": img} if img else {}))
+            if data:
+                state["i"] = max(0, min(select, len(data) - 1))
+                tree.selection_set(str(state["i"]))
+                show_one()
+
+        def show_one():
+            p = current()
+            if not p:
+                return
+            name_var.set(p["name"])
+            key_var.set(p.get("keyword", ""))
+            apps_var.set(", ".join(p.get("apps", [])))
+            action_var.set(p.get("action", ""))
+            browser_var.set(p.get("browser", "default"))
+            default_var.set(bool(p.get("default")))
+            img = image_for(p["id"])
+            if img:
+                preview.configure(image=img, text="", width=48, height=48)
+            else:
+                preview.configure(image="", text="line", foreground=MUTED, width=6, height=2)
+            icon = p.get("icon", {})
+            icon_note.configure(text={"site": "From the site", "app": f"App icon: {icon.get('match', '')}",
+                                      "file": "Your picture", "builtin": f"Line icon: {icon.get('value', '')}"}
+                                .get(icon.get("kind"), ""))
+
+        def keep():
+            p = current()
+            if p:
+                p.update(name=name_var.get().strip() or p["name"], keyword=key_var.get().strip().lower(),
+                         apps=[a.strip() for a in apps_var.get().split(",") if a.strip()],
+                         action=action_var.get().strip(), browser=browser_var.get() or "default",
+                         default=default_var.get())
+                if p["default"]:
+                    for other in data:
+                        if other is not p:
+                            other["default"] = False
+
+        def pick(_):
+            sel = tree.selection()
+            if sel and int(sel[0]) != state["i"]:
+                keep()
+                state["i"] = int(sel[0])
+                show_one()
+
+        def set_icon(spec, png=None):
+            p = current()
+            p["icon"] = spec
+            new_icons.pop(p["id"], None)
+            stored.pop(p["id"], None)
+            if png:
+                new_icons[p["id"]] = base64.b64encode(png).decode()
+            show_one()
+            show_list(state["i"])
+
+        def fetch_site():
+            p = current()
+            keep()
+            if not searchlib.home(p):
+                messagebox.showinfo("Search presets", "This preset does not open a web page, so it has no site icon.",
+                                    parent=win)
+                return
+            icon_note.configure(text="Fetching from the site...")
+
+            def work(preset=dict(p)):
+                png = searchlib.fetch_site_icon(preset)
+                self.later(lambda: set_icon({"kind": "site"}, png) if png else
+                           icon_note.configure(text="The site had no icon. Pick another."))
+
+            threading.Thread(target=work, daemon=True).start()
+
+        def use_app(_):
+            name = apps_box.get()
+            app = next((a for a in getattr(apps_box, "apps", []) if a["name"] == name), None)
+            if not app:
+                return
+
+            def work():
+                png = self.server.platform.app_icon(app["id"])
+                self.later(lambda: set_icon({"kind": "app", "match": name}, png))
+
+            threading.Thread(target=work, daemon=True).start()
+
+        def choose_image():
+            from tkinter import filedialog
+
+            path = filedialog.askopenfilename(parent=win, title="Choose an icon",
+                                              filetypes=[("Pictures", "*.png *.ico *.jpg *.jpeg *.gif *.bmp")])
+            if not path:
+                return
+            try:
+                png = searchlib.to_png(Path(path).read_bytes())
+            except Exception as exc:  # noqa: BLE001
+                messagebox.showerror("Search presets", f"That picture could not be read: {exc}", parent=win)
+                return
+            set_icon({"kind": "file"}, png)
+
+        def use_builtin(_):
+            set_icon({"kind": "builtin", "value": builtin_box.get()})
+
+        def new():
+            keep()
+            n = 1
+            while any(p["id"] == f"custom{n}" for p in data):
+                n += 1
+            data.append({"id": f"custom{n}", "name": f"My search {n}", "keyword": "", "apps": [],
+                         "action": "open https://www.google.com/search?q={q}", "browser": "default",
+                         "icon": {"kind": "builtin", "value": "search"}, "default": False})
+            show_list(len(data) - 1)
+
+        def delete():
+            p = current()
+            if p and len(data) > 1 and messagebox.askyesno("Search presets", f"Delete {p['name']}?", parent=win):
+                del data[state["i"]]
+                show_list(0)
+
+        def move(step):
+            keep()
+            i, j = state["i"], state["i"] + step
+            if 0 <= j < len(data):
+                data[i], data[j] = data[j], data[i]
+                show_list(j)
+
+        def reset():
+            if messagebox.askyesno("Search presets", "Replace all presets with the built-in ones?", parent=win):
+                data[:] = searchlib.defaults()
+                new_icons.clear()
+                stored.clear()
+                show_list(0)
+
+        def save():
+            keep()
+            try:
+                self.server.set_search(data, new_icons)
+            except ValueError as exc:
+                messagebox.showerror("Search presets", str(exc), parent=win)
+                return
+            self.say("Search presets saved")
+            win.destroy()
+
+        def load_apps():
+            try:
+                apps = self.server.platform.list_apps()
+            except Exception:  # noqa: BLE001
+                apps = []
+
+            def fill():
+                apps_box.apps = apps
+                apps_box.configure(values=[a["name"] for a in apps])
+                apps_box.set("Use an app's icon")
+
+            self.later(fill)
+
+        ttk.Button(icon_btns, text="Fetch from site", command=fetch_site).pack(side="left")
+        ttk.Button(icon_btns, text="Choose image", command=choose_image).pack(side="left", padx=6)
+        apps_box.pack(side="left")
+        builtin_box.pack(side="left", padx=6)
+        builtin_box.set("Line icon")
+        apps_box.bind("<<ComboboxSelected>>", use_app)
+        builtin_box.bind("<<ComboboxSelected>>", use_builtin)
+        ttk.Button(lbtn, text="New", command=new).pack(side="left")
+        ttk.Button(lbtn, text="Delete", command=delete).pack(side="left", padx=4)
+        ttk.Button(lbtn2, text="Up", command=lambda: move(-1)).pack(side="left")
+        ttk.Button(lbtn2, text="Down", command=lambda: move(1)).pack(side="left", padx=4)
+        ttk.Button(left, text="Reset to built-in", command=reset).pack(fill="x", pady=(6, 0))
+        bottom = ttk.Frame(mid)
+        bottom.pack(fill="x", side="bottom", pady=(12, 0))
+        ttk.Label(bottom, text="Site icons come once from the site itself.\nThen they stay on this PC.",
+                  style="Footer.TLabel", justify="left").pack(side="left")
+        ttk.Button(bottom, text="Save", style="Accent.TButton", command=save).pack(side="right")
+        tree.bind("<<TreeviewSelect>>", pick)
+        win.bind("<Escape>", lambda e: win.destroy())
+        show_list(0)
+        threading.Thread(target=load_apps, daemon=True).start()
+        win.edit_state = {"data": data, "keep": keep, "save": save, "new": new, "set_icon": set_icon}  # for tests
+        return win
 
     def edit_pads(self, select: int = 0) -> None:
         from . import pads as padlib

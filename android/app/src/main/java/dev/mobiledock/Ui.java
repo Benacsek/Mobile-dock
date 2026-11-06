@@ -257,6 +257,7 @@ final class Ui {
             case SHRINK: return "Exit fullscreen";
             case GRIP: return "Arrange apps";
             case BACK5: return "Back 5 seconds";
+            case SEARCH: return "Search";
             case FORWARD5: return "Forward 5 seconds";
             default: return kind.name().toLowerCase(java.util.Locale.US).replace('_', ' ');
         }

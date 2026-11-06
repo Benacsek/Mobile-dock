@@ -38,6 +38,14 @@ def test_window_builds(tmp_path):
     for i in range(len(app.TABS)):
         app.show_tab(i)
     app.edit_pads(1)
+    win = app.edit_search()
+    app.root.update()
+    state = win.edit_state
+    state["new"]()
+    state["set_icon"]({"kind": "file"}, _png())
+    state["save"]()
+    assert app.server.search_presets()[-1]["icon"] == {"kind": "file"}
+    assert app.server.config.data["search_icons"][app.server.search_presets()[-1]["id"]]
     app.copy_diagnostics()
     assert "Mobile Dock host" in app.root.clipboard_get()
     app.whats_new()  # first run only remembers the version
@@ -52,3 +60,13 @@ def test_window_builds(tmp_path):
         app.root.update()
         time.sleep(0.05)
     app.root.destroy()
+
+
+def _png():
+    import io
+
+    from PIL import Image
+
+    out = io.BytesIO()
+    Image.new("RGBA", (64, 64), (0, 128, 255, 255)).save(out, "PNG")
+    return out.getvalue()

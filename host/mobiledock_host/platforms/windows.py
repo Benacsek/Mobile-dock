@@ -520,6 +520,23 @@ class WindowsPlatform(Platform):
         finally:
             u.CloseClipboard()
 
+    def browser_path(self, browser: str) -> str | None:
+        """The browser's .exe from Windows' list of installed apps (App Paths)."""
+        import winreg
+
+        exe = {"chrome": "chrome.exe", "edge": "msedge.exe", "firefox": "firefox.exe"}.get(browser)
+        if not exe:
+            return None
+        for root in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+            try:
+                with winreg.OpenKey(root, rf"Software\Microsoft\Windows\CurrentVersion\App Paths\{exe}") as key:
+                    path = winreg.QueryValue(key, None)
+                    if path and os.path.exists(path.strip('"')):
+                        return path.strip('"')
+            except OSError:
+                continue
+        return None
+
     def run_target(self, target: str) -> None:
         """A path, folder or file opens like a double-click. Anything else runs as a command line."""
         path = target.strip().strip('"')

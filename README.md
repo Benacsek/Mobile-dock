@@ -33,6 +33,7 @@ The PC window while pairing:
 - Long press a tile and drag it to a new spot. Drop it on the red bar to unpin it.
 - Add apps from a searchable list of everything installed on the PC. Pin them from the phone or from the PC window.
 - Open Spotify or another music app and the phone switches to Now playing. You see the album art, title, artist and album, a progress bar you can drag, and buttons for play, skip, shuffle, repeat and volume. It reads Windows media controls or MPRIS on Linux, so it needs no Spotify account.
+- Search: type once on the phone. "yt lofi" searches YouTube, "youtube" opens the site, and with Chrome or VS Code in front it searches there. Presets with their own icons decide where text goes, and you edit them on the PC.
 - Shortcuts: tiles for the app in front on the PC. Pads for Figma, VS Code, browsers and Windows are built in. The page switches by itself when you switch apps. Edit pads and add your own in the PC window. A tile can press keys, open a web page, start a program, type text and wait, in any order.
 - Stats: live graphs for CPU, GPU, memory, network and disk, plus the busiest apps, like Task Manager. GPU load works for AMD, NVIDIA and Intel. CPU and GPU temperatures and fan speeds show on Linux, and on Windows while LibreHardwareMonitor runs.
 - Send: share a photo to Mobile Dock from any app, or use Capture in the dock. Pictures go to the PC clipboard, so Ctrl+V pastes them into Figma. Other files land in Downloads/Mobile Dock.

@@ -54,6 +54,23 @@ A tile can do more than press keys. Put ` | ` between steps:
 
 For example, `open https://figma.com | wait 3 | Ctrl+N` opens Figma in the browser and starts a new file. The phone can only press tiles you wrote here. It cannot send its own programs or pages.
 
+### Search presets
+
+On the Shortcuts tab, click Search presets. Each preset has:
+
+| Field | Example | What it does |
+| --- | --- | --- |
+| Name | YouTube | The chip on the phone |
+| Keyword | `yt` | Typing `yt lofi` uses this preset |
+| Apps | `chrome.exe` | Auto picks this preset when that app is in front |
+| Action | `open https://www.youtube.com/results?search_query={q}` | `{q}` is the typed text. Web addresses get it safely encoded |
+| Browser | default, chrome, edge or firefox | Where web searches open |
+| Icon | From the site, an app's icon, your picture or a line icon | Shown on the phone |
+
+Actions use the same steps as shortcut tiles, except `run`, so typed text can never start a program. In-app searches, like `Ctrl+L | type {q} | Enter`, go to the window in front. Web searches open in the browser even when it is in the background.
+
+Site icons are downloaded once from the site itself over https, at most 512 KB, and kept in the config. Set `"search_fetch_icons": false` in the config to never fetch them.
+
 ### Volume mixer
 
 The Controls page on the phone has one slider per app that plays sound. On Windows this uses the same audio sessions as the Windows volume mixer. On Linux it uses `pactl` from PipeWire or PulseAudio.

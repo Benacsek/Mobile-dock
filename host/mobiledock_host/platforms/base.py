@@ -85,11 +85,25 @@ class Platform:
     def get_clipboard_text(self) -> str:
         raise PlatformError("The clipboard is not supported here")
 
-    def open_url(self, url: str) -> None:
+    def open_url(self, url: str, browser: str = "default") -> None:
+        """Opens a web page, in a chosen browser when it is installed, else in the default one."""
         import webbrowser
 
+        exe = self.browser_path(browser) if browser != "default" else None
+        if exe:
+            try:
+                subprocess.Popen([exe, url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL, start_new_session=True)
+                return
+            except OSError:
+                pass
         if not webbrowser.open(url):
             raise PlatformError("Could not open a browser")
+
+    def browser_path(self, browser: str) -> str | None:
+        names = {"chrome": ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser"),
+                 "edge": ("microsoft-edge", "microsoft-edge-stable"), "firefox": ("firefox",)}
+        return next((shutil.which(n) for n in names.get(browser, ()) if shutil.which(n)), None)
 
     def run_target(self, target: str) -> None:
         """Starts a program, file or folder the PC owner wrote into a shortcut tile."""

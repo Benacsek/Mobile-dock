@@ -12,6 +12,7 @@ Mobile Dock lets a phone type and click on your PC. Treat a paired phone like a 
 | Reading or changing traffic | AES-256-CBC with HMAC-SHA256, encrypt then MAC. Each direction has its own keys. |
 | Replaying old messages | Each message carries an implicit sequence number in its MAC. A replay or a gap closes the connection. |
 | Running commands on the PC | The phone sends app IDs only. The PC launches an ID only if it found that app itself. Shortcut tiles that open pages or start programs are written on the PC. The phone only picks a tile by its number, so it can never make the PC run something new. Web pages must start with http:// or https://. |
+| Search text from the phone | It only fills `{q}` in presets written on the PC. In web addresses it is URL-encoded, so it cannot change where the address points. Search presets cannot use `run`, so typed text never starts a program. A site name typed alone opens only as an http or https address. |
 | A pairing link from a web page or another app | A mobiledock://pair link only works with a private network address, and the phone always asks before it pairs. The PIN in it is the same short-lived PIN as on screen. |
 | Learning the PC's network card address | The address for Wake-on-LAN is sent only inside the encrypted session, so only paired phones learn it. Discovery replies never include it. |
 | Brute force on reconnect | 8 failed attempts from one address in 5 minutes block that address for 5 minutes. |

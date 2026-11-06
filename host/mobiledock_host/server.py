@@ -12,12 +12,14 @@ import secrets
 import socket
 import threading
 import time
+import urllib.parse
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
 
 from . import pads
+from . import search
 from . import protocol as p
 from .config import Config, config_dir
 from .perf import PerfMonitor
@@ -263,7 +265,7 @@ class Session:
 
 
 class DockServer:
-    SLOW = {"pad.run", "mixer.list", "mixer.set", "clipboard.get_text", "clipboard.set_text", "host.info",
+    SLOW = {"search.run", "search.icon", "pad.run", "mixer.list", "mixer.set", "clipboard.get_text", "clipboard.set_text", "host.info",
             "update.refresh", "system", "apps.available", "apps.launch", "apps.pin", "apps.icon", "screenshot", "record.start", "record.stop",
             "media", "media.status", "media.art", "media.seek", "media.jump", "media.shuffle", "media.repeat", "update.chunk"}
 
@@ -285,6 +287,8 @@ class DockServer:
         self.perf = PerfMonitor()
         if not isinstance(config.data.get("pads"), list) or not config.data["pads"]:
             config.data["pads"] = pads.defaults()
+        if not isinstance(config.data.get("search"), list) or not config.data["search"]:
+            config.data["search"] = search.defaults()
         self.context = {"app": "", "title": "", "pad": pads.match(config.data["pads"], "")}
 
     def notify(self, kind: str, text: str) -> None:
@@ -385,7 +389,8 @@ class DockServer:
 
     def export_setup(self) -> dict:
         """Pinned apps and shortcut pads. Never pairing keys, tokens or anything secret."""
-        return {"mobile_dock_setup": 1, "pinned": self.config.pinned(), "pads": self.config.data["pads"]}
+        return {"mobile_dock_setup": 1, "pinned": self.config.pinned(), "pads": self.config.data["pads"],
+                "search": self.config.data["search"], "search_icons": self.config.data.get("search_icons", {})}
 
     def import_setup(self, data: dict) -> str:
         """Checks a backup from export_setup and applies it. Raises ValueError with a readable reason."""
@@ -395,7 +400,12 @@ class DockServer:
         for app in data.get("pinned", [])[:200]:
             if isinstance(app, dict) and isinstance(app.get("id"), str) and isinstance(app.get("name"), str):
                 pinned.append({"id": app["id"][:400], "name": app["name"][:100]})
+        presets = search.validate(data["search"]) if data.get("search") else None
+        icons = {str(k)[:32]: str(v) for k, v in (data.get("search_icons") or {}).items()
+                 if isinstance(v, str) and len(v) < 300_000}
         self.set_pads(data.get("pads", []))
+        if presets:
+            self.set_search(presets, icons)
         self.set_pinned(pinned)
         return f"Imported {len(pinned)} pinned apps and {len(self.config.data['pads'])} shortcut pads"
 
@@ -423,8 +433,11 @@ class DockServer:
 
     def _run_tile(self, text: str) -> None:
         """Runs a shortcut tile: key presses, web pages, programs, typed text and pauses, in order."""
+        self._run_steps(pads.parse_action(text))
+
+    def _run_steps(self, steps: list[dict], browser: str = "default") -> None:
         pf = self.platform
-        for n, step in enumerate(pads.parse_action(text)):
+        for n, step in enumerate(steps):
             if n:
                 time.sleep(0.05)
             if step["do"] == "keys":
@@ -433,13 +446,88 @@ class DockServer:
                         time.sleep(0.05)
                     pf.key(press["key"], press["mods"])
             elif step["do"] == "open":
-                pf.open_url(step["url"])
+                if browser == "default":
+                    pf.open_url(step["url"])
+                else:
+                    pf.open_url(step["url"], browser)
             elif step["do"] == "run":
                 pf.run_target(step["target"])
             elif step["do"] == "type":
                 pf.type_text(step["text"])
             elif step["do"] == "wait":
                 time.sleep(step["seconds"])
+
+    # Search -------------------------------------------------------------------
+
+    def search_presets(self) -> list[dict]:
+        return self.config.data["search"]
+
+    def set_search(self, presets: list[dict], icons: dict | None = None) -> None:
+        """Saves presets from the editor. Icons of presets whose icon changed are fetched again."""
+        old = {p["id"]: p.get("icon") for p in self.config.data["search"]}
+        new = search.validate(presets)
+        stored = dict(self.config.data.get("search_icons", {}))
+        stored.update(icons or {})
+        keep = {p["id"] for p in new if old.get(p["id"]) == p["icon"] or p["id"] in (icons or {})}
+        self.config.data["search"] = new
+        self.config.data["search_icons"] = {k: v for k, v in stored.items() if k in keep}
+        self.config.save()
+        self.broadcast({"t": "event", "e": "search"})
+
+    def _icon_rev(self, preset: dict) -> str:
+        stored = self.config.data.get("search_icons", {}).get(preset["id"], "")
+        return hashlib.sha1((repr(preset.get("icon")) + stored[:64]).encode()).hexdigest()[:10]
+
+    def search_icon(self, preset_id: str) -> dict:
+        """{"png": base64} when there is a picture, else {"builtin": name} for a line icon drawn on the phone."""
+        preset = next((p for p in self.config.data["search"] if p["id"] == preset_id), None)
+        if preset is None:
+            raise PlatformError("That search preset no longer exists")
+        icons = self.config.data.setdefault("search_icons", {})
+        if icons.get(preset_id):
+            return {"png": icons[preset_id]}
+        icon = preset.get("icon", {})
+        png = None
+        if icon.get("kind") == "builtin":
+            return {"builtin": icon.get("value", "search")}
+        if icon.get("kind") == "app" and icon.get("match"):
+            match = icon["match"].lower()
+            app = next((a for a in self.platform.list_apps() if match in a["name"].lower()), None)
+            png = self.platform.app_icon(app["id"]) if app else None
+        elif icon.get("kind") == "site" and self.config.data.get("search_fetch_icons", True):
+            png = search.fetch_site_icon(preset)
+        if not png:
+            return {"builtin": "globe" if search.home(preset) else "search"}
+        icons[preset_id] = search.encode(png)
+        self.config.save()
+        return {"png": icons[preset_id]}
+
+    def run_search(self, text: str, preset_id: str = "") -> str:
+        text = str(text)[:500]
+        if not text.strip() and not preset_id:
+            raise PlatformError("Type something to search for")
+        try:
+            front = self.platform.foreground().get("app", "")
+        except Exception:  # noqa: BLE001
+            front = ""
+        try:
+            preset, query, url = search.choose(self.config.data["search"], text, preset_id, front)
+        except ValueError as exc:
+            raise PlatformError(str(exc)) from exc
+        browser = (preset or {}).get("browser", "default")
+        if url:
+            self._run_steps([{"do": "open", "url": url}], browser)
+            return f"Opened {urllib.parse.urlsplit(url).netloc}"
+        if preset is None:
+            raise PlatformError("No search preset fits. Add one in the PC window.")
+        if not query.strip():
+            raise PlatformError("Type something to search for")
+        try:
+            steps = search.steps_for(preset["action"], query)
+        except ValueError as exc:
+            raise PlatformError(str(exc)) from exc
+        self._run_steps(steps, browser)
+        return f"{preset['name']}: {query}"
 
     def _lan_ip(self, origin: "Session | None") -> str:
         ip = ""
@@ -518,6 +606,13 @@ class DockServer:
                 raise PlatformError("Unknown control")
             pf.system(action)
             return None
+        if cmd == "search.presets":
+            return {"presets": [{"id": p["id"], "name": p["name"], "keyword": p["keyword"],
+                                 "icon_rev": self._icon_rev(p)} for p in self.config.data["search"]]}
+        if cmd == "search.icon":
+            return self.search_icon(str(msg.get("id", "")))
+        if cmd == "search.run":
+            return {"did": self.run_search(str(msg.get("text", "")), str(msg.get("preset", "")))}
         if cmd == "host.info":
             # Sent only inside the encrypted session, so only paired phones learn the MAC address.
             return {"mac": pf.mac_address(self._lan_ip(origin)) or ""}

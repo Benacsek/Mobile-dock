@@ -4,6 +4,13 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 1.4.0
+
+- Search: a new page on the phone, next to Apps. Type once, and Auto sends it to the right place: "yt lofi" searches YouTube, "youtube" opens youtube.com, with Chrome in front it searches in Chrome, and otherwise it searches Google. Or tap a preset to choose.
+- Presets come with icons: the site's own icon for web searches, the app's icon for in-app searches, a picture you pick, or a simple line icon.
+- Edit presets in the PC window: Shortcuts tab, Search presets. Each preset has a name, a keyword, the apps it belongs to, an action with {q} for your text and a browser. Export setup includes them.
+- Your last 10 searches stay on the phone, one tap to repeat.
+
 ## 1.3.2
 
 - Security fix on the phone: a file shared from another app can no longer point into Mobile Dock's own storage, where the pairing keys are kept. Such a share is refused before anything is read.
