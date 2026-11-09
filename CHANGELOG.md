@@ -4,6 +4,10 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 1.4.1
+
+- Search: remove a recent search with the X beside it, or tap Clear all to remove them all.
+
 ## 1.4.0
 
 - Search: a new page on the phone, next to Apps. Type once, and Auto sends it to the right place: "yt lofi" searches YouTube, "youtube" opens youtube.com, with Chrome in front it searches in Chrome, and otherwise it searches Google. Or tap a preset to choose.

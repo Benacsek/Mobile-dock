@@ -41,6 +41,7 @@ final class SearchPanel extends LinearLayout {
     private final SharedPreferences prefs;
     private final EditText field;
     private final LinearLayout chips, recent;
+    private final TextView clearAll;
     private final List<View> chipViews = new ArrayList<View>();
     private final Map<String, Bitmap> icons = new HashMap<String, Bitmap>();
     private String chosen = "";  // "" is Auto
@@ -88,9 +89,26 @@ final class SearchPanel extends LinearLayout {
         scroll.addView(chips);
         addView(scroll, Ui.fillWidth(c, 4));
 
+        LinearLayout headRow = Ui.row(c);
+        headRow.setGravity(Gravity.CENTER_VERTICAL);
         TextView head = Ui.text(c, "Recent", 13, Ui.ACCENT);
         head.setPadding(Ui.dp(c, 6), Ui.dp(c, 8), 0, Ui.dp(c, 2));
-        addView(head);
+        headRow.addView(head);
+        headRow.addView(Ui.spacer(c));
+        clearAll = Ui.text(c, "Clear all", 13, Ui.MUTED);
+        clearAll.setGravity(Gravity.CENTER);
+        clearAll.setClickable(true);
+        clearAll.setBackground(Ui.pressable(c, Ui.BG, Ui.SURFACE_HI, 12));
+        clearAll.setPadding(Ui.dp(c, 12), 0, Ui.dp(c, 12), 0);
+        clearAll.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                save(new ArrayList<String>());
+                toast("Recent searches cleared");
+            }
+        });
+        headRow.addView(clearAll, new LayoutParams(LayoutParams.WRAP_CONTENT, Ui.dp(c, 40)));
+        addView(headRow, Ui.fillWidth(c, 0));
         ScrollView rs = new ScrollView(c);
         recent = Ui.column(c);
         rs.addView(recent);
@@ -255,6 +273,16 @@ final class SearchPanel extends LinearLayout {
         list.remove(text);
         list.add(0, text);
         while (list.size() > MAX_RECENT) list.remove(list.size() - 1);
+        save(list);
+    }
+
+    private void forget(String text) {
+        List<String> list = recentList();
+        list.remove(text);
+        save(list);
+    }
+
+    private void save(List<String> list) {
         prefs.edit().putString(PREF_RECENT, new JSONArray(list).toString()).commit();
         showRecent();
     }
@@ -275,9 +303,10 @@ final class SearchPanel extends LinearLayout {
         Context c = getContext();
         recent.removeAllViews();
         List<String> list = recentList();
+        clearAll.setVisibility(list.isEmpty() ? GONE : VISIBLE);
         if (list.isEmpty()) {
             TextView none = Ui.text(c, "Your searches show here, so you can repeat them with one tap. "
-                    + "Long press a preset to see its keyword.", 13, Ui.MUTED);
+                    + "Tap the X to remove one. Long press a preset to see its keyword.", 13, Ui.MUTED);
             none.setPadding(Ui.dp(c, 6), Ui.dp(c, 4), Ui.dp(c, 6), 0);
             recent.addView(none);
             return;
@@ -286,7 +315,8 @@ final class SearchPanel extends LinearLayout {
             LinearLayout row = Ui.row(c);
             row.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.SURFACE_HI, 12));
             row.setClickable(true);
-            row.setPadding(Ui.dp(c, 12), 0, Ui.dp(c, 12), 0);
+            row.setPadding(Ui.dp(c, 12), 0, Ui.dp(c, 2), 0);
+            row.setGravity(Gravity.CENTER_VERTICAL);
             ImageView icon = new ImageView(c);
             icon.setImageDrawable(new Icon(Icon.Kind.SEARCH, Ui.MUTED));
             int s = Ui.dp(c, 18);
@@ -302,6 +332,21 @@ final class SearchPanel extends LinearLayout {
                     run(text, chosen);
                 }
             });
+            ImageView remove = new ImageView(c);
+            remove.setImageDrawable(new Icon(Icon.Kind.CLOSE, Ui.MUTED));
+            int rp = Ui.dp(c, 12);
+            remove.setPadding(rp, rp, rp, rp);
+            remove.setClickable(true);
+            remove.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.SURFACE_HI, 12));
+            remove.setContentDescription("Remove " + text);
+            remove.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    forget(text);
+                }
+            });
+            int rs = Ui.dp(c, 42);
+            row.addView(remove, new LayoutParams(rs, rs));
             LayoutParams lp = new LayoutParams(LayoutParams.MATCH_PARENT, Ui.dp(c, 44));
             lp.setMargins(Ui.dp(c, 4), Ui.dp(c, 3), Ui.dp(c, 4), Ui.dp(c, 3));
             recent.addView(row, lp);
