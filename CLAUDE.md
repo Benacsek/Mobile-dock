@@ -1,8 +1,3 @@
-## graphify
-
-- graphify (`~/.claude/skills/graphify/SKILL.md`) turns any input into a knowledge graph. Trigger: `/graphify`
-- When I type `/graphify`, use the installed graphify skill before doing anything else.
-
 ## Project commands
 
 Fill in these lines in each project. If a line is empty, ask me before you guess.
@@ -48,64 +43,29 @@ Ask me before you run it.
 
 ## Notes by project type
 
-### Websites and CMS projects
-
-- Keep the HTML valid and the page accessible. Use alt text on every image.
-- Keep titles, meta descriptions and heading order correct for SEO.
-- Check the page on a phone width and a desktop width.
-- Never delete or rename a live URL without a redirect.
-- Keep tracking code (GA4, Google Tag Manager) intact when you edit templates.
-- Keep content in the languages the client uses. Do not mix them in one page.
-
 ### Mobile apps
 
-- Test on both iOS and Android when the app targets both.
 - Support small and large screens, safe areas and dark mode.
 - Never commit keystores, provisioning profiles, google-services files or API keys.
 - Raise the version and build number for every release build.
-- Never submit to the App Store or Google Play without my explicit OK.
 - Ask before you add a native dependency or change permissions.
 - Handle offline state and slow networks in every screen that loads data.
 
 ### Backend and APIs
 
 - Validate all input on the server.
-- Keep database changes in migrations. Never edit the database by hand.
-- Ask before you run a migration against production.
 - Never log passwords, tokens or personal data.
 - Keep error messages clear and free of internal details.
 
-### Embedded and hardware projects
-
-- Name every pin and constant in one config file.
-- Never flash firmware to a device without my OK.
-- Keep timing, power and memory limits in a comment near the code that depends on them.
-- Never hardcode Wi-Fi passwords or API keys.
-
 ## Code rules for every project
 
-- Store money as integer minor units. Store dates in UTC.
 - Keep data access in one layer, such as a services folder or an API client.
 - Keep shared logic in one place. Do not copy it between files.
-- Respect reduced motion in animations.
-- Animate transform, opacity and filter first.
-
-## Web CSS rules
-
-These rules are my default for every web project. A project may override them in its own notes.
-
-- Do not use font-size, font-family, font-weight, line-height or any other font property.
-- Do not use font colors.
-- Do not use border-radius.
-- Do not use max-width. Use `width: min()` instead.
-- Do not use negative margin or negative padding.
 
 ## Design
 
-- If the project has a design doc, follow it. Check docs/design-plan.md first.
 - Use the design tokens and token classes of the project. Do not add raw hex values.
 - If the project has no design system, ask me for a direction before you build a new UI.
-- Make every new banner or visual new. Do not repeat a previous design. Match the theme of the client.
 
 ## Project notes
 
