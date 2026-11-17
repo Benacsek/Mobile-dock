@@ -52,17 +52,12 @@ final class SearchPanel extends LinearLayout {
         prefs = WatchService.prefs(c);
         setOrientation(VERTICAL);
 
+        addView(Ui.title(c, "Search"));
         LinearLayout top = Ui.row(c);
         field = new EditText(c);
-        field.setHint("Search on the PC, or yt lofi, youtube.com");
-        field.setSingleLine(true);
-        field.setTextColor(Ui.TEXT);
-        field.setHintTextColor(Ui.MUTED);
+        Ui.searchField(c, field, "Search on the PC, or yt lofi, youtube.com");
         field.setInputType(InputType.TYPE_CLASS_TEXT);
         field.setImeOptions(EditorInfo.IME_ACTION_GO | EditorInfo.IME_FLAG_NO_EXTRACT_UI);
-        field.setBackground(Ui.rounded(c, Ui.SURFACE, 14));
-        int p = Ui.dp(c, 14);
-        field.setPadding(p, 0, p, 0);
         field.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView v, int action, KeyEvent e) {
@@ -70,7 +65,7 @@ final class SearchPanel extends LinearLayout {
                 return true;
             }
         });
-        top.addView(field, new LayoutParams(0, Ui.dp(c, 52), 1f));
+        top.addView(field, new LayoutParams(0, Ui.dp(c, 44), 1f));
         Button go = Ui.accentButton(c, "Search");
         go.setOnClickListener(new OnClickListener() {
             @Override
@@ -78,7 +73,7 @@ final class SearchPanel extends LinearLayout {
                 run(field.getText().toString(), chosen);
             }
         });
-        LayoutParams glp = new LayoutParams(LayoutParams.WRAP_CONTENT, Ui.dp(c, 52));
+        LayoutParams glp = new LayoutParams(LayoutParams.WRAP_CONTENT, Ui.dp(c, 44));
         glp.leftMargin = Ui.dp(c, 8);
         top.addView(go, glp);
         addView(top, Ui.fillWidth(c, 4));
@@ -91,14 +86,13 @@ final class SearchPanel extends LinearLayout {
 
         LinearLayout headRow = Ui.row(c);
         headRow.setGravity(Gravity.CENTER_VERTICAL);
-        TextView head = Ui.text(c, "Recent", 13, Ui.ACCENT);
-        head.setPadding(Ui.dp(c, 6), Ui.dp(c, 8), 0, Ui.dp(c, 2));
+        TextView head = Ui.header(c, "Recent");
         headRow.addView(head);
         headRow.addView(Ui.spacer(c));
-        clearAll = Ui.text(c, "Clear all", 13, Ui.MUTED);
+        clearAll = Ui.text(c, "Clear", 15, Ui.ACCENT);
         clearAll.setGravity(Gravity.CENTER);
         clearAll.setClickable(true);
-        clearAll.setBackground(Ui.pressable(c, Ui.BG, Ui.SURFACE_HI, 12));
+        clearAll.setBackground(Ui.pressable(c, 0x00000000, Ui.SELECTED, 12));
         clearAll.setPadding(Ui.dp(c, 12), 0, Ui.dp(c, 12), 0);
         clearAll.setOnClickListener(new OnClickListener() {
             @Override
@@ -151,17 +145,17 @@ final class SearchPanel extends LinearLayout {
         chip.setContentDescription(name);
         FrameLayout box = new FrameLayout(c);
         int s = Ui.dp(c, 30);
-        TextView letters = Ui.text(c, id.length() == 0 ? "" : Ui.initials(name), 12, Ui.TEXT);
+        TextView letters = Ui.strong(c, id.length() == 0 ? "" : Ui.initials(name), 12, 0xFFFFFFFF);
         letters.setGravity(Gravity.CENTER);
         if (id.length() > 0) letters.setBackground(Ui.rounded(c, Ui.colorFor(id), 8));
         box.addView(letters, new FrameLayout.LayoutParams(s, s));
         ImageView image = new ImageView(c);
         image.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        if (id.length() == 0) image.setImageDrawable(new Icon(Icon.Kind.SEARCH, Ui.TEXT));
+        if (id.length() == 0) image.setImageDrawable(new Icon(Icon.Kind.SEARCH, Ui.ACCENT));
         else image.setVisibility(GONE);
         box.addView(image, new FrameLayout.LayoutParams(s, s));
         chip.addView(box, new LayoutParams(s, s));
-        TextView label = Ui.text(c, name, 14, Ui.TEXT);
+        TextView label = Ui.text(c, name, 15, Ui.TEXT);
         label.setSingleLine(true);
         label.setPadding(Ui.dp(c, 8), 0, 0, 0);
         chip.addView(label);
@@ -182,7 +176,7 @@ final class SearchPanel extends LinearLayout {
             }
         });
         if (id.length() > 0) loadIcon(id, rev, image);
-        LayoutParams lp = new LayoutParams(LayoutParams.WRAP_CONTENT, Ui.dp(c, 46));
+        LayoutParams lp = new LayoutParams(LayoutParams.WRAP_CONTENT, Ui.dp(c, 44));
         lp.rightMargin = Ui.dp(c, 8);
         chip.setLayoutParams(lp);
         chipViews.add(chip);
@@ -193,7 +187,11 @@ final class SearchPanel extends LinearLayout {
         chosen = id;
         for (View v : chipViews) {
             boolean on = id.equals(v.getTag());
-            v.setBackground(Ui.rounded(getContext(), on ? (Ui.ACCENT & 0x00FFFFFF) | 0x38000000 : Ui.SURFACE, 23));
+            // Capsules like iOS scope buttons: the chosen one tinted with the accent.
+            v.setBackground(Ui.rounded(getContext(), on ? (Ui.ACCENT & 0x00FFFFFF) | 0x33000000 : Ui.SURFACE, 22));
+            TextView label = (TextView) ((LinearLayout) v).getChildAt(1);
+            label.setTypeface(on ? Ui.semibold() : Ui.regular());
+            label.setTextColor(on ? Ui.ACCENT : Ui.TEXT);
         }
     }
 
@@ -307,37 +305,40 @@ final class SearchPanel extends LinearLayout {
         if (list.isEmpty()) {
             TextView none = Ui.text(c, "Your searches show here, so you can repeat them with one tap. "
                     + "Tap the X to remove one. Long press a preset to see its keyword.", 13, Ui.MUTED);
-            none.setPadding(Ui.dp(c, 6), Ui.dp(c, 4), Ui.dp(c, 6), 0);
+            none.setPadding(Ui.dp(c, 16), Ui.dp(c, 4), Ui.dp(c, 16), 0);
             recent.addView(none);
             return;
         }
-        for (final String text : list) {
+        // One grouped card, rows split by hairlines, like recent searches on iOS.
+        LinearLayout card = Ui.card(c);
+        recent.addView(card);
+        for (int i = 0; i < list.size(); i++) {
+            final String text = list.get(i);
+            if (i > 0) card.addView(Ui.hairline(c, 46));
             LinearLayout row = Ui.row(c);
-            row.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.SURFACE_HI, 12));
-            row.setClickable(true);
-            row.setPadding(Ui.dp(c, 12), 0, Ui.dp(c, 2), 0);
+            row.setPadding(Ui.dp(c, 16), 0, Ui.dp(c, 2), 0);
             row.setGravity(Gravity.CENTER_VERTICAL);
             ImageView icon = new ImageView(c);
-            icon.setImageDrawable(new Icon(Icon.Kind.SEARCH, Ui.MUTED));
+            icon.setImageDrawable(new Icon(Icon.Kind.CLOCK, Ui.MUTED));
             int s = Ui.dp(c, 18);
             row.addView(icon, new LayoutParams(s, s));
-            TextView t = Ui.text(c, text, 15, Ui.TEXT);
+            TextView t = Ui.text(c, text, 17, Ui.TEXT);
             t.setSingleLine(true);
             t.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            t.setPadding(Ui.dp(c, 10), 0, 0, 0);
+            t.setPadding(Ui.dp(c, 12), 0, 0, 0);
             row.addView(t, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
-            row.setOnClickListener(new OnClickListener() {
+            Ui.pressableRow(c, row, new OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     run(text, chosen);
                 }
             });
             ImageView remove = new ImageView(c);
-            remove.setImageDrawable(new Icon(Icon.Kind.CLOSE, Ui.MUTED));
+            remove.setImageDrawable(new Icon(Icon.Kind.CLOSE, Ui.FAINT));
             int rp = Ui.dp(c, 12);
             remove.setPadding(rp, rp, rp, rp);
             remove.setClickable(true);
-            remove.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.SURFACE_HI, 12));
+            remove.setBackground(Ui.pressable(c, 0x00000000, Ui.SELECTED, 21));
             remove.setContentDescription("Remove " + text);
             remove.setOnClickListener(new OnClickListener() {
                 @Override
@@ -347,9 +348,7 @@ final class SearchPanel extends LinearLayout {
             });
             int rs = Ui.dp(c, 42);
             row.addView(remove, new LayoutParams(rs, rs));
-            LayoutParams lp = new LayoutParams(LayoutParams.MATCH_PARENT, Ui.dp(c, 44));
-            lp.setMargins(Ui.dp(c, 4), Ui.dp(c, 3), Ui.dp(c, 4), Ui.dp(c, 3));
-            recent.addView(row, lp);
+            card.addView(row, new LayoutParams(LayoutParams.MATCH_PARENT, Ui.dp(c, 48)));
         }
     }
 

@@ -64,6 +64,8 @@ public final class MainActivity extends Activity implements DockClient.Listener 
 
     @Override
     protected void onCreate(Bundle state) {
+        Ui.loadTheme(this, WatchService.prefs(this));
+        if (!Ui.DARK) setTheme(R.style.DockThemeLight);  // dialogs follow the light look too
         super.onCreate(state);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -72,7 +74,6 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         client = new DockClient(store, this);
         updater = new PhoneUpdater(this, client);
         sender = new FileSender(this, client);
-        Ui.loadTheme(WatchService.prefs(this));
         root = new FrameLayout(this);
         root.setBackground(Ui.background(this));
         setContentView(root);
@@ -120,6 +121,13 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         if (!debuggable || intent == null || !intent.getBooleanExtra("demo", false)) return false;
         Demo.on = true;
         client.hostName = "Desk-PC";
+        int theme = intent.getIntExtra("theme", -1);  // 1 light, 2 dark: CI takes pictures of both
+        if (theme >= 0 && WatchService.prefs(this).getInt(Ui.PREF_THEME, 0) != theme) {
+            WatchService.prefs(this).edit().putInt(Ui.PREF_THEME, theme).commit();
+            setIntent(intent);
+            recreate();
+            return true;
+        }
         WatchService.prefs(this).edit().putString("search_recent",
                 "[\"lofi beats to study to\",\"figma auto layout tips\",\"weather this weekend\"]").commit();
         int page = intent.getIntExtra("page", APPS);
@@ -401,6 +409,10 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             apps.setArrange(false);
             return;
         }
+        if (docked && current == CAPTURE) {  // Capture opened from Controls, so Back returns there
+            select(CONTROLS);
+            return;
+        }
         if (docked && current != APPS) {
             select(APPS);
             return;
@@ -467,7 +479,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         left.setPadding(cardPad, cardPad, cardPad, cardPad);
         LinearLayout brand = Ui.row(this);
         brand.addView(Ui.logo(this, 28));
-        TextView name = Ui.title(this, "  Mobile Dock");
+        TextView name = Ui.title(this, " Mobile Dock");
         brand.addView(name);
         left.addView(brand);
         connectStatus = Ui.text(this, "Looking for your PC", 15, Ui.MUTED);
@@ -504,13 +516,11 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         LinearLayout right = Ui.column(this);
         right.setBackground(Ui.rounded(this, Ui.SURFACE, 18));
         right.setPadding(cardPad, cardPad, cardPad, cardPad);
-        right.addView(Ui.text(this, "Connect by address", 14, Ui.TEXT), Ui.fillWidth(this, 4));
+        right.addView(Ui.header(this, "Connect by address"));
         LinearLayout addrRow = Ui.row(this);
         addressField = new EditText(this);
-        addressField.setHint("192.168.1.20");
-        addressField.setSingleLine(true);
-        addressField.setTextColor(Ui.TEXT);
-        addressField.setHintTextColor(Ui.MUTED);
+        Ui.searchField(this, addressField, "192.168.1.20");
+        addressField.setCompoundDrawables(null, null, null, null);
         addressField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         addressField.setText(store.lastHost().equals("127.0.0.1") ? "" : store.lastHost());
         addrRow.addView(addressField, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
@@ -524,7 +534,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         addrRow.addView(go, Ui.wrap(this, 4));
         right.addView(addrRow, Ui.fillWidth(this, 0));
 
-        right.addView(Ui.text(this, "USB cable", 14, Ui.TEXT), Ui.fillWidth(this, 4));
+        right.addView(Ui.header(this, "USB cable"));
         right.addView(Ui.text(this, "Turn on USB debugging, plug in, then click Enable USB on the PC. Needs Android 5.0 or newer. On older phones, use USB tethering and connect by address.", 13, Ui.MUTED), Ui.fillWidth(this, 4));
         Button usb = Ui.button(this, "Connect over USB");
         usb.setOnClickListener(new View.OnClickListener() {
@@ -535,10 +545,11 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         });
         right.addView(usb, Ui.wrap(this, 4));
 
-        right.addView(Ui.text(this, "Start with your PC", 14, Ui.TEXT), Ui.fillWidth(this, 4));
+        right.addView(Ui.header(this, "Start with your PC"));
         final CheckBox wakeBox = new CheckBox(this);
         wakeBox.setText("Wake up and connect when my PC turns on");
         wakeBox.setTextColor(Ui.TEXT);
+        Kit.asSwitch(this, wakeBox);
         wakeBox.setChecked(WatchService.enabled(this));
         wakeBox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
@@ -552,6 +563,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         final CheckBox lockBox = new CheckBox(this);
         lockBox.setText("Show the dock over the lock screen");
         lockBox.setTextColor(Ui.TEXT);
+        Kit.asSwitch(this, lockBox);
         lockBox.setChecked(WatchService.prefs(this).getBoolean(WatchService.PREF_LOCKSCREEN, false));
         lockBox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
@@ -783,8 +795,16 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             TOUCH = 6, STATS = 7, SETTINGS = 8;
     private int current;
     private boolean fullscreen;
-    private LinearLayout dockBar;
-    private View exitFull;
+    private LinearLayout sidebar, dock;
+    private View exitFull, gear;
+    private TextView sideName, sideStatus;
+    private View sideDot;
+    /** Pages with a row in the sidebar. Settings has the gear, Capture opens from Controls. */
+    private static final int[] SIDEBAR_PAGES = {APPS, SEARCH, PLAYING, SHORTCUTS, CONTROLS, TOUCH, STATS};
+    private static final String[] SIDEBAR_NAMES = {"Apps", "Search", "Playing", "Shortcuts", "Controls", "Touch",
+        "Stats"};
+    private static final Icon.Kind[] SIDEBAR_ICONS = {Icon.Kind.APPS, Icon.Kind.SEARCH, Icon.Kind.MUSIC,
+        Icon.Kind.SHORTCUTS, Icon.Kind.SLIDERS, Icon.Kind.PEN, Icon.Kind.CHART};
     private CapturePanel capture;
     private NightView night;
     private boolean dimmed, swallowGesture, tapPending;
@@ -823,7 +843,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
 
     private View buildDock() {
         FrameLayout frame = new FrameLayout(this);
-        LinearLayout dock = Ui.column(this);
+        dock = Ui.column(this);
         int pad = Ui.dp(this, 10);
         dock.setPadding(pad, pad, pad, Ui.dp(this, 6));
 
@@ -848,6 +868,12 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 select(APPS);
             }
         });
+        media.setBackdropListener(new MediaPanel.Backdrop() {
+            @Override
+            public void changed(android.graphics.drawable.Drawable background) {
+                if (current == PLAYING) root.setBackground(background != null ? background : Ui.background(MainActivity.this));
+            }
+        });
         shortcuts = new ShortcutsPanel(this, client);
         stats = new StatsPanel(this, client);
         capture = new CapturePanel(this, client, new CapturePanel.Actions() {
@@ -865,6 +891,11 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             public void pick(boolean picture) {
                 pickToSend(picture);
             }
+        }, new Runnable() {
+            @Override
+            public void run() {
+                select(CONTROLS);
+            }
         });
         updates = new UpdatesPanel(this, client, updater);
         panels.add(apps);
@@ -877,6 +908,11 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             public void run() {
                 leaveDock();
             }
+        }, new Runnable() {
+            @Override
+            public void run() {
+                select(CAPTURE);
+            }
         });
         panels.add(controls);
         panels.add(capture);
@@ -887,63 +923,37 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             }
         }));
         panels.add(stats);
-        // Settings: Appearance on the left, Updates on the right.
-        LinearLayout settings = Ui.row(this);
-        settings.setGravity(Gravity.TOP);
-        settings.addView(new AppearancePanel(this, WatchService.prefs(this), new Runnable() {
+        // Settings: one grouped list, like iOS Settings. Updates sit at the end.
+        android.widget.ScrollView settings = new android.widget.ScrollView(this);
+        settings.setVerticalScrollBarEnabled(false);
+        LinearLayout list = Ui.column(this);
+        list.setPadding(0, 0, Ui.dp(this, 6), Ui.dp(this, 16));
+        list.addView(Ui.title(this, "Settings"));
+        list.addView(new AppearancePanel(this, WatchService.prefs(this), new Runnable() {
             @Override
             public void run() {
                 rebuildDock();
             }
-        }), new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f));
-        LinearLayout.LayoutParams ulp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f);
-        ulp.leftMargin = Ui.dp(this, 16);
-        settings.addView(updates, ulp);
+        }));
+        list.addView(updates);
+        settings.addView(list);
         panels.add(settings);
         for (View p : panels) content.addView(p);
         capture.setRecording(recording);
         dock.addView(content, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
-        // The dock bar: eight tiles sharing the width, so all of them are always on screen.
-        dockBar = Ui.row(this);
-        int bp = Ui.dp(this, 6);
-        dockBar.setPadding(bp, bp, bp, bp);
-        dockBar.setBackground(Ui.rounded(this, Ui.SURFACE, 18));
-        String[] names = {"Apps", "Search", "Playing", "Shortcuts", "Controls", "Capture", "Touch", "Stats",
-            "Settings"};
-        Icon.Kind[] kinds = {Icon.Kind.APPS, Icon.Kind.SEARCH, Icon.Kind.MUSIC, Icon.Kind.SHORTCUTS,
-            Icon.Kind.SLIDERS, Icon.Kind.CAMERA, Icon.Kind.PEN, Icon.Kind.CHART, Icon.Kind.SUN};
-        for (int i = 0; i < names.length; i++) {
-            final int index = i;
-            LinearLayout tile = Ui.dockTile(this, kinds[i], names[i]);
-            tile.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    select(index);
-                }
-            });
-            tabs.add(tile);
-            dockBar.addView(tile);
-        }
-        // Fullscreen sits at the end of the bar, so it is there on every page.
-        ImageView full = Ui.iconButton(this, Icon.Kind.EXPAND, 44, 0x00000000, Ui.SURFACE_HI, Ui.MUTED);
-        full.setContentDescription("Fullscreen");
-        full.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                setFullscreen(true);
-            }
-        });
-        LinearLayout.LayoutParams flp = new LinearLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44));
-        flp.setMargins(Ui.dp(this, 4), 0, Ui.dp(this, 2), 0);
-        dockBar.addView(full, flp);
-        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        blp.topMargin = Ui.dp(this, 8);
-        dock.addView(dockBar, blp);
-        frame.addView(dock);
+        // The page sits right of the sidebar. The sidebar floats over the frame, like Liquid Glass.
+        FrameLayout.LayoutParams dlp = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT);
+        dlp.leftMargin = sidebarWidth();
+        frame.addView(dock, dlp);
+        sidebar = buildSidebar();
+        frame.addView(sidebar);
 
-        ImageView exit = Ui.iconButton(this, Icon.Kind.SHRINK, 44, Ui.SURFACE, Ui.SURFACE_HI, Ui.TEXT);
+        ImageView exit = Ui.iconButton(this, Icon.Kind.SHRINK, 48, 0x00000000, Ui.PRESSED, Ui.ACCENT);
+        exit.setBackground(Kit.glass(this, 24));
+        int ep = Ui.dp(this, 15);
+        exit.setPadding(ep, ep, ep, ep);
         exit.setContentDescription("Exit fullscreen");
         exit.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -951,9 +961,9 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 setFullscreen(false);
             }
         });
-        FrameLayout.LayoutParams elp = new FrameLayout.LayoutParams(Ui.dp(this, 44), Ui.dp(this, 44),
+        FrameLayout.LayoutParams elp = new FrameLayout.LayoutParams(Ui.dp(this, 48), Ui.dp(this, 48),
                 Gravity.BOTTOM | Gravity.END);
-        elp.setMargins(0, 0, Ui.dp(this, 12), Ui.dp(this, 12));
+        elp.setMargins(0, 0, Ui.dp(this, 8), Ui.dp(this, 8));
         exit.setVisibility(View.GONE);
         frame.addView(exit, elp);
         exitFull = exit;
@@ -961,11 +971,111 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         return frame;
     }
 
-    /** Fullscreen hides the dock bar so the open page gets the whole screen. */
+    /** Fullscreen hides the sidebar so the open page gets the whole screen. Apple: let people hide it. */
     private void setFullscreen(boolean on) {
         fullscreen = on;
-        dockBar.setVisibility(on ? View.GONE : View.VISIBLE);
+        sidebar.setVisibility(on ? View.GONE : View.VISIBLE);
         exitFull.setVisibility(on ? View.VISIBLE : View.GONE);
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) dock.getLayoutParams();
+        lp.leftMargin = on ? 0 : sidebarWidth();
+        dock.setLayoutParams(lp);
+    }
+
+    private int sidebarWidth() {
+        return Ui.dp(this, 206);
+    }
+
+    /**
+     * The sidebar: the PC and its connection at the top with Fullscreen and Settings, then 7 pages.
+     * Rows are 48 dp, or less on a short screen so all 7 always fit.
+     */
+    private LinearLayout buildSidebar() {
+        LinearLayout side = Ui.column(this);
+        side.setBackground(Kit.glass(this, 26));
+        int in = Kit.glassInset(this);
+        side.setPadding(in + Ui.dp(this, 8), in + Ui.dp(this, 6), in + Ui.dp(this, 8), in + Ui.dp(this, 8));
+        FrameLayout.LayoutParams slp = new FrameLayout.LayoutParams(Ui.dp(this, 200),
+                FrameLayout.LayoutParams.MATCH_PARENT);
+        int m = Ui.dp(this, 2);
+        slp.setMargins(m, m, 0, m);
+        side.setLayoutParams(slp);
+
+        LinearLayout head = Ui.row(this);
+        sideDot = new View(this);
+        sideDot.setBackground(Ui.rounded(this, Ui.GREEN, 4));
+        LinearLayout.LayoutParams dot = new LinearLayout.LayoutParams(Ui.dp(this, 8), Ui.dp(this, 8));
+        dot.setMargins(Ui.dp(this, 6), 0, Ui.dp(this, 8), 0);
+        head.addView(sideDot, dot);
+        LinearLayout names = Ui.column(this);
+        sideName = Ui.strong(this, client.hostName.length() > 0 ? client.hostName : "Your PC", 15, Ui.TEXT);
+        sideName.setSingleLine(true);
+        sideName.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        names.addView(sideName);
+        sideStatus = Ui.text(this, "Wi-Fi", 12, Ui.MUTED);
+        sideStatus.setSingleLine(true);
+        names.addView(sideStatus);
+        head.addView(names, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        ImageView full = Ui.iconButton(this, Icon.Kind.EXPAND, 36, 0x00000000, Ui.SELECTED, Ui.ACCENT);
+        full.setContentDescription("Fullscreen");
+        full.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                setFullscreen(true);
+            }
+        });
+        head.addView(full);
+        ImageView settings = Ui.iconButton(this, Icon.Kind.GEAR, 36, 0x00000000, Ui.SELECTED, Ui.ACCENT);
+        settings.setContentDescription("Settings");
+        settings.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                select(SETTINGS);
+            }
+        });
+        gear = settings;
+        head.addView(settings);
+        side.addView(head, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 44)));
+
+        // On a phone the 7 rows share the height evenly. On a tall screen they stay 52 dp and the rest is empty.
+        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+        boolean tall = Math.min(dm.widthPixels, dm.heightPixels) / dm.density > 470;
+        for (int i = 0; i < SIDEBAR_PAGES.length; i++) {
+            final int page = SIDEBAR_PAGES[i];
+            LinearLayout row = Ui.row(this);
+            row.setPadding(Ui.dp(this, 10), 0, Ui.dp(this, 8), 0);
+            row.setClickable(true);
+            row.setContentDescription(SIDEBAR_NAMES[i]);
+            ImageView icon = new ImageView(this);
+            icon.setImageDrawable(new Icon(SIDEBAR_ICONS[i], Ui.ACCENT));
+            LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(Ui.dp(this, 21), Ui.dp(this, 21));
+            ilp.rightMargin = Ui.dp(this, 12);
+            row.addView(icon, ilp);
+            TextView label = Ui.text(this, SIDEBAR_NAMES[i], 17, Ui.TEXT);
+            Ui.fitLabel(label, 17);
+            row.addView(label);
+            row.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    select(page);
+                }
+            });
+            row.setTag(page);
+            tabs.add(row);
+            LinearLayout.LayoutParams rlp = tall
+                    ? new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 52))
+                    : new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
+            rlp.topMargin = i == 0 ? Ui.dp(this, 4) : 0;
+            side.addView(row, rlp);
+        }
+        return side;
+    }
+
+    /** The PC name and how it is connected, at the top of the sidebar. */
+    private void showPc(boolean connected, String status) {
+        if (sideName == null) return;
+        if (client.hostName.length() > 0) sideName.setText(client.hostName);
+        sideStatus.setText(status);
+        sideDot.setBackground(Ui.rounded(this, connected ? Ui.GREEN : Ui.SIGNAL, 4));
     }
 
     private void leaveDock() {
@@ -977,10 +1087,16 @@ public final class MainActivity extends Activity implements DockClient.Listener 
 
     private void select(int index) {
         current = index;
-        for (int i = 0; i < panels.size(); i++) {
-            panels.get(i).setVisibility(i == index ? View.VISIBLE : View.GONE);
-            Ui.setTileSelected(tabs.get(i), i == index);
+        for (int i = 0; i < panels.size(); i++) panels.get(i).setVisibility(i == index ? View.VISIBLE : View.GONE);
+        int lit = index == CAPTURE ? CONTROLS : index;  // Capture opens from Controls
+        // Now Playing paints the whole screen in the cover's colors, under the sidebar too.
+        root.setBackground(index == PLAYING && media.backdrop() != null ? media.backdrop() : Ui.background(this));
+        for (LinearLayout row : tabs) {
+            boolean on = ((Integer) row.getTag()) == lit;
+            row.setBackground(on ? Ui.rounded(this, Ui.SELECTED, 12) : null);
+            ((TextView) row.getChildAt(1)).setTypeface(on ? Ui.semibold() : Ui.regular());
         }
+        gear.setBackground(index == SETTINGS ? Ui.rounded(this, Ui.SELECTED, 18) : null);
         if (index != APPS && apps.arranging()) apps.setArrange(false);
         media.setActive(index == PLAYING);
         stats.setActive(index == STATS);
@@ -1030,12 +1146,14 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         boolean docked = dockView != null && dockView.getVisibility() == View.VISIBLE;
         switch (state) {
             case DockClient.CONNECTING:
+                showPc(false, "Connecting");
                 if (docked) showBanner(message);
                 else connectStatus.setText(message);
                 break;
             case DockClient.CONNECTED:
                 showDock();
                 apps.setPc(client.hostName);
+                showPc(true, "127.0.0.1".equals(client.host) ? "USB" : "Wi-Fi");
                 final String connectedHost = client.host;
                 client.request("host.info", null, new DockClient.Callback() {
                     @Override
@@ -1054,6 +1172,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 }
                 break;
             case DockClient.DISCONNECTED:
+                showPc(false, "Reconnecting");
                 if (docked) showBanner(message);
                 else connectStatus.setText(message + ". Tap Search again to stop.");
                 break;

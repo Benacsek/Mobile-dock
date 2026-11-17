@@ -102,7 +102,7 @@ final class IconCache {
             paint.setShader(shader);
             canvas.drawRoundRect(box, radius, radius, paint);
         } else {
-            paint.setColor(Ui.SURFACE_HI);
+            paint.setColor(Ui.DARK ? Ui.SURFACE_HI : 0xFFFFFFFF);  // icons on a plate, like iOS
             canvas.drawRoundRect(box, radius, radius, paint);
             float inset = size * 0.12f;
             android.graphics.RectF inner = new android.graphics.RectF(inset, inset, size - inset, size - inset);

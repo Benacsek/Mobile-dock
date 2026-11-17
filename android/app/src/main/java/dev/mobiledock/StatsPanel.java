@@ -1,7 +1,6 @@
 package dev.mobiledock;
 
 import android.content.Context;
-import android.graphics.Typeface;
 import android.view.Gravity;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -13,8 +12,11 @@ import java.util.Locale;
 
 /** Live PC performance: CPU, GPU, memory, network, disk and the busiest apps. */
 final class StatsPanel extends LinearLayout {
-    private static final int CPU = 0xFF4C8DF6, GPU = 0xFFE5484D, RAM = 0xFFB57BFF, DOWN = 0xFF3DDC84,
-            UP = 0xFFF2B33D, READ = 0xFF2FB5D8, WRITE = 0xFFFF7A59;
+    // Apple's system colors: blue, red, purple, green, orange, cyan and pink.
+    private final int CPU = Ui.DARK ? 0xFF0091FF : 0xFF0088FF, GPU = Ui.DARK ? 0xFFFF4245 : 0xFFFF383C,
+            RAM = Ui.DARK ? 0xFFDB34F2 : 0xFFCB30E0, DOWN = Ui.DARK ? 0xFF30D158 : 0xFF34C759,
+            UP = Ui.DARK ? 0xFFFF9230 : 0xFFFF8D28, READ = Ui.DARK ? 0xFF3CD3FE : 0xFF00C0E8,
+            WRITE = Ui.DARK ? 0xFFFF375F : 0xFFFF2D55;
 
     private final DockClient client;
     private final Card cpu, gpu, ram, net, disk;
@@ -38,18 +40,16 @@ final class StatsPanel extends LinearLayout {
         Card(Context c, String title, int color, GraphView graph) {
             super(c);
             setOrientation(VERTICAL);
-            setBackground(Ui.rounded(c, Ui.SURFACE, 16));
-            int p = Ui.dp(c, 10);
+            setBackground(Ui.rounded(c, Ui.SURFACE, 20));
+            int p = Ui.dp(c, 12);
             setPadding(p, p, p, p);
             LinearLayout head = Ui.row(c);
-            TextView t = Ui.text(c, title, 13, color);
-            t.setTypeface(Typeface.DEFAULT_BOLD);
+            TextView t = Ui.strong(c, title, 13, color);
             head.addView(t);
-            head.addView(Ui.spacer(c));
-            value = Ui.text(c, "", 18, Ui.TEXT);
-            value.setTypeface(Typeface.DEFAULT_BOLD);
-            head.addView(value);
+            value = Ui.text(c, "", 16, Ui.TEXT);
+            value.setTypeface(Ui.bold());
             addView(head);
+            addView(value);  // under the title, like an iOS widget, so narrow cards never overlap
             detail = Ui.text(c, "", 11, Ui.MUTED);
             detail.setSingleLine(true);
             detail.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -89,7 +89,7 @@ final class StatsPanel extends LinearLayout {
         bottom.addView(net, cell(c));
         bottom.addView(disk, cell(c));
         procs = Ui.column(c);
-        procs.setBackground(Ui.rounded(c, Ui.SURFACE, 16));
+        procs.setBackground(Ui.rounded(c, Ui.SURFACE, 20));
         int p = Ui.dp(c, 10);
         procs.setPadding(p, p, p, p);
         bottom.addView(procs, cell(c));
@@ -171,8 +171,7 @@ final class StatsPanel extends LinearLayout {
 
         JSONArray list = r.optJSONArray("procs");
         procs.removeAllViews();
-        TextView head = Ui.text(getContext(), "Busiest apps", 13, Ui.ACCENT);
-        head.setTypeface(Typeface.DEFAULT_BOLD);
+        TextView head = Ui.strong(getContext(), "Busiest apps", 15, Ui.TEXT);
         procs.addView(head);
         for (int i = 0; list != null && i < list.length(); i++) {
             JSONObject p = list.optJSONObject(i);

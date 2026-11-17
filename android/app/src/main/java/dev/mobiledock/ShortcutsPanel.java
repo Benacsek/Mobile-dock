@@ -3,7 +3,6 @@ package dev.mobiledock;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.graphics.Typeface;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
@@ -44,13 +43,15 @@ final class ShortcutsPanel extends LinearLayout {
         appLabel.setPadding(Ui.dp(c, 12), 0, 0, 0);
         appLabel.setSingleLine(true);
         header.addView(appLabel, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
-        follow = Ui.iconButton(c, Icon.Kind.FOLLOW, 40, 0x00000000, 0x33FFFFFF, Ui.TEXT);
+        follow = Ui.iconButton(c, Icon.Kind.FOLLOW, 40, 0x00000000, Ui.SELECTED, Ui.ACCENT);
         follow.setSelected(true);
+        ((Icon) follow.getDrawable()).setColor(Ui.onAccent());  // white on the accent fill while following
         follow.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
                 following = !following;
                 follow.setSelected(following);
+                ((Icon) follow.getDrawable()).setColor(following ? Ui.onAccent() : Ui.ACCENT);
                 Toast.makeText(getContext(), following ? "Follows the app in front" : "Stays on this pad",
                         Toast.LENGTH_SHORT).show();
                 if (following) load();
@@ -159,12 +160,11 @@ final class ShortcutsPanel extends LinearLayout {
                 grid.addView(row, new LayoutParams(LayoutParams.MATCH_PARENT, Ui.dp(c, 64)));
             }
             final int index = i;
-            TextView tile = Ui.text(c, tiles.optJSONObject(i).optString("label"), 13, Ui.TEXT);
-            tile.setTypeface(Typeface.DEFAULT_BOLD);
+            TextView tile = Ui.strong(c, tiles.optJSONObject(i).optString("label"), 15, Ui.TEXT);
             tile.setGravity(Gravity.CENTER);
             tile.setPadding(Ui.dp(c, 6), 0, Ui.dp(c, 6), 0);
             tile.setMaxLines(2);
-            tile.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.SURFACE_HI, 14));
+            tile.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.PRESSED, 16));
             tile.setClickable(true);
             tile.setOnClickListener(new OnClickListener() {
                 @Override

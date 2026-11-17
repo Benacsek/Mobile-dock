@@ -13,31 +13,92 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-/** Colors and small view factories. The whole UI is built in code, so it works on every Android version. */
+/**
+ * Colors, type and small view factories, in the style of Apple's Human Interface Guidelines.
+ * The whole UI is built in code, so it works on every Android version.
+ *
+ * The color names are semantic, like Apple's: BG is the grouped background, SURFACE a card on it,
+ * SURFACE_HI a fill for buttons and tracks, LINE a hairline, TEXT, MUTED and FAINT the label levels.
+ * loadTheme sets them for light or dark, and every page reads them when it is built.
+ */
 final class Ui {
-    // Same three colors as the PC window: graphite surfaces, a blue accent, amber for live state.
-    static final int BG = 0xFF16181C;
-    static final int SURFACE = 0xFF1E2126;
-    static final int SURFACE_HI = 0xFF272B31;
-    static final int LINE = 0xFF33383F;
-    /** Amber: things happening right now, such as recording or a running countdown. */
-    static final int SIGNAL = 0xFFF2B33D;
+    static int BG, SURFACE, SURFACE_HI, PRESSED, LINE, TEXT, MUTED, FAINT;
+    /** System orange: things happening right now, such as recording or a running countdown. */
+    static int SIGNAL;
+    static int DANGER, GREEN;
+    /** Floating glass for navigation: tint, bright rim and shadow. Content never uses it. */
+    static int GLASS, GLASS_RIM, SELECTED;
+    static boolean DARK = true;
     /** Set from the Appearance page. Everything reads it when it is built. */
-    static int ACCENT = 0xFF4C8DF6;
+    static int ACCENT;
     static float TILE_SCALE = 1f;
     static boolean LABELS = true;
-    static boolean GLOW = true;
 
-    static final int[] ACCENTS = {0xFF4C8DF6, 0xFF34D399, 0xFFA78BFA, 0xFFF2B33D};
-    static final String[] ACCENT_NAMES = {"Blue", "Green", "Purple", "Amber"};
+    /** Apple's system colors, 2025 values from developer.apple.com: light, then dark. */
+    static final int[][] ACCENTS = {
+        {0xFF0088FF, 0xFF0091FF}, {0xFF34C759, 0xFF30D158}, {0xFF6155F5, 0xFF6D7CFF}, {0xFFFF8D28, 0xFFFF9230},
+        {0xFFFF2D55, 0xFFFF375F},
+    };
+    static final String[] ACCENT_NAMES = {"Blue", "Green", "Indigo", "Orange", "Pink"};
     static final float[] TILE_SCALES = {0.85f, 1f, 1.2f};
     static final String[] TILE_SCALE_NAMES = {"Small", "Normal", "Large"};
+    static final String PREF_THEME = "theme";  // 0 automatic, 1 light, 2 dark
+    static final String[] THEME_NAMES = {"Automatic", "Light", "Dark"};
 
-    static void loadTheme(android.content.SharedPreferences p) {
-        ACCENT = ACCENTS[Math.max(0, Math.min(ACCENTS.length - 1, p.getInt("accent", 0)))];
+    private static Typeface regular, semibold, bold;
+
+    /** Loads Inter once. Without the font files the system font is used, so nothing breaks. */
+    static void init(Context c) {
+        if (regular != null) return;
+        try {
+            regular = Typeface.createFromAsset(c.getAssets(), "fonts/Inter-Regular.ttf");
+            semibold = Typeface.createFromAsset(c.getAssets(), "fonts/Inter-SemiBold.ttf");
+            bold = Typeface.createFromAsset(c.getAssets(), "fonts/Inter-Bold.ttf");
+        } catch (RuntimeException e) {
+            regular = Typeface.DEFAULT;
+            semibold = Typeface.DEFAULT_BOLD;
+            bold = Typeface.DEFAULT_BOLD;
+        }
+    }
+
+    static Typeface regular() {
+        return regular != null ? regular : Typeface.DEFAULT;
+    }
+
+    static Typeface semibold() {
+        return semibold != null ? semibold : Typeface.DEFAULT_BOLD;
+    }
+
+    static Typeface bold() {
+        return bold != null ? bold : Typeface.DEFAULT_BOLD;
+    }
+
+    /** Dark on Android 9 and older, where the phone has no dark mode setting to follow. */
+    static boolean systemDark(Context c) {
+        if (android.os.Build.VERSION.SDK_INT < 29) return true;
+        int night = c.getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK;
+        return night != android.content.res.Configuration.UI_MODE_NIGHT_NO;
+    }
+
+    static void loadTheme(Context c, android.content.SharedPreferences p) {
+        init(c);
+        int mode = p.getInt(PREF_THEME, 0);
+        DARK = mode == 2 || (mode == 0 && systemDark(c));
+        if (DARK) {
+            BG = 0xFF000000; SURFACE = 0xFF1C1C1E; SURFACE_HI = 0xFF2C2C2E; PRESSED = 0xFF3A3A3C;
+            LINE = 0xFF38383A; TEXT = 0xFFFFFFFF; MUTED = 0xFF98989F; FAINT = 0xFF636366;
+            SIGNAL = 0xFFFF9230; DANGER = 0xFFFF4245; GREEN = 0xFF30D158;
+            GLASS = 0xD82C2C30; GLASS_RIM = 0x24FFFFFF; SELECTED = 0x22FFFFFF;
+        } else {
+            BG = 0xFFF2F2F7; SURFACE = 0xFFFFFFFF; SURFACE_HI = 0xFFE9E9EE; PRESSED = 0xFFD1D1D6;
+            LINE = 0xFFC6C6C8; TEXT = 0xFF000000; MUTED = 0xFF6E6E73; FAINT = 0xFFAEAEB2;
+            SIGNAL = 0xFFFF8D28; DANGER = 0xFFFF383C; GREEN = 0xFF34C759;
+            GLASS = 0xD8FAFAFC; GLASS_RIM = 0x99FFFFFF; SELECTED = 0x16000000;
+        }
+        int a = Math.max(0, Math.min(ACCENTS.length - 1, p.getInt("accent", 0)));
+        ACCENT = ACCENTS[a][DARK ? 1 : 0];
         TILE_SCALE = TILE_SCALES[Math.max(0, Math.min(TILE_SCALES.length - 1, p.getInt("tile_scale", 1)))];
         LABELS = p.getBoolean("labels", true);
-        GLOW = p.getBoolean("glow", false);
     }
 
     /** The accent, a little darker, for the pressed state. */
@@ -46,72 +107,21 @@ final class Ui {
                 android.graphics.Color.green(ACCENT) * 4 / 5, android.graphics.Color.blue(ACCENT) * 4 / 5);
     }
 
-    /** Text color that stays readable on the accent. */
+    /** Text on the accent. Apple uses white on every system color. */
     static int onAccent() {
-        int r = android.graphics.Color.red(ACCENT), g = android.graphics.Color.green(ACCENT),
-                b = android.graphics.Color.blue(ACCENT);
-        return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? 0xFF0B1220 : 0xFFFFFFFF;
+        return 0xFFFFFFFF;
     }
 
-    /** Flat graphite like the PC window. The optional glow adds the accent and amber at the bottom. */
+    /** The grouped background. Flat, like iOS: depth comes from cards and the floating sidebar. */
     static Drawable background(Context c) {
         GradientDrawable base = new GradientDrawable();
         base.setColor(BG);
-        if (!GLOW) return base;
-        int second = ACCENT == SIGNAL ? ACCENTS[0] : SIGNAL;
-        return new android.graphics.drawable.LayerDrawable(new Drawable[] {
-            base, glow(c, ACCENT, 0.12f, 1.0f), glow(c, second, 0.88f, 1.0f),
-        });
+        return base;
     }
 
-    private static Drawable glow(Context c, int color, float cx, float cy) {
-        GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[] {(color & 0x00FFFFFF) | 0x55000000, color & 0x00FFFFFF});
-        g.setGradientType(GradientDrawable.RADIAL_GRADIENT);
-        g.setGradientCenter(cx, cy);
-        g.setGradientRadius(dp(c, 260));
-        return g;
-    }
-
-    /** Rounded-square dock tile: line icon over a short label. */
-    static LinearLayout dockTile(Context c, Icon.Kind kind, String label) {
-        int size = dp(c, (LABELS ? 76 : 60) * TILE_SCALE);
-        LinearLayout tile = column(c);
-        tile.setGravity(Gravity.CENTER);
-        StateListDrawable bg = new StateListDrawable();
-        bg.addState(new int[] {android.R.attr.state_selected}, rounded(c, (ACCENT & 0x00FFFFFF) | 0x2E000000, 14));
-        bg.addState(new int[] {android.R.attr.state_pressed}, rounded(c, SURFACE_HI, 14));
-        bg.addState(new int[] {}, rounded(c, 0x00000000, 14));
-        tile.setBackground(bg);
-        tile.setClickable(true);
-        tile.setContentDescription(label);  // also spoken when labels are turned off
-        int p = dp(c, 6);
-        tile.setPadding(p, p, p, p);
-        ImageView icon = new ImageView(c);
-        icon.setImageDrawable(new Icon(kind, MUTED));
-        int iconSize = dp(c, 26 * TILE_SCALE);
-        tile.addView(icon, new LinearLayout.LayoutParams(iconSize, iconSize));
-        TextView t = text(c, label, 11, MUTED);
-        fitLabel(t, 11);
-        t.setGravity(Gravity.CENTER);
-        t.setVisibility(LABELS ? View.VISIBLE : View.GONE);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = dp(c, 6);
-        tile.addView(t, lp);
-        // Tiles share the dock bar's width evenly. Only the height is fixed.
-        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(0, size, 1f);
-        int m = dp(c, 3);
-        tlp.setMargins(m, 0, m, 0);
-        tile.setLayoutParams(tlp);
-        return tile;
-    }
-    static final int TEXT = 0xFFE8EAED;
-    static final int MUTED = 0xFF8B919A;
-    static final int FAINT = 0xFF5C626B;
-    static final int DANGER = 0xFFE5484D;
+    /** Apple's system colors (light values) for placeholder icons, picked from the name. */
     static final int[] TILE_COLORS = {
-        0xFF3B6FD8, 0xFF8E4FD8, 0xFFD8504F, 0xFFD88A2F, 0xFF2FA57A, 0xFF2F96B5, 0xFFB5408C, 0xFF6C7A2F,
+        0xFF0088FF, 0xFFCB30E0, 0xFFFF383C, 0xFFFF8D28, 0xFF34C759, 0xFF00C0E8, 0xFFFF2D55, 0xFF6155F5,
     };
 
     private Ui() {
@@ -141,6 +151,14 @@ final class Ui {
         t.setText(s);
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
         t.setTextColor(color);
+        t.setTypeface(regular());
+        return t;
+    }
+
+    /** Text in Inter SemiBold, for headlines, buttons and the selected row. */
+    static TextView strong(Context c, String s, float sp, int color) {
+        TextView t = text(c, s, sp, color);
+        t.setTypeface(semibold());
         return t;
     }
 
@@ -156,30 +174,153 @@ final class Ui {
         t.setEllipsize(android.text.TextUtils.TruncateAt.END);
     }
 
+    /** Apple's Large Title: 34, bold, left aligned. Large text makes it at most 15 percent bigger. */
     static TextView title(Context c, String s) {
-        TextView t = text(c, s, 20, TEXT);
-        t.setTypeface(Typeface.DEFAULT_BOLD);
+        TextView t = text(c, s, 34, TEXT);
+        t.setTypeface(bold());
+        fitLabel(t, 34);
+        t.setPadding(dp(c, 4), 0, 0, dp(c, 2));
         return t;
     }
 
+    /** Section header above a grouped card, in sentence case: "Volume mixer". */
+    static TextView header(Context c, String s) {
+        TextView t = strong(c, s, 15, TEXT);
+        t.setPadding(dp(c, 16), dp(c, 14), dp(c, 16), dp(c, 6));
+        return t;
+    }
+
+    /** A grouped list card: rows inside are separated by hairlines that start after the icon. */
+    static LinearLayout card(Context c) {
+        LinearLayout l = column(c);
+        l.setBackground(rounded(c, SURFACE, 20));
+        return l;
+    }
+
+    /** A hairline between rows of a card, inset from the left like iOS. */
+    static View hairline(Context c, int insetDp) {
+        View v = new View(c);
+        v.setBackgroundColor(LINE);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1);
+        lp.leftMargin = dp(c, insetDp);
+        v.setLayoutParams(lp);
+        return v;
+    }
+
+    /** A colored rounded square with a white line icon, like the icons in iOS Settings. */
+    static View iconTile(Context c, Icon.Kind kind, int color) {
+        ImageView v = new ImageView(c);
+        v.setImageDrawable(new Icon(kind, 0xFFFFFFFF));
+        int p = dp(c, 6);
+        v.setPadding(p, p, p, p);
+        v.setBackground(rounded(c, color, 8));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(c, 30), dp(c, 30));
+        lp.rightMargin = dp(c, 12);
+        v.setLayoutParams(lp);
+        return v;
+    }
+
+    /**
+     * One row of a grouped card: optional icon tile, label, then a value, a chevron or any view at the end.
+     * Rows are at least 44 dp tall, Apple's minimum touch target.
+     */
+    static LinearLayout listRow(Context c, Icon.Kind kind, int tileColor, String label, View end) {
+        LinearLayout row = row(c);
+        row.setMinimumHeight(dp(c, 48));
+        row.setPadding(dp(c, 12), dp(c, 4), dp(c, 14), dp(c, 4));
+        if (kind != null) row.addView(iconTile(c, kind, tileColor));
+        else row.setPadding(dp(c, 16), dp(c, 4), dp(c, 14), dp(c, 4));
+        TextView t = text(c, label, 17, TEXT);
+        row.addView(t, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        if (end != null) row.addView(end);
+        return row;
+    }
+
+    /** Gray value text at the end of a row, such as "Automatic". */
+    static TextView value(Context c, String s) {
+        TextView t = text(c, s, 17, MUTED);
+        t.setPadding(dp(c, 8), 0, 0, 0);
+        return t;
+    }
+
+    /** A chevron at the end of a row that opens something. */
+    static View chevron(Context c) {
+        ImageView v = new ImageView(c);
+        v.setImageDrawable(new Icon(Icon.Kind.CHEVRON, FAINT));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(c, 14), dp(c, 14));
+        lp.leftMargin = dp(c, 8);
+        v.setLayoutParams(lp);
+        return v;
+    }
+
+    /** Makes a whole row pressable, with the iOS gray highlight. */
+    static void pressableRow(Context c, View row, View.OnClickListener click) {
+        StateListDrawable s = new StateListDrawable();
+        s.addState(new int[] {android.R.attr.state_pressed}, new android.graphics.drawable.ColorDrawable(PRESSED));
+        s.addState(new int[] {}, new android.graphics.drawable.ColorDrawable(0x00000000));
+        row.setBackground(s);
+        row.setClickable(true);
+        row.setOnClickListener(click);
+    }
+
+    /** iOS 26 buttons are capsules: gray fill with accent text, or the accent fill for the main action. */
     static Button button(Context c, String label) {
         Button b = new Button(c);
         b.setText(label);
-        b.setTextColor(TEXT);
+        b.setTextColor(ACCENT);
         b.setAllCaps(false);
+        b.setTypeface(semibold());
+        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
+        b.setBackground(pressable(c, SURFACE_HI, PRESSED, 24));
+        b.setMinHeight(dp(c, 44));
+        b.setMinimumHeight(dp(c, 44));
+        b.setPadding(dp(c, 18), 0, dp(c, 18), 0);
+        return b;
+    }
+
+    /** A key on the touchpad or keyboard pages: smaller text on one line, so rows of keys fit. */
+    static Button keyButton(Context c, String label) {
+        Button b = button(c, label);
+        // White on the accent while a modifier such as Ctrl is held down.
+        b.setTextColor(new android.content.res.ColorStateList(
+                new int[][] {{android.R.attr.state_selected}, {}}, new int[] {0xFFFFFFFF, TEXT}));
         b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
-        b.setBackground(pressable(c, SURFACE_HI, 0x38FFFFFF, 14));
-        b.setMinHeight(dp(c, 48));
-        b.setMinimumHeight(dp(c, 48));
-        b.setPadding(dp(c, 14), 0, dp(c, 14), 0);
+        b.setSingleLine(true);
+        b.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        b.setBackground(pressable(c, SURFACE, PRESSED, 12));
+        b.setPadding(dp(c, 6), 0, dp(c, 6), 0);
         return b;
     }
 
     static Button accentButton(Context c, String label) {
         Button b = button(c, label);
-        b.setBackground(pressable(c, ACCENT, accentPressed(), 14));
+        b.setBackground(pressable(c, ACCENT, accentPressed(), 24));
         b.setTextColor(onAccent());
         return b;
+    }
+
+    /** Apple's search field: a gray capsule with a magnifier and gray placeholder text. */
+    static void searchField(Context c, android.widget.EditText field, String hint) {
+        field.setHint(hint);
+        field.setSingleLine(true);
+        field.setTextColor(TEXT);
+        field.setHintTextColor(MUTED);
+        field.setTypeface(regular());
+        field.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
+        field.setBackground(rounded(c, SURFACE_HI, 22));
+        Icon glass = new Icon(Icon.Kind.SEARCH, MUTED);
+        int s = dp(c, 17);
+        glass.setBounds(0, 0, s, s);
+        field.setCompoundDrawables(glass, null, null, null);
+        field.setCompoundDrawablePadding(dp(c, 8));
+        field.setPadding(dp(c, 14), 0, dp(c, 14), 0);
+        field.setMinHeight(dp(c, 44));
+    }
+
+    /** Fills a selected button of a choice with the accent, like a picked option. */
+    static void markChosen(Button b) {
+        b.setBackground(pressable(b.getContext(), ACCENT, accentPressed(), 24));
+        b.setTextColor(onAccent());
     }
 
     static LinearLayout row(Context c) {
@@ -265,14 +406,7 @@ final class Ui {
 
     /** Plain icon button with no fill until pressed. */
     static ImageView flatIcon(Context c, Icon.Kind kind, int sizeDp) {
-        return iconButton(c, kind, sizeDp, 0x00000000, 0x33FFFFFF, TEXT);
-    }
-
-    /** Like the PC tabs: the selected tile gets a blue tint and a blue icon, the rest stay muted. */
-    static void setTileSelected(LinearLayout tile, boolean selected) {
-        tile.setSelected(selected);
-        ((Icon) ((ImageView) tile.getChildAt(0)).getDrawable()).setColor(selected ? ACCENT : MUTED);
-        ((TextView) tile.getChildAt(1)).setTextColor(selected ? TEXT : MUTED);
+        return iconButton(c, kind, sizeDp, 0x00000000, SELECTED, TEXT);
     }
 
     /** Four small squares, three blue and one amber. The same mark as the PC window. */

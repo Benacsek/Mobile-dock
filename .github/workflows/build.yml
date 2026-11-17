@@ -58,7 +58,7 @@ jobs:
         run: Set-Content -Path host/mobiledock_host/__init__.py -Value "__version__ = `"$env:VERSION`""
       - name: Build
         working-directory: host
-        run: pyinstaller --noconfirm --onefile --windowed --name MobileDockHost --collect-submodules winrt --collect-submodules pycaw --collect-submodules comtypes --hidden-import segno run_host.py
+        run: pyinstaller --noconfirm --onefile --windowed --name MobileDockHost --collect-submodules winrt --collect-submodules pycaw --collect-submodules comtypes --hidden-import segno --collect-data mobiledock_host run_host.py
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: MobileDockHost-windows
@@ -153,18 +153,24 @@ jobs:
           mkdir shots
           pages="-1:connect 0:apps 1:search 2:playing 3:shortcuts 4:controls 5:capture 6:touch 7:stats 8:settings 99:night"
           n=0
-          for entry in $pages; do
-            page="${entry%%:*}"; name="${entry#*:}"; n=$((n + 1))
-            "$adb" shell am start -W -n dev.mobiledock/.MainActivity --ez demo true --ei page "$page" > /dev/null
-            sleep 5  # icons, album art and a few seconds of stats graphs
-            "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-$name.png"
+          # Every page in dark (2) and light (1), Apple's two appearances.
+          for theme in 2:dark 1:light; do
+            t="${theme%%:*}"; look="${theme#*:}"
+            for entry in $pages; do
+              page="${entry%%:*}"; name="${entry#*:}"; n=$((n + 1))
+              "$adb" shell am start -W -n dev.mobiledock/.MainActivity --ez demo true --ei theme "$t" \
+                --ei page "$page" > /dev/null
+              sleep 5  # icons, album art and a few seconds of stats graphs
+              "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-$look-$name.png"
+            done
           done
-          # The same pages with large system text, to catch labels that no longer fit.
+          # Some pages with large system text, to catch labels that no longer fit.
           "$adb" shell settings put system font_scale 1.3
           "$adb" shell am force-stop dev.mobiledock
-          for entry in 0:apps 1:search 4:controls 5:capture; do
+          for entry in 0:apps 1:search 4:controls 5:capture 8:settings; do
             page="${entry%%:*}"; name="${entry#*:}"; n=$((n + 1))
-            "$adb" shell am start -W -n dev.mobiledock/.MainActivity --ez demo true --ei page "$page" > /dev/null
+            "$adb" shell am start -W -n dev.mobiledock/.MainActivity --ez demo true --ei theme 1 \
+              --ei page "$page" > /dev/null
             sleep 5
             "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-large-$name.png"
           done

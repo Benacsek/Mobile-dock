@@ -2,16 +2,13 @@ package dev.mobiledock;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.graphics.Typeface;
 import android.view.Gravity;
 import android.view.View;
-import android.widget.Button;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
 import android.widget.TextView;
 
-/** Accent color, tile size, background glow and labels. Saved on the phone and applied at once. */
-final class AppearancePanel extends ScrollView {
+/** Settings on the phone, as an iOS grouped list. Saved on the phone and applied at once. */
+final class AppearancePanel extends LinearLayout {
     static final String PREF_VOLUME_KEYS = "volume_keys";
     static final String PREF_DIM = "dim_minutes";
     private static final int[] DIM_MINUTES = {0, 1, 5, 15};
@@ -23,26 +20,43 @@ final class AppearancePanel extends ScrollView {
         super(c);
         this.prefs = prefs;
         this.apply = apply;
-        LinearLayout box = Ui.column(c);
-        addView(box);
-        box.addView(Ui.title(c, "Appearance"), Ui.fillWidth(c, 4));
+        setOrientation(VERTICAL);
 
-        box.addView(section(c, "Accent"));
+        addView(Ui.header(c, "Appearance"));
+        addView(Kit.segmented(c, Ui.THEME_NAMES, prefs.getInt(Ui.PREF_THEME, 0), new Kit.OnPick() {
+            @Override
+            public void picked(int index) {
+                save(Ui.PREF_THEME, index);
+            }
+        }));
+
+        addView(Ui.header(c, "Accent color"));
+        LinearLayout card = Ui.card(c);
         LinearLayout swatches = Ui.row(c);
+        swatches.setPadding(Ui.dp(c, 8), Ui.dp(c, 8), Ui.dp(c, 8), Ui.dp(c, 8));
+        int chosen = Math.max(0, Math.min(Ui.ACCENTS.length - 1, prefs.getInt("accent", 0)));
         for (int i = 0; i < Ui.ACCENTS.length; i++) {
             final int index = i;
-            boolean on = Ui.ACCENT == Ui.ACCENTS[i];
             LinearLayout s = Ui.column(c);
             s.setGravity(Gravity.CENTER);
-            s.setBackground(Ui.pressable(c, on ? Ui.SURFACE_HI : Ui.SURFACE, Ui.SURFACE_HI, 18));
             s.setClickable(true);
+            s.setContentDescription(Ui.ACCENT_NAMES[i]);
             View dot = new View(c);
-            dot.setBackground(Ui.rounded(c, Ui.ACCENTS[i], 14));
-            int d = Ui.dp(c, 28);
-            s.addView(dot, new LinearLayout.LayoutParams(d, d));
-            TextView name = Ui.text(c, Ui.ACCENT_NAMES[i], 12, on ? Ui.TEXT : Ui.MUTED);
-            LinearLayout.LayoutParams lp = Ui.wrap(c, 0);
-            lp.topMargin = Ui.dp(c, 6);
+            int color = Ui.ACCENTS[i][Ui.DARK ? 1 : 0];
+            android.graphics.drawable.GradientDrawable d = Ui.rounded(c, color, 15);
+            if (i == chosen) d.setStroke(Ui.dp(c, 3), Ui.SURFACE);
+            View ring = new View(c);
+            ring.setBackground(Ui.rounded(c, i == chosen ? color : 0x00000000, 18));
+            android.widget.FrameLayout holder = new android.widget.FrameLayout(c);
+            holder.addView(ring, new android.widget.FrameLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)));
+            android.widget.FrameLayout.LayoutParams dlp = new android.widget.FrameLayout.LayoutParams(
+                    Ui.dp(c, 30), Ui.dp(c, 30), Gravity.CENTER);
+            dot.setBackground(d);
+            holder.addView(dot, dlp);
+            s.addView(holder, new LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)));
+            TextView name = Ui.text(c, Ui.ACCENT_NAMES[i], 12, i == chosen ? Ui.TEXT : Ui.MUTED);
+            LayoutParams lp = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+            lp.topMargin = Ui.dp(c, 4);
             s.addView(name, lp);
             s.setOnClickListener(new OnClickListener() {
                 @Override
@@ -50,123 +64,69 @@ final class AppearancePanel extends ScrollView {
                     save("accent", index);
                 }
             });
-            swatches.addView(s, cell(c));
+            swatches.addView(s, new LayoutParams(0, Ui.dp(c, 64), 1f));
         }
-        box.addView(swatches, Ui.fillWidth(c, 0));
+        card.addView(swatches);
+        addView(card);
 
-        box.addView(section(c, "Tile size"));
-        LinearLayout sizes = Ui.row(c);
-        for (int i = 0; i < Ui.TILE_SCALES.length; i++) {
-            final int index = i;
-            Button b = Ui.button(c, Ui.TILE_SCALE_NAMES[i]);
-            if (Ui.TILE_SCALE == Ui.TILE_SCALES[i]) {
-                b.setBackground(Ui.pressable(c, Ui.ACCENT, Ui.accentPressed(), 14));
-                b.setTextColor(Ui.onAccent());
-            }
-            b.setOnClickListener(new OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    save("tile_scale", index);
-                }
-            });
-            sizes.addView(b, new LinearLayout.LayoutParams(0, Ui.dp(c, 48), 1f));
-            if (i < Ui.TILE_SCALES.length - 1) sizes.addView(new View(c), new LinearLayout.LayoutParams(Ui.dp(c, 8), 1));
-        }
-        box.addView(sizes, Ui.fillWidth(c, 4));
-
-        box.addView(section(c, "Dock"));
-        box.addView(toggle(c, "Background glow", "glow", Ui.GLOW), Ui.fillWidth(c, 4));
-        box.addView(toggle(c, "Labels under dock icons", "labels", Ui.LABELS), Ui.fillWidth(c, 4));
-
-        box.addView(section(c, "Dim to a clock when idle"));
-        LinearLayout dims = Ui.row(c);
-        int dim = prefs.getInt(PREF_DIM, 5);
-        for (int i = 0; i < DIM_MINUTES.length; i++) {
-            final int minutes = DIM_MINUTES[i];
-            Button b = Ui.button(c, DIM_NAMES[i]);
-            if (dim == minutes) {
-                b.setBackground(Ui.pressable(c, Ui.ACCENT, Ui.accentPressed(), 14));
-                b.setTextColor(Ui.onAccent());
-            }
-            b.setOnClickListener(new OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    save(PREF_DIM, minutes);
-                }
-            });
-            dims.addView(b, new LinearLayout.LayoutParams(0, Ui.dp(c, 48), 1f));
-            if (i < DIM_MINUTES.length - 1) dims.addView(new View(c), new LinearLayout.LayoutParams(Ui.dp(c, 8), 1));
-        }
-        box.addView(dims, Ui.fillWidth(c, 4));
-
-        box.addView(section(c, "Vibrate when you press a button"));
-        LinearLayout buzz = Ui.row(c);
-        final int current = Haptics.length(prefs);
-        for (int i = 0; i < Haptics.LEVELS_MS.length; i++) {
-            final int ms = Haptics.LEVELS_MS[i];
-            Button b = Ui.button(c, Haptics.LEVEL_NAMES[i]);
-            if (current == ms) {
-                b.setBackground(Ui.pressable(c, Ui.ACCENT, Ui.accentPressed(), 14));
-                b.setTextColor(Ui.onAccent());
-            }
-            b.setOnClickListener(new OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    Haptics.tick(getContext(), ms);  // feel it right away
-                    save(Haptics.PREF_MS, ms);
-                }
-            });
-            buzz.addView(b, new LinearLayout.LayoutParams(0, Ui.dp(c, 48), 1f));
-            if (i < Haptics.LEVELS_MS.length - 1) buzz.addView(new View(c), new LinearLayout.LayoutParams(Ui.dp(c, 8), 1));
-        }
-        box.addView(buzz, Ui.fillWidth(c, 4));
-
-        box.addView(section(c, "Buttons"));
-        box.addView(toggle(c, "Phone volume buttons change the PC volume", PREF_VOLUME_KEYS,
-                prefs.getBoolean(PREF_VOLUME_KEYS, true)), Ui.fillWidth(c, 4));
-    }
-
-    private static TextView section(Context c, String label) {
-        TextView t = Ui.text(c, label, 13, Ui.ACCENT);
-        t.setTypeface(Typeface.DEFAULT_BOLD);
-        t.setPadding(Ui.dp(c, 6), Ui.dp(c, 12), 0, Ui.dp(c, 4));
-        return t;
-    }
-
-    private static LinearLayout.LayoutParams cell(Context c) {
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Ui.dp(c, 76), 1f);
-        int m = Ui.dp(c, 5);
-        lp.setMargins(m, m, m, m);
-        return lp;
-    }
-
-    private LinearLayout toggle(Context c, String label, final String key, final boolean on) {
-        LinearLayout row = Ui.row(c);
-        row.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.SURFACE_HI, 14));
-        row.setClickable(true);
-        int p = Ui.dp(c, 14);
-        row.setPadding(p, p, p, p);
-        row.addView(Ui.text(c, label, 15, Ui.TEXT));
-        row.addView(Ui.spacer(c));
-        TextView state = Ui.text(c, on ? "On" : "Off", 14, on ? Ui.onAccent() : Ui.MUTED);
-        state.setGravity(Gravity.CENTER);
-        state.setBackground(Ui.rounded(c, on ? Ui.ACCENT : Ui.SURFACE_HI, 12));
-        state.setPadding(Ui.dp(c, 14), Ui.dp(c, 4), Ui.dp(c, 14), Ui.dp(c, 4));
-        row.addView(state);
-        row.setOnClickListener(new OnClickListener() {
+        addView(Ui.header(c, "App icon size"));
+        int scale = 1;
+        for (int i = 0; i < Ui.TILE_SCALES.length; i++) if (Ui.TILE_SCALE == Ui.TILE_SCALES[i]) scale = i;
+        addView(Kit.segmented(c, Ui.TILE_SCALE_NAMES, scale, new Kit.OnPick() {
             @Override
-            public void onClick(View v) {
-                prefs.edit().putBoolean(key, !on).commit();
-                Ui.loadTheme(prefs);
-                apply.run();
+            public void picked(int index) {
+                save("tile_scale", index);
+            }
+        }));
+
+        addView(Ui.header(c, "Dim to a clock when idle"));
+        int dim = prefs.getInt(PREF_DIM, 5), dimIndex = 0;
+        for (int i = 0; i < DIM_MINUTES.length; i++) if (DIM_MINUTES[i] == dim) dimIndex = i;
+        addView(Kit.segmented(c, DIM_NAMES, dimIndex, new Kit.OnPick() {
+            @Override
+            public void picked(int index) {
+                save(PREF_DIM, DIM_MINUTES[index]);
+            }
+        }));
+
+        addView(Ui.header(c, "Vibrate when you press a button"));
+        int buzz = Haptics.length(prefs), buzzIndex = 0;
+        for (int i = 0; i < Haptics.LEVELS_MS.length; i++) if (Haptics.LEVELS_MS[i] == buzz) buzzIndex = i;
+        addView(Kit.segmented(c, Haptics.LEVEL_NAMES, buzzIndex, new Kit.OnPick() {
+            @Override
+            public void picked(int index) {
+                Haptics.tick(getContext(), Haptics.LEVELS_MS[index]);  // feel it right away
+                save(Haptics.PREF_MS, Haptics.LEVELS_MS[index]);
+            }
+        }));
+
+        addView(Ui.header(c, "Phone"));
+        LinearLayout phone = Ui.card(c);
+        phone.addView(switchRow(c, Icon.Kind.APPS, 0xFFFF8D28, "Labels under app icons", "labels", Ui.LABELS));
+        phone.addView(Ui.hairline(c, 54));
+        phone.addView(switchRow(c, Icon.Kind.SPEAKER, 0xFFFF2D55, "Volume buttons control the PC", PREF_VOLUME_KEYS,
+                prefs.getBoolean(PREF_VOLUME_KEYS, true)));
+        addView(phone);
+    }
+
+    private LinearLayout switchRow(Context c, Icon.Kind kind, int color, String label, final String key, boolean on) {
+        Kit.Switch sw = new Kit.Switch(c, on);
+        sw.setContentDescription(label);
+        sw.setOnFlip(new Kit.OnFlip() {
+            @Override
+            public void flipped(boolean value) {
+                prefs.edit().putBoolean(key, value).commit();
+                Ui.loadTheme(getContext(), prefs);
+                // Let the knob finish sliding before the page is rebuilt.
+                postDelayed(apply, 220);
             }
         });
-        return row;
+        return Ui.listRow(c, kind, color, label, sw);
     }
 
     private void save(String key, int value) {
         prefs.edit().putInt(key, value).commit();
-        Ui.loadTheme(prefs);
+        Ui.loadTheme(getContext(), prefs);
         apply.run();
     }
 }

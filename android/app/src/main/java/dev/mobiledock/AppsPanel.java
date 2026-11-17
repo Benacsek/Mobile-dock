@@ -76,9 +76,10 @@ final class AppsPanel extends LinearLayout {
 
         FrameLayout top = new FrameLayout(c);
         header = Ui.row(c);
-        header.addView(Ui.title(c, "Pinned apps"));
-        // Which PC this phone is driving, with the same amber dot as the PC window.
+        header.addView(Ui.title(c, "Apps"));
+        // The PC name now shows in the sidebar. The chip stays built but hidden, so setPc keeps working.
         LinearLayout pc = Ui.row(c);
+        pc.setVisibility(GONE);
         pc.setBackground(Ui.rounded(c, Ui.SURFACE, 12));
         pc.setPadding(Ui.dp(c, 10), Ui.dp(c, 4), Ui.dp(c, 12), Ui.dp(c, 4));
         pcDot = new View(c);
@@ -98,7 +99,7 @@ final class AppsPanel extends LinearLayout {
         hint.setEllipsize(android.text.TextUtils.TruncateAt.END);
         hint.setPadding(Ui.dp(c, 12), 0, Ui.dp(c, 8), 0);
         header.addView(hint, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
-        ImageView add = Ui.iconButton(c, Icon.Kind.PLUS, 44, 0x00000000, Ui.SURFACE_HI, Ui.ACCENT);
+        ImageView add = Ui.iconButton(c, Icon.Kind.PLUS, 44, Ui.SURFACE_HI, Ui.PRESSED, Ui.ACCENT);
         add.setContentDescription("Add app");
         add.setOnClickListener(new OnClickListener() {
             @Override
@@ -107,7 +108,8 @@ final class AppsPanel extends LinearLayout {
             }
         });
         header.addView(add);
-        arrangeButton = Ui.iconButton(c, Icon.Kind.GRIP, 44, 0x00000000, Ui.SURFACE_HI, Ui.TEXT);
+        arrangeButton = Ui.iconButton(c, Icon.Kind.GRIP, 44, Ui.SURFACE_HI, Ui.PRESSED, Ui.ACCENT);
+        ((LayoutParams) arrangeButton.getLayoutParams()).leftMargin = Ui.dp(c, 8);
         arrangeButton.setContentDescription("Arrange");
         arrangeButton.setOnClickListener(new OnClickListener() {
             @Override
@@ -251,14 +253,16 @@ final class AppsPanel extends LinearLayout {
         final Context c = getContext();
         LinearLayout t = Ui.column(c);
         t.setGravity(Gravity.CENTER);
-        t.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.SURFACE_HI, 18));
+        t.setBackground(Ui.pressable(c, 0x00000000, Ui.SELECTED, 18));  // iOS home screen: no card
         if (arrange) t.setRotation(index % 2 == 0 ? -1.5f : 1.5f);
         t.setPadding(Ui.dp(c, 4), Ui.dp(c, 6), Ui.dp(c, 4), Ui.dp(c, 6));
 
         FrameLayout iconBox = new FrameLayout(c);
         TextView letters = Ui.text(c, Ui.initials(app.name), 20, Ui.TEXT);
         letters.setGravity(Gravity.CENTER);
-        letters.setBackground(Ui.rounded(c, Ui.colorFor(app.id), 12 * Ui.TILE_SCALE));
+        letters.setTextColor(0xFFFFFFFF);
+        letters.setTypeface(Ui.semibold());
+        letters.setBackground(Ui.rounded(c, Ui.colorFor(app.id), iconPx * 0.225f / getResources().getDisplayMetrics().density));
         iconBox.addView(letters, new FrameLayout.LayoutParams(iconPx, iconPx));
         ImageView image = new ImageView(c);
         image.setScaleType(ImageView.ScaleType.FIT_CENTER);
@@ -310,14 +314,14 @@ final class AppsPanel extends LinearLayout {
                         if (dragged != app) v.setBackground(Ui.rounded(c, Ui.ACCENT, 18));
                         return true;
                     case DragEvent.ACTION_DRAG_EXITED:
-                        v.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.SURFACE_HI, 18));
+                        v.setBackground(Ui.pressable(c, 0x00000000, Ui.SELECTED, 18));
                         return true;
                     case DragEvent.ACTION_DROP:
                         move((App) dragged, index);
                         return true;
                     case DragEvent.ACTION_DRAG_ENDED:
                         v.setAlpha(1f);
-                        v.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.SURFACE_HI, 18));
+                        v.setBackground(Ui.pressable(c, 0x00000000, Ui.SELECTED, 18));
                         dragEnded();
                         return true;
                     default:
@@ -343,7 +347,7 @@ final class AppsPanel extends LinearLayout {
     /** Arrange mode: a tap picks a tile up instead of opening the app. */
     void setArrange(boolean on) {
         arrange = on;
-        ((Icon) arrangeButton.getDrawable()).setColor(on ? Ui.onAccent() : Ui.TEXT);  // blue fill while on
+        ((Icon) arrangeButton.getDrawable()).setColor(on ? Ui.onAccent() : Ui.ACCENT);  // blue fill while on
         arrangeButton.setSelected(on);
         updateHint();
         rebuild();
@@ -437,8 +441,7 @@ final class AppsPanel extends LinearLayout {
         LinearLayout box = Ui.column(c);
         box.setPadding(Ui.dp(c, 16), Ui.dp(c, 8), Ui.dp(c, 16), 0);
         final EditText search = new EditText(c);
-        search.setHint("Search");
-        search.setSingleLine(true);
+        Ui.searchField(c, search, "Search apps on the PC");
         box.addView(search, Ui.fillWidth(c, 0));
         final ListView list = new ListView(c);
         final ArrayAdapter<App> adapter = new ArrayAdapter<App>(c, android.R.layout.simple_list_item_1,

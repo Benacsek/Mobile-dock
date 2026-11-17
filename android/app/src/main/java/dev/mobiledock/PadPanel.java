@@ -43,10 +43,10 @@ final class PadPanel extends LinearLayout {
         addView(pad, new LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
 
         LinearLayout buttons = Ui.row(c);
-        buttons.addView(holdButton(c, "Left", "left"), new LayoutParams(0, Ui.dp(c, 56), 2f));
-        buttons.addView(holdButton(c, "Middle", "middle"), new LayoutParams(0, Ui.dp(c, 56), 1f));
-        buttons.addView(holdButton(c, "Right", "right"), new LayoutParams(0, Ui.dp(c, 56), 2f));
-        final Button speedBtn = Ui.button(c, "Speed 2");
+        buttons.addView(holdButton(c, "Left", "left"), new LayoutParams(0, Ui.dp(c, 56), 1.4f));
+        buttons.addView(holdButton(c, "Middle", "middle"), new LayoutParams(0, Ui.dp(c, 56), 1.2f));
+        buttons.addView(holdButton(c, "Right", "right"), new LayoutParams(0, Ui.dp(c, 56), 1.4f));
+        final Button speedBtn = Ui.keyButton(c, "Speed 2");
         speedBtn.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -54,7 +54,7 @@ final class PadPanel extends LinearLayout {
                 speedBtn.setText("Speed " + Math.round(speed / 0.8f));
             }
         });
-        buttons.addView(speedBtn, new LayoutParams(0, Ui.dp(c, 56), 1f));
+        buttons.addView(speedBtn, new LayoutParams(0, Ui.dp(c, 56), 1.2f));
         LayoutParams lp = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
         lp.topMargin = Ui.dp(c, 8);
         addView(buttons, lp);
@@ -62,7 +62,7 @@ final class PadPanel extends LinearLayout {
 
     @SuppressLint("ClickableViewAccessibility")
     private Button holdButton(Context c, String label, final String button) {
-        Button b = Ui.button(c, label);
+        Button b = Ui.keyButton(c, label);
         b.setOnTouchListener(new OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent e) {

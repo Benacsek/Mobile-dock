@@ -143,7 +143,7 @@ final class KeysPanel extends LinearLayout {
     }
 
     private Button plainKey(Context c, String label, final String name) {
-        Button b = Ui.button(c, label);
+        Button b = Ui.keyButton(c, label);
         b.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -154,7 +154,7 @@ final class KeysPanel extends LinearLayout {
     }
 
     private Button modButton(Context c, String label, final String name) {
-        final Button b = Ui.button(c, label);
+        final Button b = Ui.keyButton(c, label);
         b.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -185,7 +185,7 @@ final class KeysPanel extends LinearLayout {
             {"Switch app", "alt", "tab"}, {"Close app", "alt", "f4"},
         };
         for (final String[] s : shortcuts) {
-            Button b = Ui.button(c, s[0]);
+            Button b = Ui.keyButton(c, s[0]);
             b.setOnClickListener(new OnClickListener() {
                 @Override
                 public void onClick(View v) {

@@ -3,8 +3,6 @@ package dev.mobiledock;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Color;
-import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.util.Base64;
 import android.view.Gravity;
@@ -56,8 +54,7 @@ final class MediaPanel extends LinearLayout {
         setOrientation(HORIZONTAL);
         setGravity(Gravity.CENTER_VERTICAL);
         int pad = Ui.dp(c, 18);
-        setPadding(pad, Ui.dp(c, 10), pad, Ui.dp(c, 10));
-        setBackground(Ui.rounded(c, Ui.SURFACE, 18));
+        setPadding(Ui.dp(c, 4), Ui.dp(c, 6), Ui.dp(c, 8), Ui.dp(c, 6));
 
         LinearLayout left = Ui.column(c);
         left.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -70,38 +67,40 @@ final class MediaPanel extends LinearLayout {
                 MediaPanel.this.onBack.run();
             }
         });
+        back.setVisibility(GONE);  // the sidebar is the way back now
         top.addView(back);
-        TextView heading = Ui.text(c, "Now playing", 14, Ui.MUTED);
+        TextView heading = Ui.strong(c, "Now Playing", 17, Ui.TEXT);
         top.addView(heading);
         top.addView(Ui.spacer(c));
-        source = Ui.text(c, "", 13, Ui.ACCENT);
+        source = Ui.strong(c, "", 15, Ui.ACCENT);
         top.addView(source);
         left.addView(top, Ui.fillWidth(c, 0));
 
-        title = centered(c, "Nothing playing", 22, Ui.TEXT);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title = centered(c, "Nothing playing", 24, Ui.TEXT);
+        title.setTypeface(Ui.bold());
         left.addView(title, Ui.fillWidth(c, 2));
-        artist = centered(c, "Start music on the PC", 15, Ui.TEXT);
+        artist = centered(c, "Start music on the PC", 19, Ui.TEXT);
         left.addView(artist, Ui.fillWidth(c, 0));
-        album = centered(c, "", 14, Ui.ACCENT);
+        album = centered(c, "", 13, Ui.MUTED);
         left.addView(album, Ui.fillWidth(c, 0));
 
-        // Fixed, compact sizes: 44 + 48 + 68 + 48 + 44 dp plus gaps fits next to the cover.
+        // Fixed, compact sizes: 38 + 42 + 54 + 42 + 38 dp plus gaps fits next to the cover.
         // -5 and +5 move the video or song. The arrows still skip whole tracks, which Spotify needs.
         LinearLayout transport = Ui.row(c);
         transport.setGravity(Gravity.CENTER);
         transport.addView(jump(c, Icon.Kind.BACK5, -5));
-        transport.addView(control(c, Icon.Kind.PREV, 48, "media", "prev", false));
-        play = control(c, Icon.Kind.PLAY, 68, "media", "play_pause", true);
+        transport.addView(control(c, Icon.Kind.PREV, 42, "media", "prev", false));
+        play = control(c, Icon.Kind.PLAY, 54, "media", "play_pause", true);
         transport.addView(play);
-        transport.addView(control(c, Icon.Kind.NEXT, 48, "media", "next", false));
+        transport.addView(control(c, Icon.Kind.NEXT, 42, "media", "next", false));
         transport.addView(jump(c, Icon.Kind.FORWARD5, 5));
         left.addView(transport, Ui.fillWidth(c, 6));
 
         LinearLayout progress = Ui.row(c);
-        elapsed = Ui.text(c, "", 12, Ui.TEXT);
+        elapsed = Ui.text(c, "", 12, Ui.MUTED);
         progress.addView(elapsed);
         seek = new SeekBar(c);
+        Kit.slider(c, seek);
         seek.setMax(1000);
         seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
@@ -125,36 +124,36 @@ final class MediaPanel extends LinearLayout {
             }
         });
         progress.addView(seek, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
-        remaining = Ui.text(c, "", 12, Ui.TEXT);
+        remaining = Ui.text(c, "", 12, Ui.MUTED);
         progress.addView(remaining);
         left.addView(progress, Ui.fillWidth(c, 2));
 
         LinearLayout extras = Ui.row(c);
         extras.setGravity(Gravity.CENTER);
-        shuffle = control(c, Icon.Kind.SHUFFLE, 42, "media.shuffle", null, false);
+        shuffle = control(c, Icon.Kind.SHUFFLE, 40, "media.shuffle", null, false);
         extras.addView(shuffle);
-        repeat = control(c, Icon.Kind.REPEAT, 42, "media.repeat", null, false);
+        repeat = control(c, Icon.Kind.REPEAT, 40, "media.repeat", null, false);
         extras.addView(repeat);
-        extras.addView(control(c, Icon.Kind.VOL_DOWN, 42, "media", "vol_down", false));
-        extras.addView(control(c, Icon.Kind.MUTE, 42, "media", "mute", false));
-        extras.addView(control(c, Icon.Kind.VOL_UP, 42, "media", "vol_up", false));
+        extras.addView(control(c, Icon.Kind.VOL_DOWN, 40, "media", "vol_down", false));
+        extras.addView(control(c, Icon.Kind.MUTE, 40, "media", "mute", false));
+        extras.addView(control(c, Icon.Kind.VOL_UP, 40, "media", "vol_up", false));
         left.addView(extras, Ui.fillWidth(c, 0));
 
-        addView(left, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
-
+        // Like Apple Music in landscape: the cover on the left, the song and controls on the right.
         art = new ImageView(c);
         art.setScaleType(ImageView.ScaleType.CENTER_CROP);
         art.setBackground(Ui.rounded(c, Ui.SURFACE_HI, 14));
         LayoutParams alp = new LayoutParams(0, 0);
-        alp.leftMargin = pad;
+        alp.rightMargin = pad;
         addView(art, alp);
+        addView(left, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
     }
 
     /** The cover is a square that fills the height but always leaves room for the controls. */
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
-        int controls = Ui.dp(getContext(), 300);
+        int controls = Ui.dp(getContext(), 236);  // the song and the compact controls need this much width
         int side = Math.min(h - getPaddingTop() - getPaddingBottom(),
                 w - getPaddingLeft() - getPaddingRight() - controls - Ui.dp(getContext(), 18));
         final int size = Math.max(0, side);
@@ -173,10 +172,10 @@ final class MediaPanel extends LinearLayout {
     private ImageView control(Context c, Icon.Kind kind, int size, final String cmd, final String action,
                               boolean primary) {
         ImageView b = primary
-                ? Ui.iconButton(c, kind, size, Ui.ACCENT, Ui.accentPressed(), Ui.onAccent())
-                : Ui.iconButton(c, kind, size, 0x00000000, 0x33FFFFFF, Ui.TEXT);
+                ? Ui.iconButton(c, kind, size, 0x00000000, Ui.SELECTED, Ui.TEXT)  // Apple Music: plain glyphs
+                : Ui.iconButton(c, kind, size, 0x00000000, Ui.SELECTED, Ui.TEXT);
         LayoutParams lp = (LayoutParams) b.getLayoutParams();
-        int m = Ui.dp(c, primary ? 12 : 4);
+        int m = Ui.dp(c, primary ? 6 : 2);
         lp.setMargins(m, 0, m, 0);
         b.setOnClickListener(new OnClickListener() {
             @Override
@@ -189,7 +188,7 @@ final class MediaPanel extends LinearLayout {
 
     /** -5 or +5 seconds. Works with the player in the background, on any monitor. */
     private ImageView jump(Context c, Icon.Kind kind, final int seconds) {
-        ImageView b = Ui.iconButton(c, kind, 44, 0x00000000, 0x33FFFFFF, Ui.TEXT);
+        ImageView b = Ui.iconButton(c, kind, 38, 0x00000000, Ui.SELECTED, Ui.TEXT);
         LayoutParams lp = (LayoutParams) b.getLayoutParams();
         int m = Ui.dp(c, 2);
         lp.setMargins(m, 0, m, 0);
@@ -202,9 +201,15 @@ final class MediaPanel extends LinearLayout {
         return b;
     }
 
+    /** On, like Apple Music: the icon turns the accent color on a soft gray circle. No solid fill. */
+    private void mark(ImageView b, boolean on) {
+        ((Icon) b.getDrawable()).setColor(on ? Ui.ACCENT : Ui.TEXT);
+        b.setBackground(Ui.pressable(getContext(), on ? Ui.SELECTED : 0x00000000, Ui.SELECTED, 20));
+    }
+
     private static TextView centered(Context c, String s, float sp, int color) {
         TextView t = Ui.text(c, s, sp, color);
-        t.setGravity(Gravity.CENTER);
+        t.setGravity(Gravity.START);
         t.setSingleLine(true);
         t.setEllipsize(android.text.TextUtils.TruncateAt.END);
         return t;
@@ -236,19 +241,19 @@ final class MediaPanel extends LinearLayout {
         album.setText(r.optString("album"));
         source.setText(appLabel(r.optString("app")));
         playing = r.optBoolean("playing");
-        play.setImageDrawable(new Icon(playing ? Icon.Kind.PAUSE : Icon.Kind.PLAY, Ui.onAccent()));
+        play.setImageDrawable(new Icon(playing ? Icon.Kind.PAUSE : Icon.Kind.PLAY, Ui.TEXT));
         play.setContentDescription(playing ? "Pause" : "Play");
         if (r.has("shuffle")) {
             shuffle.setVisibility(VISIBLE);
-            shuffle.setSelected(r.optBoolean("shuffle"));
+            mark(shuffle, r.optBoolean("shuffle"));
         } else {
             shuffle.setVisibility(GONE);
         }
         if (r.has("repeat")) {
             String mode = r.optString("repeat");
             repeat.setVisibility(VISIBLE);
-            repeat.setSelected(!"none".equals(mode));
             repeat.setImageDrawable(new Icon("track".equals(mode) ? Icon.Kind.REPEAT_ONE : Icon.Kind.REPEAT, Ui.TEXT));
+            mark(repeat, !"none".equals(mode));
             repeat.setContentDescription("track".equals(mode) ? "Repeat one" : "Repeat all");
         } else {
             repeat.setVisibility(GONE);
@@ -314,17 +319,37 @@ final class MediaPanel extends LinearLayout {
         });
     }
 
-    /** Shows the cover and tints the panel with its average color, like car dashboards do. */
+    /** Called when the cover changes, with a background made from its colors. */
+    interface Backdrop {
+        void changed(android.graphics.drawable.Drawable background);
+    }
+
+    private Backdrop backdropListener;
+    private android.graphics.drawable.Drawable backdrop;
+
+    void setBackdropListener(Backdrop l) {
+        backdropListener = l;
+    }
+
+    /** The page background made from the cover, or null when nothing plays. */
+    android.graphics.drawable.Drawable backdrop() {
+        return backdrop;
+    }
+
+    /**
+     * Shows the cover. Its colors fill the whole page and run under the sidebar, like Apple Music
+     * (Apple calls this a background extension). Mixed with the page color, so text stays readable.
+     */
     private void setArt(Bitmap bmp) {
         art.setImageBitmap(bmp);
-        int base = Ui.SURFACE;
+        backdrop = null;
         if (bmp != null) {
-            int avg = Bitmap.createScaledBitmap(bmp, 1, 1, true).getPixel(0, 0);
-            base = Color.rgb(Color.red(avg) / 2, Color.green(avg) / 2, Color.blue(avg) / 2);
+            Bitmap two = Bitmap.createScaledBitmap(bmp, 1, 2, true);
+            float mix = Ui.DARK ? 0.42f : 0.38f;
+            int top = Kit.blend(Ui.BG, two.getPixel(0, 0), mix), bottom = Kit.blend(Ui.BG, two.getPixel(0, 1), mix);
+            backdrop = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[] {top, bottom});
         }
-        GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[] {base, Ui.BG});
-        g.setCornerRadius(Ui.dp(getContext(), 16));
-        setBackground(g);
+        if (backdropListener != null) backdropListener.changed(backdrop);
     }
 
     void refresh() {

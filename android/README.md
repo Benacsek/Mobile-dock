@@ -28,24 +28,24 @@ Debug builds from the Actions tab are signed with a different key on every run. 
 
 ## Use
 
-The dock bar sits at the bottom of the screen with eight tiles. Tap a tile to open its page.
+A floating sidebar on the left lists 7 pages. Your PC's name and connection sit at the top, with Fullscreen and Settings (the gear) beside them. The look follows Apple's design guidelines, in light or dark.
 
 App icons all get the same rounded-square shape. Names can use two lines. The grid spreads apps evenly over the rows, so 8 apps make two rows of 4.
 
-- Apps: tap a tile to open it on the PC. Long press a tile to drag it. Drop it on another tile to move it there, or on the red bar to unpin. The header shows which PC you are connected to. Its icons are + to pin more apps and the arrows for Arrange.
+- Apps: tap a tile to open it on the PC. Long press a tile to drag it. Drop it on another tile to move it there, or on the red bar to unpin. Its icons are + to pin more apps and the dots for Arrange.
 - Search: type in the box and tap Search. Auto picks the place: a keyword like `yt lofi`, a site like `youtube` or `github.com`, the app in front on the PC, then the default search. Tap a preset chip to choose one yourself. Long press a chip to see its keyword. Your last 10 searches sit below, one tap to repeat.
 - Playing: album art, title, artist, album and a progress bar you can drag to seek. Play, skip, shuffle, repeat and volume. The -5 and +5 buttons move a video or song by 5 seconds, even with its window in the background. Opening Spotify or another music app from Apps jumps here.
 - Shortcuts: tiles for the app in front on the PC. The target icon in the header turns Follow on or off. Tap the pad name to pick another pad.
-- Controls: volume, mute, lock, screen off, sleep, show desktop, Task Manager and Disconnect. Sleep asks first. The volume mixer lists every app playing sound with its own slider and mute button. Tap the refresh icon after you start a new app.
-- Capture: screenshot, snip a region (Win+Shift+S on Windows), record, picture to the PC clipboard and file to Downloads. Clipboard text: Phone to PC and PC to phone.
+- Controls: volume, mute, lock, screen off, sleep, show desktop, Task Manager, Capture and Disconnect. Sleep asks first. The volume mixer lists every app playing sound with its own slider and mute button. Tap the refresh icon after you start a new app.
+- Capture (from Controls, Back returns there): screenshot, snip a region (Win+Shift+S on Windows), record, picture to the PC clipboard and file to Downloads. Clipboard text: Phone to PC and PC to phone.
 - Touch: switch between Touchpad, Keyboard and Sign at the top.
   - Touchpad: one finger moves. Tap to click. Two finger tap is right click, three finger tap is middle click. Two fingers scroll. Hold Left and move to drag.
   - Keyboard: type in the box and the text goes to the PC as you type. Tap Ctrl, Alt, Shift or Win before a key to make a shortcut.
   - Sign: draw with your finger. Send to PC puts a PNG with a clear background on the clipboard. Paste it with Ctrl+V.
 - Stats: CPU, GPU, memory, network and disk graphs for the last minute, plus the busiest apps. Temperatures and fan speeds show when the PC can read them.
-- Settings: accent color, tile size, background glow, dock labels, night dimming, tap vibration and the volume buttons switch on the left. Phone and PC versions, the PC's update status and Check now on the right.
-- Arrange: the arrows icon on Apps. A tap picks a tile up. Tap the icon again or press Back when you are done.
-- Fullscreen: the corners icon at the right end of the dock bar hides the bar on any page. Tap the small button in the corner or press Back to bring it back.
+- Settings: Appearance (Automatic, Light or Dark), accent color, app icon size, night dimming, tap vibration, app labels and the volume buttons switch. Then the phone and PC versions, the PC's update status and Check now.
+- Arrange: the dots icon on Apps. A tap picks a tile up. Tap the icon again or press Back when you are done.
+- Fullscreen: the corners icon at the top of the sidebar hides it on any page. Tap the small button in the corner or press Back to bring it back.
 
 Night dimming: after 5 minutes without a touch, the dock dims to a quiet clock with the current song on black. The first touch brings the dock back and does not press anything. The clock moves a little every 20 seconds so no pixel stays lit in one place. Pick Off, 1, 5 or 15 minutes in Settings.
 
@@ -140,8 +140,9 @@ If you lose the key, phones can't update anymore. You'd have to uninstall and re
 | `proto/` | Pure Java protocol: SPAKE2, AES and HMAC channel, framing |
 | `DockClient.java` | Connection, reconnect, requests |
 | `Discovery.java` | UDP broadcast to find PCs |
-| `MainActivity.java` | Connect page, dock bar, pages, fullscreen |
-| `Ui.java`, `Icon.java` | Theme, dock tiles and line icons drawn in code |
+| `MainActivity.java` | Connect page, sidebar, pages, fullscreen |
+| `Ui.java`, `Icon.java` | Light and dark colors, Inter, list rows and line icons drawn in code |
+| `Kit.java` | iOS controls drawn in code: switch, segmented control, slider, floating glass panel |
 | `AppsPanel.java` | Pinned apps grid with drag and drop and arrange mode |
 | `ControlsPanel.java`, `CapturePanel.java` | PC controls, capture and sending |
 | `TouchPanel.java`, `SignPanel.java` | Touchpad, keyboard and signature pad |

@@ -3,4 +3,8 @@
     <style name="DockTheme" parent="@android:style/Theme.Holo.NoActionBar.Fullscreen">
         <item name="android:windowBackground">@android:color/black</item>
     </style>
+    <!-- Light appearance. Pages are built in code; this only styles system dialogs and the first frame. -->
+    <style name="DockThemeLight" parent="@android:style/Theme.Holo.Light.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@color/grouped_light</item>
+    </style>
 </resources>

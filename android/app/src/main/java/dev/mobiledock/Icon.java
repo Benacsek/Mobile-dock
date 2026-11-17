@@ -18,7 +18,7 @@ final class Icon extends Drawable {
         PLAY, PAUSE, PREV, NEXT, SHUFFLE, REPEAT, REPEAT_ONE, VOL_DOWN, VOL_UP, MUTE,
         APPS, MUSIC, TOUCHPAD, KEYBOARD, CAMERA, RECORD, STOP, POWER, BACK, PLUS, REFRESH,
         SHORTCUTS, CHART, SEND, FOLLOW,
-        SLIDERS, SUN, MONITOR, LOCK, MOON, PEN, PICTURE, FILE, SCISSORS, GRIP, EXPAND, SHRINK, CLIPBOARD, BACK5, FORWARD5, SEARCH, GLOBE, PIN, CLOSE
+        SLIDERS, SUN, MONITOR, LOCK, MOON, PEN, PICTURE, FILE, SCISSORS, GRIP, EXPAND, SHRINK, CLIPBOARD, BACK5, FORWARD5, SEARCH, GLOBE, PIN, CLOSE, CHEVRON, GEAR, CLOCK, SPEAKER
     }
 
     private final Kind kind;
@@ -60,6 +60,14 @@ final class Icon extends Drawable {
         p.moveTo(x(pts[0]), y(pts[1]));
         for (int i = 2; i < pts.length; i += 2) p.lineTo(x(pts[i]), y(pts[i + 1]));
         p.close();
+        return p;
+    }
+
+    /** A path that is not closed, for chevrons and clock hands. */
+    private Path open(float... pts) {
+        Path p = new Path();
+        p.moveTo(x(pts[0]), y(pts[1]));
+        for (int i = 2; i < pts.length; i += 2) p.lineTo(x(pts[i]), y(pts[i + 1]));
         return p;
     }
 
@@ -301,6 +309,26 @@ final class Icon extends Drawable {
                 c.drawCircle(x(0.5f), y(0.38f), s * 0.22f, line);
                 c.drawPath(poly(0.32f, 0.5f, 0.5f, 0.88f, 0.68f, 0.5f), fill);
                 c.drawCircle(x(0.5f), y(0.38f), s * 0.08f, fill);
+                break;
+            case CHEVRON:
+                c.drawPath(open(0.36f, 0.18f, 0.66f, 0.5f, 0.36f, 0.82f), line);
+                break;
+            case GEAR:
+                for (int i = 0; i < 8; i++) {
+                    double ang = i * Math.PI / 4;
+                    float cx = (float) Math.cos(ang), cy = (float) Math.sin(ang);
+                    c.drawLine(x(0.5f + cx * 0.3f), y(0.5f + cy * 0.3f), x(0.5f + cx * 0.42f), y(0.5f + cy * 0.42f), line);
+                }
+                c.drawCircle(x(0.5f), y(0.5f), s * 0.28f, line);
+                c.drawCircle(x(0.5f), y(0.5f), s * 0.11f, line);
+                break;
+            case CLOCK:
+                c.drawCircle(x(0.5f), y(0.5f), s * 0.38f, line);
+                c.drawPath(open(0.5f, 0.28f, 0.5f, 0.5f, 0.65f, 0.6f), line);
+                break;
+            case SPEAKER:
+                c.drawPath(poly(0.14f, 0.38f, 0.32f, 0.38f, 0.56f, 0.18f, 0.56f, 0.82f, 0.32f, 0.62f, 0.14f, 0.62f), fill);
+                c.drawArc(box(0.5f, 0.32f, 0.82f, 0.68f), -50, 100, false, line);
                 break;
             case CLOSE:
                 seg(c, 0.28f, 0.28f, 0.72f, 0.72f);

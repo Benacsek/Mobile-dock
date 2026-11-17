@@ -2,6 +2,10 @@
 <resources>
     <style name="DockTheme" parent="@android:style/Theme.Material.NoActionBar.Fullscreen">
         <item name="android:windowBackground">@android:color/black</item>
-        <item name="android:colorAccent">#4F8CFF</item>
+        <item name="android:colorAccent">#0091FF</item>
+    </style>
+    <style name="DockThemeLight" parent="@android:style/Theme.Material.Light.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@color/grouped_light</item>
+        <item name="android:colorAccent">#0088FF</item>
     </style>
 </resources>

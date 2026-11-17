@@ -22,113 +22,108 @@ final class CapturePanel extends ScrollView {
 
     private final LinearLayout recordTile;
 
-    CapturePanel(Context c, final DockClient client, final Actions actions) {
+    CapturePanel(Context c, final DockClient client, final Actions actions, final Runnable back) {
         super(c);
+        setVerticalScrollBarEnabled(false);
+        LinearLayout page = Ui.column(c);
+        page.setPadding(0, 0, Ui.dp(c, 6), Ui.dp(c, 12));
+        addView(page);
+        // Opened from Controls, so a back link sits above the title, like iOS.
+        TextView up = Ui.text(c, "\u2039 Controls", 17, Ui.ACCENT);
+        up.setPadding(Ui.dp(c, 4), Ui.dp(c, 4), Ui.dp(c, 12), 0);
+        up.setClickable(true);
+        up.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                back.run();
+            }
+        });
+        page.addView(up, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, Ui.dp(c, 32)));
+        page.addView(Ui.title(c, "Capture"));
         LinearLayout box = Ui.row(c);
         box.setGravity(android.view.Gravity.TOP);
-        addView(box);
+        page.addView(box);
 
         // Left: capture on the PC. Files save on the PC.
         LinearLayout left = Ui.column(c);
-        left.addView(section(c, "Capture on the PC"));
-        left.addView(wide(c, Icon.Kind.CAMERA, "Screenshot", new OnClickListener() {
+        left.addView(Ui.header(c, "On the PC"));
+        LinearLayout pc = Ui.card(c);
+        pc.addView(row(c, Icon.Kind.CAMERA, 0xFF8E8E93, "Screenshot", new OnClickListener() {
             @Override
             public void onClick(View v) {
                 actions.screenshot();
             }
-        }), cell(c));
-        left.addView(wide(c, Icon.Kind.SCISSORS, "Snip a region", new OnClickListener() {
+        }));
+        pc.addView(Ui.hairline(c, 54));
+        pc.addView(row(c, Icon.Kind.SCISSORS, 0xFF0088FF, "Snip a region", new OnClickListener() {
             @Override
             public void onClick(View v) {
                 // Opens the snipping bar on Windows. The result goes to the PC clipboard.
                 client.fire("input.key", DockClient.args("key", "s", "mods", new JSONArray().put("meta").put("shift")));
             }
-        }), cell(c));
-        recordTile = wide(c, Icon.Kind.RECORD, "Record", new OnClickListener() {
+        }));
+        pc.addView(Ui.hairline(c, 54));
+        recordTile = row(c, Icon.Kind.RECORD, 0xFFFF383C, "Record the screen", new OnClickListener() {
             @Override
             public void onClick(View v) {
                 actions.toggleRecording();
             }
         });
-        left.addView(recordTile, cell(c));
+        pc.addView(recordTile);
+        left.addView(pc);
+        TextView where = Ui.text(c, "Pictures and videos save in Pictures and Videos, in a Mobile Dock folder.", 13,
+                Ui.MUTED);
+        where.setPadding(Ui.dp(c, 16), Ui.dp(c, 6), Ui.dp(c, 16), 0);
+        left.addView(where);
         box.addView(left, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
-        // Right: send from the phone, two by two.
+        // Right: send from the phone, and clipboard text both ways.
         LinearLayout right = Ui.column(c);
-        right.addView(section(c, "Send from this phone"));
-        LinearLayout row1 = Ui.row(c);
-        row1.addView(wide(c, Icon.Kind.PICTURE, "Picture to clipboard", new OnClickListener() {
+        right.addView(Ui.header(c, "From this phone"));
+        LinearLayout send = Ui.card(c);
+        send.addView(row(c, Icon.Kind.PICTURE, 0xFF34C759, "Picture to clipboard", new OnClickListener() {
             @Override
             public void onClick(View v) {
                 actions.pick(true);
             }
-        }), half(c));
-        row1.addView(wide(c, Icon.Kind.FILE, "File to Downloads", new OnClickListener() {
+        }));
+        send.addView(Ui.hairline(c, 54));
+        send.addView(row(c, Icon.Kind.FILE, 0xFF0088FF, "File to Downloads", new OnClickListener() {
             @Override
             public void onClick(View v) {
                 actions.pick(false);
             }
-        }), half(c));
-        right.addView(row1);
-        right.addView(section(c, "Clipboard text"));
-        LinearLayout row2 = Ui.row(c);
-        row2.addView(wide(c, Icon.Kind.CLIPBOARD, "Phone to PC", new OnClickListener() {
+        }));
+        right.addView(send);
+        right.addView(Ui.header(c, "Clipboard text"));
+        LinearLayout clip = Ui.card(c);
+        clip.addView(row(c, Icon.Kind.CLIPBOARD, 0xFFFF8D28, "Phone to PC", new OnClickListener() {
             @Override
             public void onClick(View v) {
                 copyToPc(client);
             }
-        }), half(c));
-        row2.addView(wide(c, Icon.Kind.CLIPBOARD, "PC to phone", new OnClickListener() {
+        }));
+        clip.addView(Ui.hairline(c, 54));
+        clip.addView(row(c, Icon.Kind.CLIPBOARD, 0xFFFF8D28, "PC to phone", new OnClickListener() {
             @Override
             public void onClick(View v) {
                 copyFromPc(client);
             }
-        }), half(c));
-        right.addView(row2);
-        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f);
-        rlp.leftMargin = Ui.dp(c, 12);
+        }));
+        right.addView(clip);
+        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        rlp.leftMargin = Ui.dp(c, 14);
         box.addView(right, rlp);
     }
 
-    private static TextView section(Context c, String label) {
-        TextView t = Ui.text(c, label, 13, Ui.ACCENT);
-        t.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        t.setPadding(Ui.dp(c, 6), Ui.dp(c, 8), 0, Ui.dp(c, 4));
-        return t;
-    }
-
-    /** A wide tile: icon on the left, label beside it. Child 0 is the icon and child 1 the label. */
-    private static LinearLayout wide(Context c, Icon.Kind kind, String label, OnClickListener click) {
-        LinearLayout t = Ui.row(c);
-        t.setBackground(Ui.pressable(c, Ui.SURFACE, Ui.SURFACE_HI, 14));
-        t.setClickable(true);
-        t.setPadding(Ui.dp(c, 14), 0, Ui.dp(c, 10), 0);
-        ImageView icon = new ImageView(c);
-        icon.setImageDrawable(new Icon(kind, Ui.TEXT));
-        int s = Ui.dp(c, 24);
-        t.addView(icon, new LinearLayout.LayoutParams(s, s));
-        TextView l = Ui.text(c, label, 14, Ui.TEXT);
+    /** A grouped list row. Child 0 is the icon tile and child 1 the label. */
+    private static LinearLayout row(Context c, Icon.Kind kind, int color, String label, OnClickListener click) {
+        LinearLayout r = Ui.listRow(c, kind, color, label, null);
+        TextView l = (TextView) r.getChildAt(1);
         l.setSingleLine(true);
         l.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        l.setPadding(Ui.dp(c, 12), 0, 0, 0);
-        t.addView(l);
-        t.setOnClickListener(click);
-        return t;
-    }
-
-    private static LinearLayout.LayoutParams cell(Context c) {
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(c, 52 * Ui.TILE_SCALE));
-        int m = Ui.dp(c, 4);
-        lp.setMargins(m, m, m, m);
-        return lp;
-    }
-
-    private static LinearLayout.LayoutParams half(Context c) {
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, Ui.dp(c, 52 * Ui.TILE_SCALE), 1f);
-        int m = Ui.dp(c, 4);
-        lp.setMargins(m, m, m, m);
-        return lp;
+        Ui.pressableRow(c, r, click);
+        return r;
     }
 
     @SuppressWarnings("deprecation")
@@ -179,9 +174,9 @@ final class CapturePanel extends ScrollView {
 
     void setRecording(boolean on) {
         ((ImageView) recordTile.getChildAt(0)).setImageDrawable(
-                new Icon(on ? Icon.Kind.STOP : Icon.Kind.RECORD, on ? Ui.SIGNAL : Ui.TEXT));
+                new Icon(on ? Icon.Kind.STOP : Icon.Kind.RECORD, 0xFFFFFFFF));
         TextView label = (TextView) recordTile.getChildAt(1);
-        label.setText(on ? "Stop recording" : "Record");
-        label.setTextColor(on ? Ui.SIGNAL : Ui.TEXT);
+        label.setText(on ? "Stop recording" : "Record the screen");
+        label.setTextColor(on ? Ui.DANGER : Ui.TEXT);
     }
 }
