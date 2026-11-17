@@ -64,33 +64,92 @@ def _autostart_set(enabled: bool) -> None:
                 pass
 
 
-# Three colors: graphite for surfaces, blue for actions and selection, amber for live state.
-BG, SURFACE, SURFACE_HI, LINE = "#16181C", "#1E2126", "#272B31", "#33383F"
-TEXT, MUTED, FAINT = "#E6E8EB", "#8B919A", "#5C626B"
-ACCENT, ACCENT_HOVER, ACCENT_PRESS, ON_ACCENT = "#4C8DF6", "#6A9FF8", "#3A74D4", "#FFFFFF"
-SIGNAL, SIGNAL_BG = "#F2B33D", "#2E2618"
-HOVER, PRESS = "#2F343B", "#383E46"
+# Apple's semantic colors, as on the phone. BG is the window, SURFACE a card on it, SURFACE_HI a fill
+# for buttons and fields, LINE a hairline. use_palette sets them before any widget is built.
+PALETTES = {
+    "dark": dict(BG="#1C1C1E", SURFACE="#2C2C2E", SURFACE_HI="#3A3A3C", LINE="#48484A", TEXT="#FFFFFF",
+                 MUTED="#98989F", FAINT="#636366", ACCENT="#0091FF", ACCENT_HOVER="#33A7FF", ACCENT_PRESS="#0074CC",
+                 ON_ACCENT="#FFFFFF", SIGNAL="#FF9230", SIGNAL_BG="#3A2A1A", HOVER="#444446", PRESS="#505052",
+                 GREEN="#30D158", SIDEBAR="#252527", SELECTED="#3A3A3C", DANGER="#FF4245"),
+    "light": dict(BG="#F2F2F7", SURFACE="#FFFFFF", SURFACE_HI="#E9E9EE", LINE="#D1D1D6", TEXT="#000000",
+                  MUTED="#6E6E73", FAINT="#AEAEB2", ACCENT="#0088FF", ACCENT_HOVER="#2E9BFF", ACCENT_PRESS="#006ECC",
+                  ON_ACCENT="#FFFFFF", SIGNAL="#FF8D28", SIGNAL_BG="#FFF1E3", HOVER="#DEDEE3", PRESS="#D1D1D6",
+                  GREEN="#34C759", SIDEBAR="#E8E8ED", SELECTED="#D9D9DE", DANGER="#FF383C"),
+}
+THEME_NAMES = ("Automatic", "Light", "Dark")
+BG = SURFACE = SURFACE_HI = LINE = TEXT = MUTED = FAINT = ACCENT = ACCENT_HOVER = ACCENT_PRESS = ""
+ON_ACCENT = SIGNAL = SIGNAL_BG = HOVER = PRESS = GREEN = SIDEBAR = SELECTED = DANGER = ""
+DARK = True
+
+
+def windows_dark() -> bool:
+    """True when Windows apps use dark mode. Linux and errors count as dark."""
+    if sys.platform != "win32":
+        return True
+    try:
+        import winreg
+
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                            r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize") as key:
+            return winreg.QueryValueEx(key, "AppsUseLightTheme")[0] == 0
+    except OSError:
+        return True
+
+
+def use_palette(mode: int = 0) -> None:
+    """0 follows Windows, 1 is light, 2 is dark. Sets the module colors read by every widget."""
+    global DARK
+    DARK = mode == 2 or (mode == 0 and windows_dark())
+    globals().update(PALETTES["dark" if DARK else "light"])
+
+
+use_palette(0)
+
+FONT_DIR = Path(__file__).with_name("fonts")
+_fonts_loaded = False
+
+
+def load_inter() -> bool:
+    """Makes Inter available to this process only. Nothing is installed on the PC."""
+    global _fonts_loaded
+    if _fonts_loaded:
+        return True
+    if sys.platform == "win32":
+        import ctypes
+
+        private = 0x10  # FR_PRIVATE
+        added = 0
+        for name in ("Inter-Regular.ttf", "Inter-SemiBold.ttf", "Inter-Bold.ttf"):
+            path = FONT_DIR / name
+            if path.exists():
+                added += ctypes.windll.gdi32.AddFontResourceExW(str(path), private, 0)
+        _fonts_loaded = added > 0
+    return _fonts_loaded
 
 
 def apply_theme(root: tk.Tk) -> None:
-    """Graphite theme with a blue accent and an amber signal color."""
+    """Apple style: Inter, the system colors, and flat controls."""
     from tkinter import font as tkfont
 
     root.configure(background=BG)
     base = tkfont.nametofont("TkDefaultFont")
-    family = base.cget("family")
-    if sys.platform == "win32":
-        family = "Segoe UI"
-        base.configure(family=family)
+    load_inter()
+    families = set(tkfont.families(root))
+    family = "Inter" if "Inter" in families else ("Segoe UI" if sys.platform == "win32" else base.cget("family"))
+    semi = "Inter SemiBold" if "Inter SemiBold" in families else family
+    semi_weight = "normal" if semi != family else "bold"
+    base.configure(family=family)
     size = abs(int(base.cget("size"))) or 9
     fonts = {
-        "body": tkfont.Font(family=family, size=size + 1),
-        "small": tkfont.Font(family=family, size=size),
-        "strong": tkfont.Font(family=family, size=size + 1, weight="bold"),
-        "h2": tkfont.Font(family=family, size=size + 4, weight="bold"),
-        "brand": tkfont.Font(family=family, size=size + 5, weight="bold"),
+        "body": tkfont.Font(family=family, size=size + 2),
+        "small": tkfont.Font(family=family, size=size + 1),
+        "strong": tkfont.Font(family=semi, size=size + 2, weight=semi_weight),
+        "h2": tkfont.Font(family=semi, size=size + 4, weight=semi_weight),
+        "brand": tkfont.Font(family=family, size=size + 6, weight="bold"),
+        "large": tkfont.Font(family=family, size=size + 13, weight="bold"),
         "pin": tkfont.Font(family=family, size=size + 18, weight="bold"),
-        "tab": tkfont.Font(family=family, size=size + 2),
+        "tab": tkfont.Font(family=family, size=size + 3),
+        "tab_on": tkfont.Font(family=semi, size=size + 3, weight=semi_weight),
     }
     root._fonts = fonts  # keep references alive
 
@@ -102,7 +161,7 @@ def apply_theme(root: tk.Tk) -> None:
     style.configure("Card.TFrame", background=SURFACE)
     style.configure("TLabel", background=BG, foreground=TEXT)
     style.configure("Footer.TLabel", foreground=MUTED)
-    style.configure("TButton", background=SURFACE_HI, foreground=TEXT, padding=(14, 7), borderwidth=0)
+    style.configure("TButton", background=SURFACE_HI, foreground=ACCENT, padding=(14, 7), borderwidth=0)
     style.map("TButton", background=[("active", HOVER), ("pressed", PRESS)])
     style.configure("Accent.TButton", background=ACCENT, foreground=ON_ACCENT)
     style.map("Accent.TButton", background=[("active", ACCENT_HOVER), ("pressed", ACCENT_PRESS)])
@@ -112,38 +171,59 @@ def apply_theme(root: tk.Tk) -> None:
     style.configure("TEntry", fieldbackground=SURFACE_HI, foreground=TEXT, insertcolor=TEXT, padding=6)
     style.configure("TCombobox", fieldbackground=SURFACE_HI, foreground=TEXT, background=SURFACE_HI, arrowcolor=TEXT)
     style.map("TCombobox", fieldbackground=[("readonly", SURFACE_HI)], foreground=[("readonly", TEXT)])
+    style.configure("Treeview", background=SURFACE, fieldbackground=SURFACE, foreground=TEXT, bordercolor=SURFACE)
+    style.map("Treeview", background=[("selected", ACCENT)], foreground=[("selected", ON_ACCENT)])
+    style.configure("Treeview.Heading", background=SURFACE_HI, foreground=MUTED, relief="flat")
     style.configure("Vertical.TScrollbar", background=SURFACE_HI, troughcolor=BG, arrowcolor=MUTED,
                     bordercolor=BG, lightcolor=SURFACE_HI, darkcolor=SURFACE_HI, gripcount=0, arrowsize=12)
     style.map("Vertical.TScrollbar", background=[("active", HOVER)])
 
 
-class FlatButton(tk.Label):
-    """Flat button with hover, press and a keyboard focus ring. Space or Enter clicks it."""
+def rounded(canvas: tk.Canvas, x0, y0, x1, y1, r, **kw):
+    """A rounded rectangle on a Tk canvas, drawn as a smoothed polygon."""
+    r = max(0, min(r, (x1 - x0) / 2, (y1 - y0) / 2))
+    pts = [x0 + r, y0, x1 - r, y0, x1, y0, x1, y0 + r, x1, y1 - r, x1, y1, x1 - r, y1, x0 + r, y1, x0, y1,
+           x0, y1 - r, x0, y0 + r, x0, y0]
+    return canvas.create_polygon(pts, smooth=True, splinesteps=24, **kw)
 
-    KINDS = {
-        "primary": (ACCENT, ACCENT_HOVER, ACCENT_PRESS, ON_ACCENT),
-        "secondary": (SURFACE_HI, HOVER, PRESS, TEXT),
-        "ghost": (None, SURFACE_HI, HOVER, MUTED),
-    }
 
-    def __init__(self, parent, text: str, command, kind: str = "secondary", bg: str = SURFACE):
-        base, hover, press, fg = self.KINDS[kind]
-        base = base or bg
-        super().__init__(parent, text=text, background=base, foreground=fg, padx=16, pady=7, cursor="hand2",
-                         takefocus=1, highlightthickness=1, highlightbackground=base, highlightcolor=ACCENT,
-                         font=parent._root()._fonts["strong" if kind == "primary" else "body"])
-        self._colors, self._command, self._inside, self._fg, self.enabled = (base, hover, press), command, False, fg, True
+class FlatButton(tk.Canvas):
+    """A capsule button like iOS 26: accent fill for the main action, gray fill or none for the rest.
+
+    Drawn on a canvas because Tk has no rounded widgets. Hover, press, a focus ring, and Space or Enter.
+    """
+
+    def __init__(self, parent, text: str, command, kind: str = "secondary", bg: str | None = None):
+        kinds = {
+            "primary": (ACCENT, ACCENT_HOVER, ACCENT_PRESS, ON_ACCENT),
+            "secondary": (SURFACE_HI, HOVER, PRESS, ACCENT),
+            "ghost": (None, SURFACE_HI, HOVER, ACCENT),
+        }
+        base, hover, press, fg = kinds[kind]
+        self._bg = bg or parent.cget("background")
+        font = parent._root()._fonts["strong"]
+        width = font.measure(text) + 36
+        height = font.metrics("linespace") + 16
+        super().__init__(parent, width=width, height=height, background=self._bg, highlightthickness=0,
+                         borderwidth=0, cursor="hand2", takefocus=1)
+        self._colors = (base or self._bg, hover, press)
+        self._fg, self._command, self._inside, self.enabled = fg, command, False, True
+        self._shape = rounded(self, 1, 1, width - 1, height - 1, height / 2, fill=self._colors[0], outline="")
+        self._label = self.create_text(width / 2, height / 2, text=text, fill=fg, font=font)
         self.bind("<Enter>", lambda e: self._paint(1, True))
         self.bind("<Leave>", lambda e: self._paint(0, False))
         self.bind("<ButtonPress-1>", lambda e: self._paint(2, True))
         self.bind("<ButtonRelease-1>", self._release)
         self.bind("<Return>", lambda e: self._run())
         self.bind("<space>", lambda e: self._run())
+        self.bind("<FocusIn>", lambda e: self.itemconfigure(self._shape, outline=ACCENT, width=2))
+        self.bind("<FocusOut>", lambda e: self.itemconfigure(self._shape, outline="", width=1))
 
     def set_enabled(self, on: bool) -> None:
         """A disabled button stays visible but greyed out, so you can see what becomes possible."""
         self.enabled = on
-        self.configure(foreground=self._fg if on else FAINT, cursor="hand2" if on else "arrow")
+        self.itemconfigure(self._label, fill=self._fg if on else FAINT)
+        self.configure(cursor="hand2" if on else "arrow")
         self._paint(0, False)
 
     def _run(self) -> None:
@@ -152,12 +232,66 @@ class FlatButton(tk.Label):
 
     def _paint(self, state: int, inside: bool) -> None:
         self._inside = inside
-        self.configure(background=self._colors[state if self.enabled else 0])
+        self.itemconfigure(self._shape, fill=self._colors[state if self.enabled else 0])
 
     def _release(self, _event) -> None:
         self._paint(1 if self._inside else 0, self._inside)
         if self._inside:
             self._run()
+
+
+class Switch(tk.Canvas):
+    """Apple's switch: green when on, a white knob. Click, Space or Enter flips it."""
+
+    def __init__(self, parent, on: bool, command, bg: str | None = None):
+        bg = bg or parent.cget("background")
+        super().__init__(parent, width=51, height=31, background=bg, highlightthickness=0, borderwidth=0,
+                         cursor="hand2", takefocus=1)
+        self.on, self._command = on, command
+        self._track = rounded(self, 0, 0, 51, 31, 15.5, fill=GREEN if on else SURFACE_HI, outline="")
+        self._knob = self.create_oval(0, 0, 27, 27, fill="#FFFFFF", outline="")
+        self._place()
+        for seq in ("<Button-1>", "<space>", "<Return>"):
+            self.bind(seq, lambda e: self.flip())
+
+    def _place(self) -> None:
+        x = 22 if self.on else 2
+        self.coords(self._knob, x, 2, x + 27, 29)
+        self.itemconfigure(self._track, fill=GREEN if self.on else SURFACE_HI)
+
+    def set(self, on: bool) -> None:
+        self.on = on
+        self._place()
+
+    def flip(self) -> None:
+        self.set(not self.on)
+        self._command(self.on)
+
+
+class Card(tk.Canvas):
+    """A rounded card, like an iOS grouped list. Put content in .body; the card grows to fit it."""
+
+    def __init__(self, parent, padx: int = 20, pady: int = 18, radius: int = 14):
+        bg = parent.cget("background")
+        super().__init__(parent, background=bg, highlightthickness=0, borderwidth=0, height=40)
+        self._pad, self._r = (padx, pady), radius
+        self._shape = rounded(self, 0, 0, 10, 10, radius, fill=SURFACE, outline="")
+        self.body = tk.Frame(self, background=SURFACE)
+        self._win = self.create_window(padx, pady, window=self.body, anchor="nw")
+        self.body.bind("<Configure>", lambda e: self._fit(), add="+")
+        self.bind("<Configure>", lambda e: self._fit())
+
+    def _fit(self) -> None:
+        w = self.winfo_width()
+        h = self.body.winfo_reqheight() + 2 * self._pad[1]
+        if int(float(self.cget("height"))) != h:
+            self.configure(height=h)
+        self.itemconfigure(self._win, width=max(1, w - 2 * self._pad[0]))
+        self.coords(self._shape, *self._points(w, h))
+
+    def _points(self, w, h):
+        r, x1, y1 = self._r, w - 1, h - 1
+        return [r, 0, x1 - r, 0, x1, 0, x1, r, x1, y1 - r, x1, y1, x1 - r, y1, r, y1, 0, y1, 0, y1 - r, 0, r, 0, 0]
 
 
 class ScrollPage(tk.Frame):
@@ -197,18 +331,25 @@ class ScrollPage(tk.Frame):
             self.canvas.yview_scroll(int(-event.delta / 120) or (-1 if event.delta > 0 else 1), "units")
 
 
+def wrapping(label: tk.Label) -> tk.Label:
+    """Lets a gray hint wrap to the width it gets, instead of being cut off at the edge."""
+    label.bind("<Configure>", lambda e: label.configure(wraplength=max(80, e.width - 4)), add="+")
+    return label
+
+
 def section(parent, title: str, hint: str = "") -> tk.Frame:
-    """A surface block with a title, optional hint, and a body frame to fill."""
+    """A heading in sentence case above a rounded card, like an iOS grouped list. Fill .body."""
     fonts = parent._root()._fonts
-    box = tk.Frame(parent, background=SURFACE, padx=20, pady=18)
-    tk.Label(box, text=title, background=SURFACE, foreground=TEXT, font=fonts["h2"], anchor="w").pack(fill="x")
+    outer = tk.Frame(parent, background=parent.cget("background"))
+    tk.Label(outer, text=title, background=outer.cget("background"), foreground=TEXT, font=fonts["h2"],
+             anchor="w").pack(fill="x", padx=4)
     if hint:
-        tk.Label(box, text=hint, background=SURFACE, foreground=MUTED, font=fonts["small"], anchor="w",
-                 justify="left").pack(fill="x", pady=(2, 0))
-    body = tk.Frame(box, background=SURFACE)
-    body.pack(fill="both", expand=True, pady=(14, 0))
-    box.body = body
-    return box
+        wrapping(tk.Label(outer, text=hint, background=outer.cget("background"), foreground=MUTED,
+                          font=fonts["small"], anchor="w", justify="left")).pack(fill="x", padx=4, pady=(2, 0))
+    card = Card(outer)
+    card.pack(fill="both", expand=True, pady=(8, 0))
+    outer.body = card.body
+    return outer
 
 
 def themed_listbox(parent, **kw) -> tk.Listbox:
@@ -244,69 +385,94 @@ class App:
         self.notes_waiting = False
         self.root.protocol("WM_DELETE_WINDOW", self.close_window)
 
-        apply_theme(self.root)
-        f = self.root._fonts
-        self.root.minsize(560, 420)
+        self.root.minsize(600, 440)
         screen_w, screen_h = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
-        self.root.geometry(f"{min(860, screen_w - 60)}x{min(700, screen_h - 100)}")
+        self.root.geometry(f"{min(900, screen_w - 60)}x{min(700, screen_h - 100)}")
         self.say_job = None
-
-        # Top bar: brand on the left, live connection on the right.
-        top = tk.Frame(self.root, background=BG, padx=24, pady=18)
-        top.pack(fill="x")
-        mark = tk.Canvas(top, width=28, height=28, background=BG, highlightthickness=0)
-        for x, y, color in ((2, 2, ACCENT), (15, 2, ACCENT), (2, 15, ACCENT), (15, 15, SIGNAL)):
-            mark.create_rectangle(x, y, x + 11, y + 11, fill=color, outline="")  # four dock tiles
-        mark.pack(side="left")
-        tk.Label(top, text="Mobile Dock", background=BG, foreground=TEXT, font=f["brand"]).pack(side="left", padx=(10, 0))
-        self.pill = tk.Frame(top, background=SURFACE, padx=14, pady=7)
-        self.pill.pack(side="right")
-        self.pill_dot = tk.Canvas(self.pill, width=10, height=10, background=SURFACE, highlightthickness=0)
-        self.pill_dot.pack(side="left", padx=(0, 8))
-        self.pill_text = tk.Label(self.pill, text="", background=SURFACE, foreground=MUTED, font=f["body"])
-        self.pill_text.pack(side="left")
-
-        # Tabs with a blue underline on the active one.
-        tabbar = tk.Frame(self.root, background=BG, padx=24)
-        tabbar.pack(fill="x")
-        self.tab_labels, self.tab_lines, self.pages = [], [], []
-        for i, name in enumerate(self.TABS):
-            cell = tk.Frame(tabbar, background=BG)
-            cell.pack(side="left", padx=(0, 22))
-            lbl = tk.Label(cell, text=name, background=BG, foreground=MUTED, font=f["tab"], cursor="hand2",
-                           takefocus=1, highlightthickness=0)
-            lbl.pack(pady=(0, 6))
-            line = tk.Frame(cell, background=BG, height=2)
-            line.pack(fill="x")
-            lbl.bind("<Button-1>", lambda e, k=i: self.show_tab(k))
-            lbl.bind("<Return>", lambda e, k=i: self.show_tab(k))
-            self.root.bind(f"<Control-Key-{i + 1}>", lambda e, k=i: self.show_tab(k))
-            self.tab_labels.append(lbl)
-            self.tab_lines.append(line)
-        tk.Frame(self.root, background=LINE, height=1).pack(fill="x", padx=24)
-
-        # Status line at the bottom.
-        foot = tk.Frame(self.root, background=SURFACE, padx=24, pady=8)
-        foot.pack(fill="x", side="bottom")
-        self.status = tk.Label(foot, text="", background=SURFACE, foreground=MUTED, font=f["small"], anchor="w")
-        self.status.pack(side="left", fill="x", expand=True)
-        tk.Label(foot, text=f"v{__version__}", background=SURFACE, foreground=FAINT, font=f["small"]).pack(side="right")
-
-        body = tk.Frame(self.root, background=BG, padx=24, pady=16)
-        body.pack(fill="both", expand=True)
-        for build in (self._phone_page, self._apps_page, self._pads_page, self._settings_page):
-            page = ScrollPage(body)
-            build(page.inner)
-            self.pages.append(page)
-
-        self.show_tab(0)
-        self.refresh_devices()
-        self.refresh_pinned()
-        self.refresh_pads()
+        self.tab = 0
+        self._build()
         if hidden:
             self.hide()
         self.root.after(200, self.poll_events)
         self.root.after(900, self.whats_new)
+
+    def _build(self) -> None:
+        """Builds the whole window. Called again when you change Appearance, so it applies at once."""
+        from . import __version__
+
+        use_palette(int(self.server.config.data.get("theme", 0)))
+        for child in self.root.winfo_children():
+            child.destroy()
+        apply_theme(self.root)
+        f = self.root._fonts
+
+        # Sidebar on the left, like macOS System Settings: the brand, the phone connection, then the pages.
+        side = tk.Frame(self.root, background=SIDEBAR, width=210, padx=12, pady=16)
+        side.pack(side="left", fill="y")
+        side.pack_propagate(False)
+        brand = tk.Frame(side, background=SIDEBAR)
+        brand.pack(fill="x", padx=6)
+        mark = tk.Canvas(brand, width=26, height=26, background=SIDEBAR, highlightthickness=0)
+        for x, y, color in ((1, 1, ACCENT), (14, 1, ACCENT), (1, 14, ACCENT), (14, 14, SIGNAL)):
+            rounded(mark, x, y, x + 11, y + 11, 3, fill=color, outline="")  # four dock tiles
+        mark.pack(side="left")
+        tk.Label(brand, text="Mobile Dock", background=SIDEBAR, foreground=TEXT, font=f["strong"]).pack(
+            side="left", padx=(10, 0))
+        self.pill = tk.Frame(side, background=SIDEBAR)
+        self.pill.pack(fill="x", padx=6, pady=(10, 14))
+        self.pill_dot = tk.Canvas(self.pill, width=10, height=10, background=SIDEBAR, highlightthickness=0)
+        self.pill_dot.pack(side="left", padx=(2, 8))
+        self.pill_text = tk.Label(self.pill, text="", background=SIDEBAR, foreground=MUTED, font=f["small"],
+                                  anchor="w")
+        self.pill_text.pack(side="left", fill="x", expand=True)
+        self.tab_rows = []
+        for i, name in enumerate(self.TABS):
+            row = tk.Canvas(side, height=36, background=SIDEBAR, highlightthickness=0, cursor="hand2", takefocus=1)
+            row.pack(fill="x", pady=1)
+            row.bind("<Configure>", lambda e, k=i: self._paint_row(k))
+            row.bind("<Button-1>", lambda e, k=i: self.show_tab(k))
+            row.bind("<Return>", lambda e, k=i: self.show_tab(k))
+            self.root.bind(f"<Control-Key-{i + 1}>", lambda e, k=i: self.show_tab(k))
+            row.name = name
+            self.tab_rows.append(row)
+        tk.Label(side, text=f"Version {__version__}", background=SIDEBAR, foreground=FAINT, font=f["small"],
+                 anchor="w").pack(side="bottom", fill="x", padx=6)
+        tk.Frame(self.root, background=LINE, width=1).pack(side="left", fill="y")
+
+        # Status line at the bottom of the content.
+        main = tk.Frame(self.root, background=BG)
+        main.pack(side="left", fill="both", expand=True)
+        foot = tk.Frame(main, background=BG, padx=28, pady=8)
+        foot.pack(fill="x", side="bottom")
+        self.status = tk.Label(foot, text="", background=BG, foreground=MUTED, font=f["small"], anchor="w")
+        self.status.pack(side="left", fill="x", expand=True)
+
+        body = tk.Frame(main, background=BG, padx=28, pady=18)
+        body.pack(fill="both", expand=True)
+        self.pages = []
+        for name, build in zip(self.TABS, (self._phone_page, self._apps_page, self._pads_page,
+                                            self._settings_page)):
+            page = ScrollPage(body)
+            tk.Label(page.inner, text=name, background=BG, foreground=TEXT, font=f["large"], anchor="w").pack(
+                fill="x", pady=(0, 10))
+            build(page.inner)
+            self.pages.append(page)
+
+        self.show_tab(self.tab)
+        self.refresh_devices()
+        self.refresh_pinned()
+        self.refresh_pads()
+
+    def _paint_row(self, index: int) -> None:
+        """A sidebar row: the selected page gets a rounded gray highlight, like macOS."""
+        row = self.tab_rows[index]
+        on = index == self.tab
+        w = row.winfo_width()
+        row.delete("all")
+        if on:
+            rounded(row, 0, 0, w, 36, 9, fill=SELECTED, outline="")
+        f = self.root._fonts
+        row.create_text(14, 18, text=row.name, anchor="w", fill=TEXT, font=f["tab_on" if on else "tab"])
 
     # Pages -------------------------------------------------------------
 
@@ -351,9 +517,9 @@ class App:
                     digits.pack_configure(side="left")
                     side.pack(side="left", fill="both", expand=True, padx=(18, 0))
 
-        pair.body.bind("<Configure>", reflow)
+        pair.body.bind("<Configure>", reflow, add="+")
 
-        phones = section(page, "Paired phones", "A connected phone shows an amber dot.")
+        phones = section(page, "Paired phones", "A connected phone shows a green dot.")
         phones.pack(fill="both", expand=True)
         self.device_rows = phones.body
 
@@ -379,8 +545,8 @@ class App:
         self.pinned.bind("<Delete>", lambda e: self.unpin())
         self.pinned.bind("<Alt-Up>", lambda e: self.move_pinned(-1))
         self.pinned.bind("<Alt-Down>", lambda e: self.move_pinned(1))
-        self.pinned_count = tk.Label(apps.body, text="", background=SURFACE, foreground=FAINT,
-                                     font=self.root._fonts["small"], anchor="w")
+        self.pinned_count = wrapping(tk.Label(apps.body, text="", background=SURFACE, foreground=MUTED,
+                                              font=self.root._fonts["small"], anchor="w", justify="left"))
         self.pinned_count.pack(fill="x", pady=(10, 0))
 
     def _app_selection(self) -> None:
@@ -403,31 +569,31 @@ class App:
 
     def _settings_page(self, page: tk.Frame) -> None:
         f = self.root._fonts
+        look = section(page, "Appearance", "Automatic follows the Windows light or dark setting.")
+        look.pack(fill="x", pady=(0, 16))
+        choice = tk.Frame(look.body, background=SURFACE)
+        choice.pack(anchor="w")
+        current = int(self.server.config.data.get("theme", 0))
+        for i, name in enumerate(THEME_NAMES):
+            FlatButton(choice, name, lambda k=i: self.set_theme(k), "primary" if i == current else "secondary").pack(
+                side="left", padx=(0, 8))
+
+        general = section(page, "General")
+        general.pack(fill="x", pady=(0, 16))
         if sys.platform == "win32":
-            start = section(page, "Start with Windows", "Keeps the dock ready after every login.")
-            start.pack(fill="x", pady=(0, 16))
             self.autostart = tk.BooleanVar(value=_autostart_get())
-            self.toggle = tk.Label(start.body, background=SURFACE, font=f["strong"], padx=16, pady=6,
-                                   cursor="hand2", takefocus=1)
-            self.toggle.pack(anchor="w")
-            self.toggle.bind("<Button-1>", lambda e: self.flip_autostart())
-            self.toggle.bind("<space>", lambda e: self.flip_autostart())
-            self._paint_toggle()
+            self.toggle = self._switch_row(general.body, "Start with Windows",
+                                           "Keeps the dock ready after every login, in the tray.",
+                                           self.autostart.get(), lambda on: self.flip_autostart())
+            tk.Frame(general.body, background=LINE, height=1).pack(fill="x", pady=10)
         where = "the tray icon next to the clock" if self.tray else "Mobile Dock in the Start menu or app list"
-        bg = section(page, "When I close the window", "Keep running keeps the phone connected. "
-                     f"Open the window again from {where}.")
-        bg.pack(fill="x", pady=(0, 16))
-        brow = tk.Frame(bg.body, background=SURFACE)
-        brow.pack(fill="x")
-        self.keep_toggle = tk.Label(brow, background=SURFACE, font=f["strong"], padx=16, pady=6, cursor="hand2",
-                                    takefocus=1)
-        self.keep_toggle.pack(side="left")
-        self.keep_toggle.bind("<Button-1>", lambda e: self.flip_keep_running())
-        self.keep_toggle.bind("<space>", lambda e: self.flip_keep_running())
-        tk.Label(brow, text="Keep running in the background", background=SURFACE, foreground=TEXT,
-                 font=f["body"]).pack(side="left", padx=(10, 0))
-        FlatButton(brow, "Quit Mobile Dock", self.quit, "ghost").pack(side="right")
-        self._paint_keep()
+        self.keep_toggle = self._switch_row(general.body, "Keep running in the background",
+                                            f"Your phone stays connected. Open the window from {where}.",
+                                            self.server.config.data.get("close_to_tray", True),
+                                            lambda on: self.flip_keep_running())
+        quit_row = tk.Frame(general.body, background=SURFACE)
+        quit_row.pack(fill="x", pady=(12, 0))
+        FlatButton(quit_row, "Quit Mobile Dock", self.quit).pack(side="left")
         if self.updater is not None:
             up = section(page, "Updates", "Checks this project's GitHub releases at start and every 6 hours.")
             up.pack(fill="x")
@@ -448,30 +614,46 @@ class App:
         FlatButton(brow, "Copy diagnostics", self.copy_diagnostics, "ghost").pack(side="left")
 
     def show_tab(self, index: int) -> None:
+        self.tab = index
         for i, page in enumerate(self.pages):
-            on = i == index
-            if on:
+            if i == index:
                 page.pack(fill="both", expand=True)
             else:
                 page.pack_forget()
-            self.tab_labels[i].configure(foreground=TEXT if on else MUTED)
-            self.tab_lines[i].configure(background=ACCENT if on else BG)
+        for i in range(len(self.tab_rows)):
+            self._paint_row(i)
+
+    def _switch_row(self, parent, title: str, hint: str, on: bool, command) -> Switch:
+        """A setting with a label, a gray hint under it, and an iOS switch on the right."""
+        f = self.root._fonts
+        row = tk.Frame(parent, background=SURFACE)
+        row.pack(fill="x")
+        sw = Switch(row, on, command)
+        sw.pack(side="right", padx=(12, 0))
+        text = tk.Frame(row, background=SURFACE)
+        text.pack(side="left", fill="x", expand=True)
+        tk.Label(text, text=title, background=SURFACE, foreground=TEXT, font=f["body"], anchor="w").pack(fill="x")
+        wrapping(tk.Label(text, text=hint, background=SURFACE, foreground=MUTED, font=f["small"], anchor="w",
+                          justify="left")).pack(fill="x")
+        return sw
+
+    def set_theme(self, mode: int) -> None:
+        """Saves Automatic, Light or Dark and rebuilds the window in it at once."""
+        self.server.config.data["theme"] = mode
+        self.server.config.save()
+        self._build()
+        self.show_tab(len(self.TABS) - 1)
 
     def flip_autostart(self) -> None:
         self.autostart.set(not self.autostart.get())
         _autostart_set(self.autostart.get())
-        self._paint_toggle()
+        self.toggle.set(self.autostart.get())
 
     def flip_keep_running(self) -> None:
         data = self.server.config.data
         data["close_to_tray"] = not data.get("close_to_tray", True)
         self.server.config.save()
-        self._paint_keep()
-
-    def _paint_keep(self) -> None:
-        on = self.server.config.data.get("close_to_tray", True)
-        self.keep_toggle.configure(text="On" if on else "Off", background=ACCENT if on else SURFACE_HI,
-                                   foreground=ON_ACCENT if on else MUTED)
+        self.keep_toggle.set(data["close_to_tray"])
 
     # Background -----------------------------------------------------------
 
@@ -524,13 +706,6 @@ class App:
 
             if shutil.which("notify-send"):
                 subprocess.run(["notify-send", title, text], check=False)
-
-    def _paint_toggle(self) -> None:
-        on = self.autostart.get()
-        self.toggle.configure(text="On" if on else "Off", background=ACCENT if on else SURFACE_HI,
-                              foreground=ON_ACCENT if on else MUTED)
-
-    # Phone page -----------------------------------------------------------
 
     def run(self) -> None:
         self.root.mainloop()
@@ -638,28 +813,26 @@ class App:
             row.pack(fill="x", pady=(0, 6))
             FlatButton(row, "Remove", lambda d=device_id, n=name: self.remove_device(d, n), "ghost",
                        bg=SURFACE_HI).pack(side="right")
-            dot(row, SIGNAL if s else FAINT, SURFACE_HI).pack(side="left", padx=(0, 12))
+            dot(row, GREEN if s else FAINT, SURFACE_HI).pack(side="left", padx=(0, 12))
             texts = tk.Frame(row, background=SURFACE_HI)
             texts.pack(side="left", fill="x", expand=True)
             tk.Label(texts, text=name, background=SURFACE_HI, foreground=TEXT, font=f["strong"], anchor="w").pack(fill="x")
             sub = (f"Connected  ·  {s['via']}  ·  since {_time.strftime('%H:%M', _time.localtime(s['since']))}"
                    if s else "Offline")
-            tk.Label(texts, text=sub, background=SURFACE_HI, foreground=SIGNAL if s else MUTED, font=f["small"],
+            tk.Label(texts, text=sub, background=SURFACE_HI, foreground=MUTED, font=f["small"],
                      anchor="w", justify="left").pack(fill="x")
         self.show_connection(list(live.values()))
 
     def show_connection(self, live: list[dict]) -> None:
         if live:
             names = ", ".join(s["name"] for s in live)
-            short = names if len(names) <= 28 else names[:27] + "…"
-            text, color, bg = f"Connected to {short}", SIGNAL, SIGNAL_BG
+            short = names if len(names) <= 22 else names[:21] + "…"
+            text, color = short, GREEN
             self.root.title(f"Mobile Dock  ●  {names}")
         else:
-            text, color, bg = "No phone connected", FAINT, SURFACE
+            text, color = "No phone connected", FAINT
             self.root.title("Mobile Dock")
-        for w in (self.pill, self.pill_dot, self.pill_text):
-            w.configure(background=bg)
-        self.pill_text.configure(text=text, foreground=color if live else MUTED)
+        self.pill_text.configure(text=text, foreground=TEXT if live else MUTED)
         self.pill_dot.delete("all")
         self.pill_dot.create_oval(1, 1, 9, 9, fill=color, outline="")
 
@@ -1411,7 +1584,7 @@ class App:
                         continue
                 if kind == "paired":
                     self._show_pin(None)
-                    self.pin_hint.configure(text=f"Paired with {text}", foreground=SIGNAL)
+                    self.pin_hint.configure(text=f"Paired with {text}", foreground=GREEN)
                     self.status.config(text=f"Paired with {text}")
                 elif kind == "info":  # only shown while the window is open
                     messagebox.showinfo("Mobile Dock", text)

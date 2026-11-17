@@ -23,10 +23,10 @@ The `windows-media` extra powers Now playing on the phone: album art, progress, 
 ### First run
 
 1. Windows Firewall asks about network access. Allow it on private networks only.
-2. On the Phone tab, click Pair new phone. A 6 digit PIN appears with a 3 minute countdown.
-3. On the Apps tab, click Add apps to choose what the phone shows. You can also do this from the phone.
+2. On the Phone page, click Pair new phone. A 6 digit PIN appears with a 3 minute countdown.
+3. On the Apps page, click Add apps to choose what the phone shows. You can also do this from the phone.
 4. Scan the QR code next to the PIN with the phone's camera, then tap Pair. Or tap the PC in the phone app and type the PIN. Older phones' cameras may not read QR codes. The PIN always works.
-5. On the Settings tab, turn Start with Windows on if you want the dock ready after every login. It starts in the tray, with no window.
+5. On the Settings page, turn Start with Windows on if you want the dock ready after every login. It starts in the tray, with no window.
 
 ### Running in the background
 
@@ -34,19 +34,20 @@ The `windows-media` extra powers Now playing on the phone: album art, progress, 
 - On Windows, the Mobile Dock icon sits in the tray next to the clock. Click it to open the window. Right-click it for Show pairing PIN and Quit. Windows 11 may hide new icons under the ^ arrow. Drag the icon to the taskbar to keep it in view.
 - Starting Mobile Dock again opens the window of the copy that already runs. It never starts a second copy.
 - On Linux, start `mobile-dock-host` again to open the window.
-- To stop it, use Quit in the tray menu or Quit Mobile Dock on the Settings tab. To make the X button quit, turn Keep running in the background off on the Settings tab.
+- To stop it, use Quit in the tray menu or Quit Mobile Dock on the Settings page. To make the X button quit, turn Keep running in the background off on the Settings page.
 
 ### Window tips
 
-- Ctrl+1 to Ctrl+4 switch between the Phone, Apps, Shortcuts and Settings tabs.
-- On the Apps tab, Alt+Up and Alt+Down move the selected app. Delete unpins it.
+- Ctrl+1 to Ctrl+4 switch between the Phone, Apps, Shortcuts and Settings pages in the sidebar.
+- Settings, Appearance: Automatic follows the Windows light or dark setting. Light and Dark apply at once.
+- On the Apps page, Alt+Up and Alt+Down move the selected app. Delete unpins it.
 - In Add apps, double-click an app to pin it.
 - Copy address puts this PC's address on the clipboard, for Connect by address on the phone.
 - On a small screen, pages scroll and the pairing buttons move under the PIN.
 
 ### Shortcut pads
 
-On the Shortcuts tab, click Edit shortcut pads. Each pad has a name, the programs it belongs to (for example `Figma.exe`) and its tiles. Write a shortcut like `Ctrl+Shift+G` in the Action field. Separate steps with commas, like `Win+Left, Enter`. The Windows pad is used when no other pad matches.
+On the Shortcuts page, click Edit shortcut pads. Each pad has a name, the programs it belongs to (for example `Figma.exe`) and its tiles. Write a shortcut like `Ctrl+Shift+G` in the Action field. Separate steps with commas, like `Win+Left, Enter`. The Windows pad is used when no other pad matches.
 
 Shortcuts with punctuation, such as `Ctrl+backslash`, use the key's position on a US keyboard. On another keyboard layout, pick the shortcut your app shows in its own menus.
 
@@ -64,7 +65,7 @@ For example, `open https://figma.com | wait 3 | Ctrl+N` opens Figma in the brows
 
 ### Search presets
 
-On the Shortcuts tab, click Search presets. Each preset has:
+On the Shortcuts page, click Search presets. Each preset has:
 
 | Field | Example | What it does |
 | --- | --- | --- |
@@ -170,13 +171,13 @@ Without wtype, typing falls back to the US layout and ASCII only.
 
 ## Back up your setup
 
-On the Settings tab, Export setup saves your pinned apps and shortcut pads to a .json file. Import setup puts them back, for example after you reinstall Windows. Pairing keys are never in the file, so phones pair again with a new PIN.
+On the Settings page, Export setup saves your pinned apps and shortcut pads to a .json file. Import setup puts them back, for example after you reinstall Windows. Pairing keys are never in the file, so phones pair again with a new PIN.
 
 Warnings and errors go to `mobile-dock.log` next to the config file. Copy diagnostics puts its last lines on the clipboard for a bug report.
 
 ## Updates
 
-The host checks the latest GitHub release of this repository at start and every 6 hours. Check for updates on the Settings tab runs it now.
+The host checks the latest GitHub release of this repository at start and every 6 hours. Check for updates on the Settings page runs it now.
 
 - The Windows .exe replaces itself and restarts. Keep it in a folder you can write to, not Program Files.
 - Source installs on Windows or Linux do not replace themselves. Update them with `git pull` and `pipx install --force ./host`.
@@ -190,7 +191,7 @@ GitHub hides releases of a private repository from anyone who isn't signed in. T
 1. On GitHub, open Settings, Developer settings, Personal access tokens, Fine-grained tokens, and click Generate new token.
 2. Under Repository access, pick Only select repositories and choose Mobile-dock.
 3. Under Permissions, set Contents to Read-only. Leave everything else at No access.
-4. Copy the token. On the Settings tab, click Private repository token and paste it.
+4. Copy the token. On the Settings page, click Private repository token and paste it.
 
 The token is saved in the host config file. It can only read this one repository. On Linux you can set `MDOCK_GITHUB_TOKEN` instead.
 

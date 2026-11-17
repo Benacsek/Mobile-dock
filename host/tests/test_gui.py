@@ -74,6 +74,16 @@ def test_window_builds(tmp_path, monkeypatch):
         app.poll_events()
         app.root.update()
         time.sleep(0.05)
+    # Appearance rebuilds the whole window in light, then dark, then back to automatic.
+    from mobiledock_host import gui
+
+    app.set_theme(1)
+    assert gui.BG == "#F2F2F7" and not gui.DARK and app.server.config.data["theme"] == 1
+    assert app.tab == len(app.TABS) - 1  # still on Settings
+    app.set_theme(2)
+    assert gui.BG == "#1C1C1E" and gui.DARK
+    app.set_theme(0)
+    app.root.update()
     _check_background(app, tray, monkeypatch)
 
 

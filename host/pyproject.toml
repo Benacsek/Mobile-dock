@@ -33,3 +33,7 @@ mobile-dock-host = "mobiledock_host.__main__:main"
 
 [tool.setuptools.packages.find]
 include = ["mobiledock_host*"]
+
+[tool.setuptools.package-data]
+# Inter, under the SIL Open Font License. Loaded by the window for this process only.
+mobiledock_host = ["fonts/*.ttf", "fonts/LICENSE.txt"]
