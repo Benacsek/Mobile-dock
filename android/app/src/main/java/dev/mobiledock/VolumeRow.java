@@ -11,8 +11,9 @@ import android.widget.TextView;
 import org.json.JSONObject;
 
 /**
- * One volume on one line: a slider and a mute button. With a name it reads "Name, slider, 50%, mute",
+ * One volume on one line: a slider and a mute button. With a name it reads "Name, slider, mute",
  * as in the Controls mixer. Without one it is "mute, slider", as on Now Playing.
+ * The slider shows the level, so there is no percent text to crowd it.
  */
 final class VolumeRow extends LinearLayout {
     /** Sends {"volume": n} or {"muted": b}. The caller adds the command and, for an app, its id. */
@@ -23,7 +24,6 @@ final class VolumeRow extends LinearLayout {
     private final Sink sink;
     private final SeekBar bar;
     private final ImageView mute;
-    private final TextView level;
     private boolean muted, dragging;
     private long sentAt;
 
@@ -45,11 +45,9 @@ final class VolumeRow extends LinearLayout {
         Kit.slider(c, bar);
         bar.setMax(100);
         bar.setContentDescription((name == null ? "PC" : name) + " volume");
-        level = name == null ? null : Ui.text(c, "", 15, Ui.MUTED);
         bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar s, int value, boolean fromUser) {
-                if (level != null) level.setText(value + "%");
                 long now = android.os.SystemClock.uptimeMillis();
                 if (fromUser && now - sentAt > 150) {  // live, but not a flood of messages
                     sentAt = now;
@@ -68,22 +66,18 @@ final class VolumeRow extends LinearLayout {
                 sink.send(DockClient.args("volume", s.getProgress()));
             }
         });
-        LayoutParams blp = new LayoutParams(0, Ui.dp(c, 44), 1f);
         if (name == null) {
             addView(mute);
-            addView(bar, blp);
+            addView(bar, new LayoutParams(0, Ui.dp(c, 44), 1f));
             return;
         }
         setPadding(Ui.dp(c, 16), 0, Ui.dp(c, 4), 0);
         TextView label = Ui.text(c, name, 15, Ui.TEXT);
         label.setSingleLine(true);
         label.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        // The name gets close to half of the room the slider gets. Long names end in "…".
+        // The slider gets 60 percent of the room. Long names end in "…".
         addView(label, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
-        addView(bar, new LayoutParams(0, Ui.dp(c, 44), 1.2f));
-        level.setMinWidth(Ui.dp(c, 36));
-        level.setGravity(Gravity.END);
-        addView(level);
+        addView(bar, new LayoutParams(0, Ui.dp(c, 44), 1.5f));
         addView(mute);
     }
 
@@ -91,7 +85,6 @@ final class VolumeRow extends LinearLayout {
     void show(int volume, boolean isMuted) {
         if (dragging) return;
         bar.setProgress(volume);
-        if (level != null) level.setText(volume + "%");
         showMuted(isMuted);
     }
 
