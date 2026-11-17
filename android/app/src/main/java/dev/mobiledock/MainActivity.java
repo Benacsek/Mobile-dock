@@ -511,11 +511,9 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         LinearLayout left = Ui.column(this);
         left.setBackground(Ui.rounded(this, Ui.SURFACE, 18));
         left.setPadding(cardPad, cardPad, cardPad, Ui.dp(this, 12));
-        LinearLayout brand = Ui.row(this);
-        brand.addView(Ui.logo(this, 20));
-        brand.addView(Ui.strong(this, "  Mobile Dock", 15, Ui.MUTED));
-        left.addView(brand);
-        left.addView(Ui.title(this, "Connect to your PC"), Ui.fillWidth(this, 0));
+        TextView title = Ui.title(this, "Connect to your PC");
+        Ui.fitLabel(title, 26);
+        left.addView(title, Ui.fillWidth(this, 0));
         connectStatus = Ui.text(this, "Looking for PCs on this Wi-Fi", 15, Ui.MUTED);
         connectStatus.setPadding(Ui.dp(this, 4), 0, 0, Ui.dp(this, 6));
         left.addView(connectStatus);
@@ -533,6 +531,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         });
         left.addView(again, Ui.wrap(this, 4));
         page.addView(left, Ui.weight(3f));
+        connectLeft = left;
 
         View gap = new View(this);
         page.addView(gap, new LinearLayout.LayoutParams(pad, 1));
@@ -543,12 +542,14 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         ScrollView rightScroll = new ScrollView(this);
         rightScroll.addView(other);
         page.addView(rightScroll, Ui.weight(2f));
+        connectRight = rightScroll;
         showOther(OTHER_LIST);
         return page;
     }
 
     private static final int OTHER_LIST = 0, OTHER_ADDRESS = 1, OTHER_USB = 2, OTHER_START = 3;
     private LinearLayout other;
+    private View connectLeft, connectRight;  // the cards split 3:2 for the list, 1:1 while a way is open
     private boolean demoWake;  // CI shows the Wake row without a saved PC
     private int otherPage;
 
@@ -556,6 +557,8 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private void showOther(int which) {
         otherPage = which;
         other.removeAllViews();
+        connectLeft.setLayoutParams(Ui.weight(which == OTHER_LIST ? 3f : 1f));
+        connectRight.setLayoutParams(Ui.weight(which == OTHER_LIST ? 2f : 1f));
         watchStatus = null;
         int side = Ui.dp(this, 16);
         if (which == OTHER_LIST) {
@@ -885,14 +888,14 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 "Or scan the QR code on the PC with this phone's camera."};
             for (int i = 0; i < steps.length; i++) {
                 LinearLayout row = Ui.row(this);
-                row.setMinimumHeight(Ui.dp(this, 44));
+                row.setMinimumHeight(Ui.dp(this, 40));
                 TextView n = Ui.strong(this, String.valueOf(i + 1), 15, Ui.ACCENT);
                 n.setGravity(Gravity.CENTER);
                 n.setBackground(Ui.rounded(this, Ui.SURFACE_HI, 14));
                 LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(Ui.dp(this, 28), Ui.dp(this, 28));
                 nlp.setMargins(Ui.dp(this, 2), 0, Ui.dp(this, 12), 0);
                 row.addView(n, nlp);
-                row.addView(Ui.text(this, steps[i], 16, Ui.TEXT), new LinearLayout.LayoutParams(0,
+                row.addView(Ui.text(this, steps[i], 15, Ui.TEXT), new LinearLayout.LayoutParams(0,
                         LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
                 hostList.addView(row);
             }
@@ -1257,7 +1260,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         slp.setMargins(m, m, 0, m);
         side.setLayoutParams(slp);
         if (railFullscreen) {
-            side.addView(railItem(Icon.Kind.EXPAND, "Fullscreen", -1), Ui.weight(1f));
+            side.addView(railItem(Icon.Kind.EXPAND, "Fullscreen", -1), railWeight());
             View line = new View(this);
             line.setBackgroundColor(Ui.LINE);
             LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1);
@@ -1265,15 +1268,20 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             side.addView(line, llp);
         }
         for (int i = 0; i < SIDEBAR_PAGES.length; i++) {
-            side.addView(railItem(SIDEBAR_ICONS[i], SIDEBAR_NAMES[i], SIDEBAR_PAGES[i]), Ui.weight(1f));
+            side.addView(railItem(SIDEBAR_ICONS[i], SIDEBAR_NAMES[i], SIDEBAR_PAGES[i]), railWeight());
         }
         View gap = new View(this);
         gap.setBackgroundColor(Ui.LINE);
         LinearLayout.LayoutParams glp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1);
         glp.setMargins(Ui.dp(this, 10), Ui.dp(this, 2), Ui.dp(this, 10), Ui.dp(this, 2));
         side.addView(gap, glp);
-        side.addView(railItem(Icon.Kind.GEAR, "Settings", SETTINGS), Ui.weight(1f));
+        side.addView(railItem(Icon.Kind.GEAR, "Settings", SETTINGS), railWeight());
         return side;
+    }
+
+    /** Rail items share the rail's height evenly. */
+    private static LinearLayout.LayoutParams railWeight() {
+        return new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
     }
 
     /** One rail icon. page -1 is Fullscreen. Settings carries the connection dot. */
