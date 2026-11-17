@@ -164,14 +164,14 @@ jobs:
               "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-$look-$name.png"
             done
           done
-          # The idle screen with other tiles and colors. Fields: big tile, side tiles as bits, color.
-          # Bits: 1 Date, 2 Calendar, 4 Playing, 8 Battery, 32 Clock.
-          idles="0:15:0:idle-clock-four-blue 1:44:2:idle-calendar-three-red 2:41:4:idle-playing-three-green"
-          idles="$idles 0:12:3:idle-clock-playing-battery-orange"
+          # The idle screen with other tiles and colors. Fields: big tile, side tiles as bits, color, order.
+          # Bits: 1 Date, 2 Calendar, 4 Playing, 8 Battery, 32 Clock. Order lists tile numbers, Playing is 2.
+          idles="0:15:0:5,0,1,2,3:idle-clock-four-blue 1:44:2:2,5,3:idle-calendar-three-playing-wide-red"
+          idles="$idles 2:41:4:5,0,1,2,3:idle-playing-three-green 0:12:3:5,0,1,2,3:idle-clock-playing-battery-orange"
           for combo in $idles; do
-            IFS=: read -r m tiles col name <<< "$combo"; n=$((n + 1))
+            IFS=: read -r m tiles col order name <<< "$combo"; n=$((n + 1))
             "$adb" shell am start -W -n dev.mobiledock/.MainActivity --ez demo true --ei page 99 \
-              --ei idle_main "$m" --ei idle_tiles "$tiles" --ei idle_color "$col" > /dev/null
+              --ei idle_main "$m" --ei idle_tiles "$tiles" --ei idle_color "$col" --es idle_order "$order" > /dev/null
             sleep 5
             "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-$name.png"
           done

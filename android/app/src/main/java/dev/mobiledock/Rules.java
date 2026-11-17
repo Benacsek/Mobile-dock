@@ -83,10 +83,50 @@ final class Rules {
         return mask;
     }
 
-    /** How many side tiles sit in each row: one or two tiles stack, three or four make a 2 x 2 grid. */
+    /** How many side tiles sit in each row: one or two stack, three put one wide tile over two, four make 2 x 2. */
     static int[] gridRows(int n) {
         if (n <= 0) return new int[0];
         if (n <= 2) return n == 1 ? new int[] {1} : new int[] {1, 1};
-        return new int[] {2, n - 2};
+        return n == 3 ? new int[] {1, 2} : new int[] {2, 2};
+    }
+
+    /** The saved tile order, such as "3,5,0,1,2". Unknown or repeated tiles are dropped, missing ones added. */
+    static int[] tileOrder(String saved, int[] defaults) {
+        int[] out = new int[defaults.length];
+        int n = 0;
+        for (String part : (saved == null ? "" : saved).split(",")) {
+            try {
+                int tile = Integer.parseInt(part.trim());
+                if (indexOf(defaults, tile) >= 0 && indexOf(java.util.Arrays.copyOf(out, n), tile) < 0) out[n++] = tile;
+            } catch (NumberFormatException ignored) {
+                // skip it
+            }
+        }
+        for (int tile : defaults) if (indexOf(java.util.Arrays.copyOf(out, n), tile) < 0) out[n++] = tile;
+        return out;
+    }
+
+    /** Moves a checked tile one place up (-1) or down (+1) among the checked tiles. */
+    static int[] moveTile(int[] order, int mask, int tile, int dir) {
+        int[] out = order.clone();
+        int at = indexOf(out, tile);
+        for (int i = at + dir; at >= 0 && i >= 0 && i < out.length; i += dir) {
+            if ((mask & (1 << out[i])) == 0) continue;
+            out[at] = out[i];
+            out[i] = tile;
+            break;
+        }
+        return out;
+    }
+
+    static String joinOrder(int[] order) {
+        StringBuilder sb = new StringBuilder();
+        for (int tile : order) sb.append(sb.length() > 0 ? "," : "").append(tile);
+        return sb.toString();
+    }
+
+    private static int indexOf(int[] a, int v) {
+        for (int i = 0; i < a.length; i++) if (a[i] == v) return i;
+        return -1;
     }
 }

@@ -279,16 +279,30 @@ final class SettingsPanel extends android.widget.ScrollView {
                 NightView.MAIN_NAMES[pick(NightView.PREF_MAIN, 0, NightView.MAIN_NAMES.length)]));
         list.addView(tiles);
 
-        // The side tiles as a checklist. When 4 are checked, the rest wait until one is unchecked.
+        // The side tiles as a checklist. Checked tiles come first, in the order they show, with arrows to
+        // move them. When 4 are checked, the rest wait until one is unchecked.
         list.addView(Ui.header(c, "Side tiles"));
         final int mask = NightView.tileMask(prefs);
-        int checked = NightView.sideTiles(prefs).length;
+        final int[] order = NightView.tileOrder(prefs);
+        final int[] shown = NightView.sideTiles(prefs);
+        int[] rows = new int[order.length];
+        int n = 0;
+        for (int tile : shown) rows[n++] = tile;
+        for (int tile : order) if (indexOf(shown, tile) < 0) rows[n++] = tile;
         LinearLayout sides = Ui.card(c);
-        for (int i = 0; i < NightView.SIDE_ORDER.length; i++) {
-            final int tile = NightView.SIDE_ORDER[i];
-            boolean on = (mask & (1 << tile)) != 0;
-            boolean open = on || checked < NightView.MAX_SIDE;
-            LinearLayout row = Ui.listRow(c, null, 0, NightView.SIDE_NAMES[tile], on ? checkMark(c) : null);
+        for (int i = 0; i < rows.length; i++) {
+            final int tile = rows[i];
+            int at = indexOf(shown, tile);
+            boolean on = at >= 0;
+            boolean open = on || shown.length < NightView.MAX_SIDE;
+            LinearLayout end = null;
+            if (on) {
+                end = Ui.row(c);
+                if (at > 0) end.addView(arrow(c, tile, -1, mask, order));
+                if (at < shown.length - 1) end.addView(arrow(c, tile, 1, mask, order));
+                end.addView(checkMark(c));
+            }
+            LinearLayout row = Ui.listRow(c, null, 0, NightView.SIDE_NAMES[tile], end);
             row.setContentDescription(NightView.SIDE_NAMES[tile] + (on ? ", shown" : ", hidden"));
             if (open) {
                 Ui.pressableRow(c, row, new OnClickListener() {
@@ -304,8 +318,8 @@ final class SettingsPanel extends android.widget.ScrollView {
             sides.addView(row);
         }
         list.addView(sides);
-        TextView note = Ui.text(c, "Check up to " + NightView.MAX_SIDE + ". One or two sit one above the other, "
-                + "three or four share a grid.", 13, Ui.MUTED);
+        TextView note = Ui.text(c, "Check up to " + NightView.MAX_SIDE + ". The arrows set the order. One or two "
+                + "sit one above the other. With three, the first is wide on top. Four share a grid.", 13, Ui.MUTED);
         note.setPadding(Ui.dp(c, 16), Ui.dp(c, 6), Ui.dp(c, 16), 0);
         list.addView(note);
 
@@ -367,6 +381,34 @@ final class SettingsPanel extends android.widget.ScrollView {
             card.addView(row);
         }
         list.addView(card);
+    }
+
+    /** An up or down arrow that moves a checked side tile one place. */
+    private View arrow(Context c, final int tile, final int dir, final int mask, final int[] order) {
+        ImageView v = new ImageView(c);
+        v.setImageDrawable(new Icon(Icon.Kind.CHEVRON, Ui.ACCENT));
+        v.setRotation(dir < 0 ? -90 : 90);
+        int p = Ui.dp(c, 9);
+        v.setPadding(p, p, p, p);
+        v.setContentDescription(NightView.SIDE_NAMES[tile] + (dir < 0 ? " up" : " down"));
+        v.setClickable(true);
+        v.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                prefs.edit().putString(NightView.PREF_ORDER, Rules.joinOrder(Rules.moveTile(order, mask, tile, dir)))
+                        .commit();
+                saveIdle(NightView.PREF_TILES, mask);
+            }
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Ui.dp(c, 40), Ui.dp(c, 40));
+        lp.rightMargin = Ui.dp(c, 4);
+        v.setLayoutParams(lp);
+        return v;
+    }
+
+    private static int indexOf(int[] a, int v) {
+        for (int i = 0; i < a.length; i++) if (a[i] == v) return i;
+        return -1;
     }
 
     private static View checkMark(Context c) {

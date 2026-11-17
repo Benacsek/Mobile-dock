@@ -28,19 +28,20 @@ import java.util.Random;
 /**
  * The idle screen, like a bedside clock: one big tile and up to four side tiles in a color you pick, on black.
  * Big: clock, calendar or now playing. Side, from a checklist: clock, date, calendar, now playing, battery.
- * One or two side tiles stack, three or four make a 2 x 2 grid.
+ * One or two side tiles stack, three put a wide tile over two, four make a 2 x 2 grid. You set their order.
  * The tiles move a few dp now and then, so no pixel stays lit in the same place for hours.
  */
 final class NightView extends FrameLayout {
     static final String PREF_COLOR = "idle_color", PREF_MAIN = "idle_main", PREF_SIDE = "idle_side",
-            PREF_SIDE2 = "idle_side2", PREF_TILES = "idle_tiles";  // the two slots of 2.2.0, then the checklist
+            PREF_SIDE2 = "idle_side2", PREF_TILES = "idle_tiles",
+            PREF_ORDER = "idle_order";  // the two slots of 2.2.0, then the checklist
     /** Bright system colors that read well on black. Red is kind to the eyes in a dark room. */
     static final int[] COLORS = {0xFF70B8FF, 0xFFF2F2F7, 0xFFFF4245, 0xFFFF9230, 0xFF30D158, 0xFFFF375F};
     static final String[] COLOR_NAMES = {"Blue", "White", "Red", "Orange", "Green", "Pink"};
     static final String[] MAIN_NAMES = {"Clock", "Calendar", "Playing"};
     /** Indexed by the tile's number, which is also its bit in the checklist. Clock came later, so it is last. */
     static final String[] SIDE_NAMES = {"Date", "Calendar", "Playing", "Battery", "None", "Clock"};
-    /** The checklist, top to bottom. Checked tiles show in this order. */
+    /** The checklist's first order, top to bottom. You can move checked tiles up and down. */
     static final int[] SIDE_ORDER = {5, 0, 1, 2, 3};
     static final int MAX_SIDE = 4;
     private static final int CLOCK = 0, CALENDAR = 1, PLAYING = 2;  // big tile
@@ -114,9 +115,14 @@ final class NightView extends FrameLayout {
                 SIDE_NAMES.length);
     }
 
-    /** The checked side tiles, in checklist order. */
+    /** Every side tile in the order you set. */
+    static int[] tileOrder(SharedPreferences prefs) {
+        return Rules.tileOrder(prefs.getString(PREF_ORDER, null), SIDE_ORDER);
+    }
+
+    /** The checked side tiles, in your order. The first one gets the wide spot when there are three. */
     static int[] sideTiles(SharedPreferences prefs) {
-        return Rules.checkedTiles(tileMask(prefs), SIDE_ORDER, MAX_SIDE);
+        return Rules.checkedTiles(tileMask(prefs), tileOrder(prefs), MAX_SIDE);
     }
 
     private static int clamp(int v, int n) {

@@ -7,7 +7,8 @@ The notes under the newest version show once in both apps after they update.
 ## 2.3.0
 
 - The idle screen's side tiles are a checklist now: Clock, Date, Calendar, Playing and Battery. Check up to 4.
-- One or two side tiles sit one above the other. Three or four share a 2 x 2 grid.
+- Arrows on a checked tile move it up or down, so you set the order.
+- One or two side tiles sit one above the other. With three, the first is wide on top and the other two share the row below. Four share a 2 x 2 grid.
 - Your tiles from 2.2.0 stay checked.
 - Changing the idle screen no longer jumps the Settings page back to the top.
 

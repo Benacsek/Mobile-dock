@@ -55,7 +55,7 @@ Idle screen: after 5 minutes without a touch, the dock dims to a bedside clock o
 
 - The color: Blue, White, Red, Orange, Green or Pink. Red is the easiest on the eyes in a dark room.
 - The big tile: Clock, Calendar or Playing (the song with its cover).
-- The side tiles, from a checklist: Clock, Date, Calendar, Playing and Battery (the phone's charge). Check up to 4. One or two sit one above the other, three or four share a 2 x 2 grid.
+- The side tiles, from a checklist: Clock, Date, Calendar, Playing and Battery (the phone's charge). Check up to 4. The arrows on a checked tile move it up or down. One or two sit one above the other. With three, the first is wide on top and two share the row below. Four share a 2 x 2 grid.
 - When it shows: Off, 1, 5 or 15 minutes.
 
 Preview shows it right away. The tiles move a few dp now and then, so no pixel stays lit in one place.
@@ -117,7 +117,7 @@ adb shell am start -n dev.mobiledock/.MainActivity --ez demo true --ei page 0
 
 Pages: -1 connect, 0 Apps, 1 Search, 2 Playing, 3 Shortcuts, 4 Controls, 5 Capture, 6 Touch, 7 Stats, 8 Settings, 99 the night clock.
 On page 8, `--ei settings_page N` opens a Settings page: 0 the list, 1 Display, 2 Idle screen, 3 Buttons and feedback, 4 Updates, 5 the big tile picker.
-On page 99, `--ei idle_main`, `--ei idle_tiles` and `--ei idle_color` pick the tiles and color. idle_tiles adds up the side tiles: 1 Date, 2 Calendar, 4 Playing, 8 Battery, 32 Clock.
+On page 99, `--ei idle_main`, `--ei idle_tiles`, `--ei idle_color` and `--es idle_order` pick the tiles, color and order. idle_tiles adds up the side tiles: 1 Date, 2 Calendar, 4 Playing, 8 Battery, 32 Clock.
 
 ## Release signing
 

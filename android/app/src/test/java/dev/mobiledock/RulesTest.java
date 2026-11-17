@@ -101,7 +101,22 @@ public class RulesTest {
         assertEquals(4 | 8, Rules.legacyTileMask(2, 3, 4, 6));
         assertEquals(0, Rules.legacyTileMask(4, 4, 4, 6));
         assertArrayEquals(new int[] {1, 1}, Rules.gridRows(2));
-        assertArrayEquals(new int[] {2, 1}, Rules.gridRows(3));
+        assertArrayEquals(new int[] {1, 2}, Rules.gridRows(3));  // one wide tile over two
         assertArrayEquals(new int[] {2, 2}, Rules.gridRows(4));
+    }
+
+    @Test
+    public void idleTilesKeepTheirOrder() {
+        int[] defaults = {5, 0, 1, 2, 3};
+        assertArrayEquals(defaults, Rules.tileOrder(null, defaults));
+        assertArrayEquals(new int[] {2, 5, 0, 1, 3}, Rules.tileOrder("2,5", defaults));  // missing ones follow
+        assertArrayEquals(new int[] {3, 5, 0, 1, 2}, Rules.tileOrder("3,9,3,x", defaults));  // bad parts dropped
+        assertEquals("2,5,0,1,3", Rules.joinOrder(new int[] {2, 5, 0, 1, 3}));
+        // Clock, Playing and Battery checked. Playing moves up past the unchecked Date and Calendar.
+        int mask = (1 << 5) | 4 | 8;
+        assertArrayEquals(new int[] {2, 0, 1, 5, 3}, Rules.moveTile(defaults, mask, 2, -1));
+        assertArrayEquals(new int[] {5, 0, 1, 3, 2}, Rules.moveTile(defaults, mask, 2, 1));
+        assertArrayEquals(defaults, Rules.moveTile(defaults, mask, 5, -1));  // already first
+        assertArrayEquals(new int[] {2, 5, 3}, Rules.checkedTiles(mask, Rules.moveTile(defaults, mask, 2, -1), 4));
     }
 }

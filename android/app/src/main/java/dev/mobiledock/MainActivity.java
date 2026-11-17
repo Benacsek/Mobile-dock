@@ -141,6 +141,8 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             android.content.SharedPreferences.Editor e = WatchService.prefs(this).edit();
             if (intent.hasExtra("idle_main")) e.putInt(NightView.PREF_MAIN, intent.getIntExtra("idle_main", 0));
             if (intent.hasExtra("idle_tiles")) e.putInt(NightView.PREF_TILES, intent.getIntExtra("idle_tiles", 1));
+            if (intent.hasExtra("idle_order")) e.putString(NightView.PREF_ORDER, intent.getStringExtra("idle_order"));
+            else e.remove(NightView.PREF_ORDER);
             if (intent.hasExtra("idle_color")) e.putInt(NightView.PREF_COLOR, intent.getIntExtra("idle_color", 0));
             e.commit();
             dim();
