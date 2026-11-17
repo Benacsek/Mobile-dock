@@ -29,7 +29,6 @@ final class SettingsPanel extends android.widget.ScrollView {
     private int page;
     private String pcName, pcStatus;  // shown at the top of the list when the dock uses the icon rail
     private boolean pcConnected;
-    private Runnable hideSidebar;  // the rail has no Fullscreen button, so Display offers it
 
     /** onPage hears every page change, so the open page survives the rebuild after a change. */
     SettingsPanel(Context c, SharedPreferences prefs, Runnable apply, Runnable preview, UpdatesPanel updates,
@@ -62,11 +61,6 @@ final class SettingsPanel extends android.widget.ScrollView {
         pcStatus = status;
         pcConnected = connected;
         if (page == LIST) build();
-    }
-
-    /** With the icon rail, Display gets a row that hides it. */
-    void setHideSidebar(Runnable hide) {
-        hideSidebar = hide;
     }
 
     /** Back from a page: a tile picker returns to Idle screen, the rest to the list. False on the list itself. */
@@ -161,18 +155,6 @@ final class SettingsPanel extends android.widget.ScrollView {
                 save(Ui.PREF_THEME, index);
             }
         }));
-
-        if (hideSidebar != null) {
-            LinearLayout hide = Ui.card(c);
-            hide.addView(Kit.navRow(c, Icon.Kind.EXPAND, 0xFF8E8E93, "Hide the sidebar", "", new OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    hideSidebar.run();
-                }
-            }));
-            list.addView(Ui.header(c, "Sidebar"));
-            list.addView(hide);
-        }
 
         list.addView(Ui.header(c, "Accent color"));
         LinearLayout card = Ui.card(c);

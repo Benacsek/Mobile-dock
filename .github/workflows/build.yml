@@ -200,14 +200,6 @@ jobs:
             sleep 3
             "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-$name.png"
           done
-          # Rail option B: Fullscreen as a 9th rail item. Option A keeps it in Settings, Display.
-          for entry in 2:0:apps 2:7:stats 1:5:capture; do
-            IFS=: read -r t page name <<< "$entry"; n=$((n + 1))
-            "$adb" shell am start -W -n dev.mobiledock/.MainActivity --ez demo true --ei theme "$t" \
-              --ei page "$page" --ez rail_fullscreen true > /dev/null
-            sleep 5
-            "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-railb-$name.png"
-          done
           # A tablet, 1280 x 800 dp: it keeps the sidebar with labels.
           "$adb" shell wm size 1920x1200
           "$adb" shell wm density 240

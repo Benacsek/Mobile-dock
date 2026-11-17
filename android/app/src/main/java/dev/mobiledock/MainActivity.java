@@ -145,11 +145,6 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             showOther(intent.getIntExtra("connect_page", OTHER_LIST));
             return true;
         }
-        boolean railFs = intent.getBooleanExtra("rail_fullscreen", false);
-        if (railFs != railFullscreen) {
-            railFullscreen = railFs;
-            if (dockView != null) rebuildDock();
-        }
         if (dockView == null || dockView.getVisibility() != View.VISIBLE) onState(DockClient.CONNECTED, "Desk-PC");
         if (dimmed) wake();
         if (page == 99) {  // the idle screen. CI can pick its tiles and color.
@@ -674,7 +669,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         watchStatus.setPadding(sp, sp, sp, sp);
         right.addView(watchStatus, Ui.fillWidth(this, 4));
         updateWatchStatus();
-        LinearLayout watchButtons = Ui.row(this);
+        LinearLayout watchButtons = Ui.column(this);  // stacked: the card is too narrow for two buttons
         Button fix = Ui.accentButton(this, "Fix permissions");
         fix.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -874,7 +869,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         boolean lastFound = false;
         for (Discovery.Host h : found) lastFound |= h.address.equals(last);
         if (demoWake || !lastFound && store.mac(last).length() > 0) {  // a known PC that may be asleep
-            hostList.addView(Kit.navRow(this, Icon.Kind.POWER, Ui.SIGNAL, "Wake your PC", demoWake ? "192.168.1.20" : last, new View.OnClickListener() {
+            hostList.addView(Kit.navRow(this, Icon.Kind.POWER, Ui.SIGNAL, "Wake your PC", "", new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     wakePc();
@@ -952,8 +947,8 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private boolean fullscreen;
     private LinearLayout sidebar, dock;
     private View exitFull, gear;
-    /** Phones get a 64 dp icon rail instead of the sidebar. railFullscreen is demo option B: Fullscreen in the rail. */
-    private boolean rail, railFullscreen;
+    /** Phones get a 64 dp icon rail instead of the sidebar. */
+    private boolean rail;
     private TextView sideName, sideStatus;
     private View sideDot;
     /** Pages with a row in the sidebar. Settings has the gear, Capture opens from Controls. */
@@ -1102,17 +1097,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             }
         });
         panels.add(settings);
-        if (rail) {
-            settings.setPc(client.hostName.length() > 0 ? client.hostName : "Your PC", "Connected over Wi-Fi", true);
-            if (!railFullscreen) {
-                settings.setHideSidebar(new Runnable() {
-                    @Override
-                    public void run() {
-                        setFullscreen(true);
-                    }
-                });
-            }
-        }
+        if (rail) settings.setPc(client.hostName.length() > 0 ? client.hostName : "Your PC", "Connected over Wi-Fi", true);
         for (View p : panels) content.addView(p);
         capture.setRecording(recording);
         dock.addView(content, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
@@ -1247,7 +1232,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     }
 
     /**
-     * The 64 dp icon rail for phones: 7 page icons, then Settings at the bottom with a dot while the PC is
+     * The 64 dp icon rail for phones: Fullscreen, 7 page icons, then Settings at the bottom with a dot while the PC is
      * not connected. The PC name moves to the top of Settings. Long press an icon to see its name.
      */
     private LinearLayout buildRail() {
@@ -1259,14 +1244,13 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         int m = Ui.dp(this, 2);
         slp.setMargins(m, m, 0, m);
         side.setLayoutParams(slp);
-        if (railFullscreen) {
-            side.addView(railItem(Icon.Kind.EXPAND, "Fullscreen", -1), railWeight());
-            View line = new View(this);
-            line.setBackgroundColor(Ui.LINE);
-            LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1);
-            llp.setMargins(Ui.dp(this, 10), Ui.dp(this, 2), Ui.dp(this, 10), Ui.dp(this, 2));
-            side.addView(line, llp);
-        }
+        // Fullscreen first, in gray and above a line, so it reads as a tool and not as a page.
+        side.addView(railItem(Icon.Kind.EXPAND, "Fullscreen", -1), railWeight());
+        View line = new View(this);
+        line.setBackgroundColor(Ui.LINE);
+        LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1);
+        llp.setMargins(Ui.dp(this, 10), Ui.dp(this, 2), Ui.dp(this, 10), Ui.dp(this, 2));
+        side.addView(line, llp);
         for (int i = 0; i < SIDEBAR_PAGES.length; i++) {
             side.addView(railItem(SIDEBAR_ICONS[i], SIDEBAR_NAMES[i], SIDEBAR_PAGES[i]), railWeight());
         }
@@ -1292,7 +1276,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         item.setContentDescription(name);
         FrameLayout holder = new FrameLayout(this);
         ImageView icon = new ImageView(this);
-        icon.setImageDrawable(new Icon(kind, Ui.ACCENT));
+        icon.setImageDrawable(new Icon(kind, page == -1 ? Ui.MUTED : Ui.ACCENT));
         holder.addView(icon, new FrameLayout.LayoutParams(Ui.dp(this, 22), Ui.dp(this, 22), Gravity.CENTER));
         if (page == SETTINGS) {
             sideDot = new View(this);

@@ -28,7 +28,7 @@ Debug builds from the Actions tab are signed with a different key on every run. 
 
 ## Use
 
-A floating sidebar on the left lists 7 pages. Your PC's name and connection sit at the top, with Fullscreen and Settings (the gear) beside them. The look follows Apple's design guidelines, in light or dark.
+On a phone, a slim floating column of icons on the left holds Fullscreen, the 7 pages and Settings (the gear, at the bottom). Long press an icon to see its name. The gear shows a dot while the PC is not connected, and your PC's name and connection sit at the top of Settings. On a tablet (600 dp or more on the short side), a sidebar lists the 7 pages by name, with your PC, Fullscreen and Settings at the top. The look follows Apple's design guidelines, in light or dark.
 
 App icons all get the same rounded-square shape. Names can use two lines. The grid spreads apps evenly over the rows, so 8 apps make two rows of 4.
 
@@ -49,7 +49,7 @@ App icons all get the same rounded-square shape. Names can use two lines. The gr
   - Buttons and feedback: tap vibration and the volume buttons switch.
   - Updates: the phone and PC versions, the PC's update status, Check now and Copy diagnostics.
 - Arrange: the dots icon on Apps. A tap picks a tile up. Tap the icon again or press Back when you are done.
-- Fullscreen: the corners icon at the top of the sidebar hides it on any page. Tap the small button in the corner or press Back to bring it back.
+- Fullscreen: the corners icon at the top of the icons or the sidebar hides them on any page. Tap the small button in the corner or press Back to bring it back.
 
 Idle screen: after 5 minutes without a touch, the dock dims to a bedside clock on black. The first touch brings the dock back and does not press anything. In Settings, Idle screen, pick:
 
@@ -68,11 +68,11 @@ Pair with a QR code: when you click Pair new phone, the PC shows a QR code. Scan
 
 ## Wake the PC
 
-After the phone has connected once, the connect page shows Wake PC. It sends a Wake-on-LAN signal, which can turn on a PC that sleeps or is shut down. The PC must allow it. See the host README.
+After the phone has connected once, the connect page shows Wake your PC when it cannot find that PC. It sends a Wake-on-LAN signal, which can turn on a PC that sleeps or is shut down. The PC must allow it. See the host README.
 
 ## Start with your PC
 
-Turn on "Wake up and connect when my PC turns on" on the connect page. Tap Disconnect on the Controls page to reach it.
+On the connect page, open Start with your PC under Other ways to connect and turn on "Wake up and connect when my PC turns on". Tap Disconnect on the Controls page to reach it.
 
 - A small background service sends the discovery probe every 5 seconds while charging and every 60 seconds on battery.
 - When a paired PC answers after being off, or after the PC app restarted, the phone turns its screen on, opens the dock and connects.
@@ -107,7 +107,7 @@ The APK lands in `app/build/outputs/apk/debug/`.
 
 ## Screenshots in CI
 
-Every build starts a 720p landscape Android emulator, opens each page in demo mode and saves a picture of it. Three pages are shot again with large system text, to catch labels that no longer fit. Plain unit tests in `app/src/test` check the logic that has no screen, such as pairing links and the app grid. Download `phone-screenshots` from the build in the Actions tab.
+Every build starts a 720p landscape Android emulator, opens each page in demo mode and saves a picture of it, including each state of the connect page. Some pages are shot again on a small phone, on a tablet and with large system text, to catch labels that no longer fit. Plain unit tests in `app/src/test` check the logic that has no screen, such as pairing links and the app grid. Download `phone-screenshots` from the build in the Actions tab.
 
 Demo mode shows sample data instead of a PC. It only works in debuggable builds, so the release app never uses it. To try it on a test phone with a debug build:
 
@@ -117,6 +117,7 @@ adb shell am start -n dev.mobiledock/.MainActivity --ez demo true --ei page 0
 
 Pages: -1 connect, 0 Apps, 1 Search, 2 Playing, 3 Shortcuts, 4 Controls, 5 Capture, 6 Touch, 7 Stats, 8 Settings, 99 the night clock.
 On page 8, `--ei settings_page N` opens a Settings page: 0 the list, 1 Display, 2 Idle screen, 3 Buttons and feedback, 4 Updates, 5 the big tile picker.
+On page -1, `--es connect_state searching|found|none` fills the PC list with sample PCs, and `--ei connect_page N` opens one of the other ways to connect: 0 the list, 1 Enter address, 2 USB cable, 3 Start with your PC.
 On page 99, `--ei idle_main`, `--ei idle_tiles`, `--ei idle_color` and `--es idle_order` pick the tiles, color and order. idle_tiles adds up the side tiles: 1 Date, 2 Calendar, 4 Playing, 8 Battery, 32 Clock.
 
 ## Release signing
@@ -153,7 +154,7 @@ If you lose the key, phones can't update anymore. You'd have to uninstall and re
 | `proto/` | Pure Java protocol: SPAKE2, AES and HMAC channel, framing |
 | `DockClient.java` | Connection, reconnect, requests |
 | `Discovery.java` | UDP broadcast to find PCs |
-| `MainActivity.java` | Connect page, sidebar, pages, fullscreen |
+| `MainActivity.java` | Connect page, icon rail and sidebar, pages, fullscreen |
 | `Ui.java`, `Icon.java` | Light and dark colors, Inter, list rows and line icons drawn in code |
 | `Kit.java` | iOS controls drawn in code: switch, segmented control, slider, floating glass panel |
 | `AppsPanel.java` | Pinned apps grid with drag and drop and arrange mode |

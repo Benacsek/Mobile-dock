@@ -4,6 +4,17 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 2.4.0
+
+- On phones, the sidebar is a slim column of icons now. Pages get about 140 dp more room, so labels such as "Picture to clipboard" and the app names in Stats show in full. Long press an icon to see its name.
+- Fullscreen sits at the top of the icons, in gray. Settings sits at the bottom, with a dot while the PC is not connected.
+- Your PC's name and connection show at the top of Settings.
+- Tablets keep the sidebar with names.
+- The connect page shows the PCs it finds as a list, with Paired or New. While it searches, gray rows stand in for them.
+- When it finds no PC, it shows three steps to fix that, and Wake your PC if the phone knows your PC.
+- Enter address, USB cable, Start with your PC and Forget paired PCs moved into a list on the right. Each opens in place, with Other ways at the top to go back.
+- With large text, app names under the icons no longer get cut off.
+
 ## 2.3.0
 
 - The idle screen's side tiles are a checklist now: Clock, Date, Calendar, Playing and Battery. Check up to 4.

@@ -52,10 +52,10 @@ The PC window while pairing, and its Settings in light mode:
 - Capture (from Controls): take a screenshot, snip a region, and start or stop screen recording. Screenshots save in Pictures/Mobile Dock, videos in Videos/Mobile Dock. Copy clipboard text from the phone to the PC or back.
 - Wake PC: turn the PC on from the phone with Wake-on-LAN. See [host/README.md](host/README.md) for the PC settings it needs.
 - Touch & sign: the touchpad, the keyboard, and a signature pad. Sign with your finger, tap Send, and paste the signature into a PDF or document with Ctrl+V.
-- The look follows Apple's design guidelines: a floating sidebar, grouped lists, switches and the Inter typeface. Light, dark, or automatic with the phone's setting. The PC window matches it.
-- Settings (the gear at the top of the sidebar): four groups, each on its own page. Display has light or dark, the accent color, the app icon size and app labels. Idle screen, Buttons and feedback, and Updates hold the rest.
+- The look follows Apple's design guidelines: a floating icon column on phones and a sidebar with names on tablets, grouped lists, switches and the Inter typeface. Light, dark, or automatic with the phone's setting. The PC window matches it.
+- Settings (the gear at the bottom of the icons, or at the top of the tablet sidebar): your PC and its connection, then four groups, each on its own page. Display has light or dark, the accent color, the app icon size and app labels. Idle screen, Buttons and feedback, and Updates hold the rest.
 - Arrange (the dots icon on Apps): tap a tile to pick it up and drop it in its new place, or on the red bar to unpin it.
-- Fullscreen (the corners icon at the top of the sidebar): hide the sidebar so the open page gets the whole screen. Back brings it back.
+- Fullscreen (the corners icon at the top of the icons or the sidebar): hide them so the open page gets the whole screen. Back brings it back.
 - The PC app runs in the background: close its window and the phone stays connected. Open it again from the tray icon.
 - Optional: turn on "Wake up and connect when my PC turns on". When your PC starts, or when you close and reopen the PC app, the phone turns its screen on, opens the dock and connects. It works best while the phone charges.
 

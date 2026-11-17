@@ -228,7 +228,10 @@ final class AppsPanel extends LinearLayout {
         if (gridHeight > 0 && rows * rowPx > gridHeight) {
             rowPx = Math.max(Ui.dp(c, 92 * Ui.TILE_SCALE), gridHeight / rows);
         }
-        iconPx = Math.max(Ui.dp(c, 36), Math.min(Ui.dp(c, 56 * Ui.TILE_SCALE), rowPx - Ui.dp(c, 52)));
+        // Room for two label lines at the phone's text size, the label margin and the tile padding.
+        int labelRoom = 2 * Ui.text(c, "Ag", 12, Ui.TEXT).getLineHeight() + Ui.dp(c, 18);
+        rowPx = Math.max(rowPx, Ui.dp(c, 36) + labelRoom);  // large text: rows grow and the grid scrolls
+        iconPx = Math.max(Ui.dp(c, 36), Math.min(Ui.dp(c, 56 * Ui.TILE_SCALE), rowPx - labelRoom));
         LinearLayout row = null;
         for (int i = 0; i < apps.size(); i++) {
             if (i % columns == 0) {
