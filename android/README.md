@@ -156,7 +156,7 @@ If you lose the key, phones can't update anymore. You'd have to uninstall and re
 | `DockClient.java` | Connection, reconnect, requests |
 | `Discovery.java` | UDP broadcast to find PCs |
 | `MainActivity.java` | Connect page, icon rail and sidebar, pages, fullscreen |
-| `Ui.java`, `Icon.java` | Light and dark colors, Inter, list rows and line icons drawn in code |
+| `Ui.java`, `Icon.java`, `IconPaths.java` | Light and dark colors, Inter, list rows, and the Phosphor icons drawn as paths |
 | `Kit.java` | iOS controls drawn in code: switch, segmented control, slider, floating glass panel |
 | `AppsPanel.java` | Pinned apps grid with drag and drop and arrange mode |
 | `ControlsPanel.java`, `CapturePanel.java` | PC controls, capture and sending |

@@ -127,3 +127,5 @@ docs/        Protocol description
 MIT. See [LICENSE](LICENSE).
 
 Both apps include the Inter typeface by The Inter Project Authors, under the SIL Open Font License 1.1. Its license is next to the font files.
+
+The phone app's icons are from Phosphor Icons, under the MIT License. See [docs/licenses/phosphor-icons.txt](docs/licenses/phosphor-icons.txt).
