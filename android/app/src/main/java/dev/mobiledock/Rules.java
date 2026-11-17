@@ -54,4 +54,17 @@ final class Rules {
     static boolean isTap(float dx, float dy, float slop, long heldMs, long longPressMs) {
         return Math.abs(dx) <= slop && Math.abs(dy) <= slop && heldMs < longPressMs;
     }
+
+    /**
+     * A month as 6 rows of 7 days for the calendar tile. 0 means an empty cell.
+     * month is 0 for January. firstDay is the locale's first weekday: 1 Sunday, 2 Monday, as in Calendar.
+     */
+    static int[] monthGrid(int year, int month, int firstDay) {
+        java.util.Calendar c = new java.util.GregorianCalendar(year, month, 1);
+        int offset = (c.get(java.util.Calendar.DAY_OF_WEEK) - firstDay + 7) % 7;
+        int days = c.getActualMaximum(java.util.Calendar.DAY_OF_MONTH);
+        int[] cells = new int[42];
+        for (int d = 1; d <= days; d++) cells[offset + d - 1] = d;
+        return cells;
+    }
 }

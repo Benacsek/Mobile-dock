@@ -164,6 +164,14 @@ jobs:
               "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-$look-$name.png"
             done
           done
+          # The idle screen with other tiles and colors: calendar and playing in red, playing and battery in green.
+          for combo in 1:2:2:idle-calendar-red 2:3:4:idle-playing-green 0:0:0:idle-clock-blue; do
+            IFS=: read -r m sd col name <<< "$combo"; n=$((n + 1))
+            "$adb" shell am start -W -n dev.mobiledock/.MainActivity --ez demo true --ei page 99 \
+              --ei idle_main "$m" --ei idle_side "$sd" --ei idle_color "$col" > /dev/null
+            sleep 5
+            "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-$name.png"
+          done
           # Some pages with large system text, to catch labels that no longer fit.
           "$adb" shell settings put system font_scale 1.3
           "$adb" shell am force-stop dev.mobiledock

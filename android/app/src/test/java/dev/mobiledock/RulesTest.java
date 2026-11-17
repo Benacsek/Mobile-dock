@@ -70,4 +70,22 @@ public class RulesTest {
     public void badMacIsRejected() {
         WakeOnLan.packet("not-a-mac");
     }
+
+    @Test
+    public void monthGridStartsOnTheRightWeekday() {
+        // November 2026 starts on a Sunday and has 30 days.
+        int[] mondayFirst = Rules.monthGrid(2026, 10, java.util.Calendar.MONDAY);
+        assertEquals(0, mondayFirst[5]);
+        assertEquals(1, mondayFirst[6]);  // Sunday is the last column when weeks start on Monday
+        assertEquals(30, mondayFirst[35]);
+        assertEquals(0, mondayFirst[36]);
+        int[] sundayFirst = Rules.monthGrid(2026, 10, java.util.Calendar.SUNDAY);
+        assertEquals(1, sundayFirst[0]);
+        assertEquals(30, sundayFirst[29]);
+        // February 2028 is a leap month: 29 days, starting on a Tuesday.
+        int[] leap = Rules.monthGrid(2028, 1, java.util.Calendar.MONDAY);
+        assertEquals(1, leap[1]);
+        assertEquals(29, leap[29]);
+        assertEquals(0, leap[30]);
+    }
 }

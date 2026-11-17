@@ -137,7 +137,12 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         }
         if (dockView == null || dockView.getVisibility() != View.VISIBLE) onState(DockClient.CONNECTED, "Desk-PC");
         if (dimmed) wake();
-        if (page == 99) {  // the dim night clock
+        if (page == 99) {  // the idle screen. CI can pick its tiles and color.
+            android.content.SharedPreferences.Editor e = WatchService.prefs(this).edit();
+            if (intent.hasExtra("idle_main")) e.putInt(NightView.PREF_MAIN, intent.getIntExtra("idle_main", 0));
+            if (intent.hasExtra("idle_side")) e.putInt(NightView.PREF_SIDE, intent.getIntExtra("idle_side", 0));
+            if (intent.hasExtra("idle_color")) e.putInt(NightView.PREF_COLOR, intent.getIntExtra("idle_color", 0));
+            e.commit();
             dim();
             return true;
         }
@@ -280,10 +285,13 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     }
 
     private void dim() {
-        if (night == null) {
-            night = new NightView(this, client);
-            root.addView(night);
+        // Built fresh each time, so a new color or tile from Settings shows at once.
+        if (night != null) {
+            night.stop();
+            root.removeView(night);
         }
+        night = new NightView(this, client, WatchService.prefs(this));
+        root.addView(night);
         night.setVisibility(View.VISIBLE);
         night.bringToFront();
         night.start();
@@ -933,6 +941,11 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             @Override
             public void run() {
                 rebuildDock();
+            }
+        }, new Runnable() {
+            @Override
+            public void run() {
+                dim();  // Preview: a touch brings the dock back
             }
         }));
         list.addView(updates);

@@ -16,7 +16,7 @@ final class AppearancePanel extends LinearLayout {
     private final SharedPreferences prefs;
     private final Runnable apply;
 
-    AppearancePanel(Context c, SharedPreferences prefs, Runnable apply) {
+    AppearancePanel(Context c, SharedPreferences prefs, Runnable apply, final Runnable preview) {
         super(c);
         this.prefs = prefs;
         this.apply = apply;
@@ -79,7 +79,9 @@ final class AppearancePanel extends LinearLayout {
             }
         }));
 
-        addView(Ui.header(c, "Dim to a clock when idle"));
+        addIdleScreen(c, preview);
+
+        addView(Ui.header(c, "Show the idle screen after"));
         int dim = prefs.getInt(PREF_DIM, 5), dimIndex = 0;
         for (int i = 0; i < DIM_MINUTES.length; i++) if (DIM_MINUTES[i] == dim) dimIndex = i;
         addView(Kit.segmented(c, DIM_NAMES, dimIndex, new Kit.OnPick() {
@@ -107,6 +109,75 @@ final class AppearancePanel extends LinearLayout {
         phone.addView(switchRow(c, Icon.Kind.SPEAKER, 0xFFFF2D55, "Volume buttons control the PC", PREF_VOLUME_KEYS,
                 prefs.getBoolean(PREF_VOLUME_KEYS, true)));
         addView(phone);
+    }
+
+    /** The idle screen: its color, the big tile, the side tile, and a Preview button. */
+    private void addIdleScreen(Context c, final Runnable preview) {
+        LinearLayout head = Ui.row(c);
+        head.addView(Ui.header(c, "Idle screen"));
+        head.addView(Ui.spacer(c));
+        TextView show = Ui.strong(c, "Preview", 15, Ui.ACCENT);
+        show.setPadding(Ui.dp(c, 12), Ui.dp(c, 10), Ui.dp(c, 12), Ui.dp(c, 4));
+        show.setClickable(true);
+        show.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                preview.run();
+            }
+        });
+        head.addView(show);
+        addView(head, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+
+        LinearLayout card = Ui.card(c);
+        LinearLayout swatches = Ui.row(c);
+        swatches.setPadding(Ui.dp(c, 8), Ui.dp(c, 8), Ui.dp(c, 8), Ui.dp(c, 8));
+        int chosen = Math.max(0, Math.min(NightView.COLORS.length - 1, prefs.getInt(NightView.PREF_COLOR, 0)));
+        for (int i = 0; i < NightView.COLORS.length; i++) {
+            final int index = i;
+            LinearLayout s = Ui.column(c);
+            s.setGravity(Gravity.CENTER);
+            s.setClickable(true);
+            s.setContentDescription(NightView.COLOR_NAMES[i] + " idle screen");
+            // Shown on black, like the idle screen itself.
+            View dot = new View(c);
+            android.graphics.drawable.GradientDrawable d = Ui.rounded(c, NightView.COLORS[i], 15);
+            d.setStroke(Ui.dp(c, i == chosen ? 3 : 0), 0xFF000000);
+            dot.setBackground(d);
+            android.widget.FrameLayout holder = new android.widget.FrameLayout(c);
+            View ring = new View(c);
+            ring.setBackground(Ui.rounded(c, i == chosen ? NightView.COLORS[i] : 0xFF000000, 18));
+            holder.addView(ring, new android.widget.FrameLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)));
+            holder.addView(dot, new android.widget.FrameLayout.LayoutParams(Ui.dp(c, 30), Ui.dp(c, 30), Gravity.CENTER));
+            s.addView(holder, new LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)));
+            TextView name = Ui.text(c, NightView.COLOR_NAMES[i], 12, i == chosen ? Ui.TEXT : Ui.MUTED);
+            LayoutParams lp = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+            lp.topMargin = Ui.dp(c, 4);
+            s.addView(name, lp);
+            s.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    save(NightView.PREF_COLOR, index);
+                }
+            });
+            swatches.addView(s, new LayoutParams(0, Ui.dp(c, 64), 1f));
+        }
+        card.addView(swatches);
+        addView(card);
+
+        addView(Ui.header(c, "Big tile"));
+        addView(Kit.segmented(c, NightView.MAIN_NAMES, prefs.getInt(NightView.PREF_MAIN, 0), new Kit.OnPick() {
+            @Override
+            public void picked(int index) {
+                save(NightView.PREF_MAIN, index);
+            }
+        }));
+        addView(Ui.header(c, "Side tile"));
+        addView(Kit.segmented(c, NightView.SIDE_NAMES, prefs.getInt(NightView.PREF_SIDE, 0), new Kit.OnPick() {
+            @Override
+            public void picked(int index) {
+                save(NightView.PREF_SIDE, index);
+            }
+        }));
     }
 
     private LinearLayout switchRow(Context c, Icon.Kind kind, int color, String label, final String key, boolean on) {

@@ -47,7 +47,14 @@ App icons all get the same rounded-square shape. Names can use two lines. The gr
 - Arrange: the dots icon on Apps. A tap picks a tile up. Tap the icon again or press Back when you are done.
 - Fullscreen: the corners icon at the top of the sidebar hides it on any page. Tap the small button in the corner or press Back to bring it back.
 
-Night dimming: after 5 minutes without a touch, the dock dims to a quiet clock with the current song on black. The first touch brings the dock back and does not press anything. The clock moves a little every 20 seconds so no pixel stays lit in one place. Pick Off, 1, 5 or 15 minutes in Settings.
+Idle screen: after 5 minutes without a touch, the dock dims to a bedside clock on black. The first touch brings the dock back and does not press anything. In Settings, Idle screen, pick:
+
+- The color: Blue, White, Red, Orange, Green or Pink. Red is the easiest on the eyes in a dark room.
+- The big tile: Clock, Calendar or Playing (the song with its cover).
+- The side tile: Date, Calendar, Playing, Battery (the phone's charge) or None.
+- When it shows: Off, 1, 5 or 15 minutes.
+
+Preview shows it right away. The tiles move a few dp now and then, so no pixel stays lit in one place.
 
 Tap vibration: a short buzz when you tap a tile or button, so you know it worked without looking. It buzzes when you lift your finger, only for a tap. Scrolling across buttons, long presses, the touchpad, signature pad and sliders do not buzz. In Settings pick Off, Light, Medium or Strong. The phone buzzes once when you pick, so you can feel it. Older phones need Medium or Strong, because their motors need about 30 ms to start.
 

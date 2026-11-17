@@ -4,6 +4,13 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 2.1.0
+
+- A new idle screen, like a bedside clock: big bold digits in a color you pick, on black.
+- Pick the tiles in Settings, Idle screen. The big tile shows the clock, this month's calendar or the song that is playing. The side tile shows the date, the calendar, the song, the phone's battery, or nothing.
+- Six colors: Blue, White, Red, Orange, Green and Pink. Red is the easiest on the eyes at night.
+- Preview in Settings shows it right away.
+
 ## 2.0.0
 
 - A new look on the phone and the PC, following Apple's design guidelines: grouped lists, switches, capsule buttons and the Inter typeface.
