@@ -23,7 +23,7 @@ def free_windows_on_this_thread():
     gc.collect()
 
 
-def test_window_builds(tmp_path):
+def test_window_builds(tmp_path, monkeypatch):
     """Builds the real window. Catches theme or layout errors that only Tk reports."""
     from test_server import FakePlatform
     from mobiledock_host.config import Config
@@ -43,7 +43,8 @@ def test_window_builds(tmp_path):
     class FakeUpdater:
         status = "Up to date"
 
-    app = App(server, queue.Queue(), updater=FakeUpdater())
+    tray = FakeTray()
+    app = App(server, queue.Queue(), updater=FakeUpdater(), tray=tray)
     app.start_pairing()
     assert all(box.cget("text").isdigit() for box in app.pin_boxes)
     app.show_connection([{"id": "x", "name": "Test phone", "since": 0, "via": "USB"}])
@@ -73,7 +74,7 @@ def test_window_builds(tmp_path):
         app.poll_events()
         app.root.update()
         time.sleep(0.05)
-    app.root.destroy()
+    _check_background(app, tray, monkeypatch)
 
 
 class FakeTray:
@@ -86,29 +87,20 @@ class FakeTray:
         self.said.append((title, text))
 
 
-def test_background_mode(tmp_path, monkeypatch):
+def _check_background(app, tray, monkeypatch):
     """Closing hides the window and the server keeps running. Show, PIN, notes, minimize and quit.
 
-    One window for all of it: the Windows runner sometimes fails to start Tk when a test run starts many.
+    It reuses the window of test_window_builds: the Windows runner often fails to start Tk a second time
+    in one test run. The app itself only ever starts one.
     """
     import types
 
-    from test_server import FakePlatform
     from mobiledock_host import __version__
-    from mobiledock_host.config import Config
-    from mobiledock_host.server import DockServer
 
-    from mobiledock_host.gui import App
-
-    config = Config(tmp_path / "config.json")
-    config.data.update(port=0, discovery=False, seen_version="0.0.1")
-    tray = FakeTray()
-    try:
-        app = App(DockServer(config, FakePlatform()), queue.Queue(), tray=tray)
-    except tk.TclError as exc:
-        pytest.skip(f"no display: {exc}")
+    app.server.config.data["seen_version"] = "0.0.1"
     app.server.start()
     try:
+        app.show()
         app.root.update()
         app.close_window()
         app.root.update()
