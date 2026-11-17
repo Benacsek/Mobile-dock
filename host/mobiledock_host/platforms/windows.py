@@ -609,7 +609,9 @@ class WindowsPlatform(Platform):
     def _endpoint():
         """The default speakers' volume control, the same one as the taskbar volume."""
         try:
-            from comtypes import CLSCTX_ALL, POINTER, cast
+            from ctypes import POINTER, cast
+
+            from comtypes import CLSCTX_ALL
             from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
         except ImportError as exc:
             raise PlatformError("The PC volume needs the pycaw package") from exc
