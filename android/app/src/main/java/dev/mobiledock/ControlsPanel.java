@@ -63,7 +63,7 @@ final class ControlsPanel extends ScrollView {
             LinearLayout line = Ui.row(c);
             for (int i = 0; i < 3; i++) {
                 line.addView(tiles[r * 3 + i], new LinearLayout.LayoutParams(0,
-                        LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+                        LinearLayout.LayoutParams.MATCH_PARENT, 1f));
             }
             pc.addView(line, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -194,7 +194,7 @@ final class ControlsPanel extends ScrollView {
 
     private static LinearLayout tile(Context c, Icon.Kind kind, int color, String label, OnClickListener click) {
         LinearLayout t = Ui.column(c);
-        t.setGravity(Gravity.CENTER);
+        t.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.TOP);
         t.setMinimumHeight(Ui.dp(c, 84));
         t.setPadding(Ui.dp(c, 4), Ui.dp(c, 10), Ui.dp(c, 4), Ui.dp(c, 8));
         t.setBackground(Ui.pressable(c, 0x00000000, Ui.PRESSED, 14));
@@ -207,6 +207,9 @@ final class ControlsPanel extends ScrollView {
         t.addView(icon, ilp);
         TextView name = Ui.text(c, label, 13, Ui.TEXT);
         Ui.fitLabel(name, 13);
+        name.setSingleLine(false);
+        name.setMaxLines(2);  // "Show desktop" and "Task Manager" wrap instead of ending in "…"
+        name.setEllipsize(android.text.TextUtils.TruncateAt.END);
         name.setGravity(Gravity.CENTER);
         t.addView(name, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));

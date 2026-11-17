@@ -78,10 +78,10 @@ final class VolumeRow extends LinearLayout {
         TextView label = Ui.text(c, name, 15, Ui.TEXT);
         label.setSingleLine(true);
         label.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        // At most 30 percent of the row, so the slider keeps its room. Long names end in "…".
-        addView(label, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 0.43f));
-        addView(bar, blp);
-        level.setMinWidth(Ui.dp(c, 44));
+        // The name gets close to half of the room the slider gets. Long names end in "…".
+        addView(label, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
+        addView(bar, new LayoutParams(0, Ui.dp(c, 44), 1.2f));
+        level.setMinWidth(Ui.dp(c, 36));
         level.setGravity(Gravity.END);
         addView(level);
         addView(mute);
