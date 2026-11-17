@@ -4,6 +4,11 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 2.4.4
+
+- PC: every page scrolls when the window is too short, also with Windows display scaling. Before, the bottom of Settings was cut off with no scrollbar.
+- PC: the mouse wheel scrolls the page wherever the pointer is on it, also over cards and text.
+
 ## 2.4.3
 
 - PC, Apps: each pinned app is its own row with up and down arrows and a red Unpin. No more select first, then move.

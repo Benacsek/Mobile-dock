@@ -309,7 +309,26 @@ class ScrollPage(tk.Frame):
         self.inner.bind("<Configure>", lambda e: self._fit())
         self.canvas.bind("<Configure>", lambda e: self._fit())
         self.canvas.bind("<Enter>", lambda e: self.canvas.bind_all("<MouseWheel>", self._wheel))
-        self.canvas.bind("<Leave>", lambda e: self.canvas.unbind_all("<MouseWheel>"))
+        self.canvas.bind("<Leave>", self._leave)
+        self._seen = None
+        self._watch()
+
+    def _leave(self, event) -> None:
+        # Tk sends Leave when the pointer moves onto a card or label inside the page too.
+        # Keep the wheel while the pointer is still anywhere on this page.
+        over = self.winfo_containing(event.x_root, event.y_root)
+        if over is None or not str(over).startswith(str(self)):
+            self.canvas.unbind_all("<MouseWheel>")
+
+    def _watch(self) -> None:
+        # Wrapped text, display scaling and new rows make the content taller without a resize event.
+        # So the page checks its height a few times a second and turns the scrollbar on when needed.
+        if self.winfo_ismapped():
+            now = (self.inner.winfo_reqheight(), self.canvas.winfo_height(), self.canvas.winfo_width())
+            if now != self._seen:
+                self._seen = now
+                self._fit()
+        self.after(250, self._watch)
 
     def _fit(self) -> None:
         width, height = self.canvas.winfo_width(), self.canvas.winfo_height()
