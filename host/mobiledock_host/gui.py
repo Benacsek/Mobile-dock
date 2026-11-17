@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import queue
 import socket
 import sys
@@ -50,11 +51,11 @@ def _autostart_set(enabled: bool) -> None:
     with winreg.OpenKey(winreg.HKEY_CURRENT_USER, AUTOSTART_KEY, 0, winreg.KEY_SET_VALUE) as key:
         if enabled:
             if getattr(sys, "frozen", False):
-                value = f'"{sys.executable}" --minimized'
+                value = f'"{sys.executable}" --background'
             else:
                 pythonw = Path(sys.executable).with_name("pythonw.exe")
                 exe = pythonw if pythonw.exists() else Path(sys.executable)
-                value = f'"{exe}" -m mobiledock_host --minimized'
+                value = f'"{exe}" -m mobiledock_host --background'
             winreg.SetValueEx(key, AUTOSTART_NAME, 0, winreg.REG_SZ, value)
         else:
             try:
@@ -225,8 +226,8 @@ def dot(parent, color: str, bg: str, size: int = 10) -> tk.Canvas:
 class App:
     TABS = ("Phone", "Apps", "Shortcuts", "Settings")
 
-    def __init__(self, server: DockServer, events: "queue.Queue[tuple[str, str]]", minimized: bool = False,
-                 updater=None, restart: threading.Event | None = None):
+    def __init__(self, server: DockServer, events: "queue.Queue[tuple[str, str]]", hidden: bool = False,
+                 updater=None, restart: threading.Event | None = None, tray=None):
         from . import __version__
 
         self.server = server
@@ -238,6 +239,10 @@ class App:
         self.root.title("Mobile Dock")
         self.pin_job = None
         self.update_label = None
+        self.tray = tray  # Windows tray icon, or None
+        self.hidden = False
+        self.notes_waiting = False
+        self.root.protocol("WM_DELETE_WINDOW", self.close_window)
 
         apply_theme(self.root)
         f = self.root._fonts
@@ -298,8 +303,8 @@ class App:
         self.refresh_devices()
         self.refresh_pinned()
         self.refresh_pads()
-        if minimized:
-            self.root.iconify()
+        if hidden:
+            self.hide()
         self.root.after(200, self.poll_events)
         self.root.after(900, self.whats_new)
 
@@ -408,6 +413,21 @@ class App:
             self.toggle.bind("<Button-1>", lambda e: self.flip_autostart())
             self.toggle.bind("<space>", lambda e: self.flip_autostart())
             self._paint_toggle()
+        where = "the tray icon next to the clock" if self.tray else "Mobile Dock in the Start menu or app list"
+        bg = section(page, "When I close the window", "Keep running keeps the phone connected. "
+                     f"Open the window again from {where}.")
+        bg.pack(fill="x", pady=(0, 16))
+        brow = tk.Frame(bg.body, background=SURFACE)
+        brow.pack(fill="x")
+        self.keep_toggle = tk.Label(brow, background=SURFACE, font=f["strong"], padx=16, pady=6, cursor="hand2",
+                                    takefocus=1)
+        self.keep_toggle.pack(side="left")
+        self.keep_toggle.bind("<Button-1>", lambda e: self.flip_keep_running())
+        self.keep_toggle.bind("<space>", lambda e: self.flip_keep_running())
+        tk.Label(brow, text="Keep running in the background", background=SURFACE, foreground=TEXT,
+                 font=f["body"]).pack(side="left", padx=(10, 0))
+        FlatButton(brow, "Quit Mobile Dock", self.quit, "ghost").pack(side="right")
+        self._paint_keep()
         if self.updater is not None:
             up = section(page, "Updates", "Checks this project's GitHub releases at start and every 6 hours.")
             up.pack(fill="x")
@@ -442,6 +462,69 @@ class App:
         _autostart_set(self.autostart.get())
         self._paint_toggle()
 
+    def flip_keep_running(self) -> None:
+        data = self.server.config.data
+        data["close_to_tray"] = not data.get("close_to_tray", True)
+        self.server.config.save()
+        self._paint_keep()
+
+    def _paint_keep(self) -> None:
+        on = self.server.config.data.get("close_to_tray", True)
+        self.keep_toggle.configure(text="On" if on else "Off", background=ACCENT if on else SURFACE_HI,
+                                   foreground=ON_ACCENT if on else MUTED)
+
+    # Background -----------------------------------------------------------
+
+    def close_window(self) -> None:
+        """The X button: hide and keep the server running, unless the setting says quit."""
+        if not self.server.config.data.get("close_to_tray", True):
+            self.quit()
+            return
+        self.hide()
+        data = self.server.config.data
+        if not data.get("close_notice_shown"):
+            data["close_notice_shown"] = True
+            self.server.config.save()
+            where = "Click the tray icon" if self.tray else "Start Mobile Dock again"
+            self.tell("Mobile Dock is still running", f"Your phone stays connected. {where} to open the window.")
+
+    def hide(self) -> None:
+        if self.tray is None and sys.platform == "win32":  # no tray icon to come back from: minimize instead
+            self.root.iconify()
+            return
+        self.hidden = True
+        self.root.withdraw()
+
+    def show(self) -> None:
+        """Brings the window back from the background, in front of other windows."""
+        self.hidden = False
+        self.root.deiconify()
+        self.root.lift()
+        self.root.attributes("-topmost", True)
+        self.root.after(200, lambda: self.root.attributes("-topmost", False))
+        self.root.focus_force()
+        if self.notes_waiting:
+            self.notes_waiting = False
+            self.whats_new(force=True)
+
+    def pair_and_show(self) -> None:
+        self.show()
+        self.start_pairing()
+
+    def quit(self) -> None:
+        self.root.destroy()
+
+    def tell(self, title: str, text: str) -> None:
+        """A message for when the window may be hidden: a tray notification, else a desktop notification."""
+        if self.tray is not None and self.tray.added:
+            self.tray.notify(title, text)
+        elif sys.platform.startswith("linux"):
+            import shutil
+            import subprocess
+
+            if shutil.which("notify-send"):
+                subprocess.run(["notify-send", title, text], check=False)
+
     def _paint_toggle(self) -> None:
         on = self.autostart.get()
         self.toggle.configure(text="On" if on else "Off", background=ACCENT if on else SURFACE_HI,
@@ -452,12 +535,15 @@ class App:
     def run(self) -> None:
         self.root.mainloop()
 
-    def whats_new(self) -> None:
-        """Shows the release notes once after an update. A first install only remembers the version."""
+    def whats_new(self, force: bool = False) -> None:
+        """Shows the release notes once after an update. A first install only remembers the version.
+
+        After an update the app starts in the background, so the notes wait until you open the window.
+        """
         from . import __version__
 
         seen = self.server.config.data.get("seen_version")
-        if seen == __version__:
+        if seen == __version__ and not force:
             return
         self.server.config.data["seen_version"] = __version__
         self.server.config.save()
@@ -465,7 +551,12 @@ class App:
             from ._notes import NOTES
         except ImportError:  # source installs have no notes file
             return
-        if seen and NOTES:
+        if not (seen or force) or not NOTES:
+            return
+        if self.hidden:
+            self.notes_waiting = True
+            self.tell(f"Mobile Dock {__version__}", "Updated. Open the window to see what is new.")
+        else:
             messagebox.showinfo(f"What's new in Mobile Dock {__version__}", NOTES, parent=self.root)
 
     def _show_pin(self, pin: str | None) -> None:
@@ -1043,6 +1134,8 @@ class App:
                 apps = []
 
             def fill():
+                if not apps_box.winfo_exists():  # the editor was closed before the list arrived
+                    return
                 apps_box.apps = apps
                 apps_box.configure(values=[a["name"] for a in apps])
                 apps_box.set("Use an app's icon")
@@ -1302,17 +1395,25 @@ class App:
             return
         while True:
             try:
-                self.calls.get_nowait()()
+                fn = self.calls.get_nowait()
             except queue.Empty:
                 break
+            try:
+                fn()
+            except Exception:  # noqa: BLE001 - one failed call must not stop this loop, the tray depends on it
+                logging.getLogger(__name__).exception("A queued window update failed")
         try:
             while True:
                 kind, text = self.events.get_nowait()
+                if self.hidden and kind in ("paired", "info", "update"):
+                    self.tell("Mobile Dock", text if kind != "paired" else f"Paired with {text}")
+                    if kind == "info":
+                        continue
                 if kind == "paired":
                     self._show_pin(None)
                     self.pin_hint.configure(text=f"Paired with {text}", foreground=SIGNAL)
                     self.status.config(text=f"Paired with {text}")
-                elif kind == "info":
+                elif kind == "info":  # only shown while the window is open
                     messagebox.showinfo("Mobile Dock", text)
                 elif kind == "file":
                     self.status.config(text=text)

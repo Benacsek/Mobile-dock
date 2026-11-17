@@ -253,7 +253,7 @@ class Updater:
             ":wait\r\n"
             f'tasklist /FI "PID eq {pid}" 2>nul | find "{pid}" >nul && (ping -n 2 127.0.0.1 >nul & goto wait)\r\n'
             f'move /y "{new}" "{exe}" >nul\r\n'
-            f'start "" "{exe}" --minimized\r\n'
+            f'start "" "{exe}" --background\r\n'
             'del "%~f0"\r\n'
         )
         fd, path = tempfile.mkstemp(suffix=".cmd", prefix="mobiledock-update-")

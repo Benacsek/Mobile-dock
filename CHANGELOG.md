@@ -4,6 +4,14 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 1.5.0
+
+- The PC app keeps running when you close its window, so your phone stays connected. Open it again from the Mobile Dock icon in the tray, next to the clock. Right-click the icon for Show pairing PIN and Quit.
+- Starting the PC app a second time opens the window of the one already running.
+- Start with Windows and updates now start the PC app in the tray, without a window.
+- To make the X button quit, turn Keep running in the background off on the Settings tab. Quit Mobile Dock is there too.
+- Fix: closing the Search presets editor quickly could stop the PC window from updating.
+
 ## 1.4.1
 
 - Search: remove a recent search with the X beside it, or tap Clear all to remove them all.

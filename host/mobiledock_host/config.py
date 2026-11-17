@@ -38,6 +38,7 @@ class Config:
             "recordings_dir": "",
             "auto_update": True,
             "update_repo": "Benacsek/Mobile-dock",
+            "close_to_tray": True,
         }
         self._load()
 

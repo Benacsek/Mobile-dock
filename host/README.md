@@ -26,7 +26,15 @@ The `windows-media` extra powers Now playing on the phone: album art, progress, 
 2. On the Phone tab, click Pair new phone. A 6 digit PIN appears with a 3 minute countdown.
 3. On the Apps tab, click Add apps to choose what the phone shows. You can also do this from the phone.
 4. Scan the QR code next to the PIN with the phone's camera, then tap Pair. Or tap the PC in the phone app and type the PIN. Older phones' cameras may not read QR codes. The PIN always works.
-5. On the Settings tab, turn Start with Windows on if you want the dock ready after every login.
+5. On the Settings tab, turn Start with Windows on if you want the dock ready after every login. It starts in the tray, with no window.
+
+### Running in the background
+
+- Closing the window keeps Mobile Dock running. Your phone stays connected.
+- On Windows, the Mobile Dock icon sits in the tray next to the clock. Click it to open the window. Right-click it for Show pairing PIN and Quit. Windows 11 may hide new icons under the ^ arrow. Drag the icon to the taskbar to keep it in view.
+- Starting Mobile Dock again opens the window of the copy that already runs. It never starts a second copy.
+- On Linux, start `mobile-dock-host` again to open the window.
+- To stop it, use Quit in the tray menu or Quit Mobile Dock on the Settings tab. To make the X button quit, turn Keep running in the background off on the Settings tab.
 
 ### Window tips
 
@@ -189,11 +197,12 @@ The token is saved in the host config file. It can only read this one repository
 ## Command line
 
 ```
-mobile-dock-host [--headless] [--pair] [--usb] [--minimized] [--port N] [--verbose]
+mobile-dock-host [--headless] [--pair] [--usb] [--background] [--port N] [--verbose]
 ```
 
 - `--headless` runs without a window.
-- `--pair` shows a PIN. If a headless host already runs, it asks that host to show one.
+- `--background` starts with the window hidden. Start with Windows and updates use it. The old `--minimized` still works.
+- `--pair` shows a PIN. If a host already runs, it asks that host to show one.
 - `--usb` runs `adb reverse` for USB mode.
 
 ## Where files go

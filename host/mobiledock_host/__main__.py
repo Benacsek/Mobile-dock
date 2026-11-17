@@ -1,4 +1,4 @@
-"""Entry point: mobile-dock-host [--headless] [--pair] [--minimized]."""
+"""Entry point: mobile-dock-host [--headless] [--pair] [--background]."""
 
 from __future__ import annotations
 
@@ -24,18 +24,29 @@ def _pid_file():
     return os.path.join(runtime, "mobile-dock-host.pid") if runtime else None
 
 
-def _signal_running_instance() -> bool:
-    """Asks an already running headless host to show a PIN. Linux only."""
+PID_SHOW_MARK = "show"  # this host opens its window on SIGUSR2. Older hosts would stop on it, so they lack the mark
+
+
+def _signal_running_instance(show: bool = False) -> bool:
+    """Asks an already running host to show a PIN, or with show=True to open its window. Linux only."""
     path = _pid_file()
     if not path or not hasattr(signal, "SIGUSR1") or not os.path.exists(path):
         return False
     try:
         with open(path, encoding="ascii") as fh:
-            pid = int(fh.read().strip())
-        os.kill(pid, signal.SIGUSR1)
+            parts = fh.read().split()
+        pid = int(parts[0])
+        if show and PID_SHOW_MARK not in parts[1:]:
+            return False
+        os.kill(pid, signal.SIGUSR2 if show else signal.SIGUSR1)
         return True
-    except (OSError, ValueError):
+    except (OSError, ValueError, IndexError):
         return False
+
+
+def _write_pid(path: str) -> None:
+    with open(path, "w", encoding="ascii") as fh:
+        fh.write(f"{os.getpid()} {PID_SHOW_MARK}")
 
 
 LOG_NAME = "mobile-dock.log"
@@ -74,7 +85,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="mobile-dock-host", description="Turn your phone into a dock for this PC.")
     parser.add_argument("--headless", action="store_true", help="run without a window (PIN is printed)")
     parser.add_argument("--pair", action="store_true", help="show a pairing PIN at start")
-    parser.add_argument("--minimized", action="store_true", help="start with the window minimized")
+    parser.add_argument("--background", action="store_true", help="start without showing the window")
+    parser.add_argument("--minimized", action="store_true", help=argparse.SUPPRESS)  # old name of --background
     parser.add_argument("--usb", action="store_true", help="run adb reverse at start")
     parser.add_argument("--port", type=int, help="TCP port (default 47800)")
     parser.add_argument("--verbose", action="store_true")
@@ -82,8 +94,20 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.pair and not args.headless and _signal_running_instance():
-        print("The running Mobile Dock host is showing a pairing PIN as a notification.")
+        print("The running Mobile Dock host is showing a pairing PIN.")
         return 0
+    if not args.headless and _signal_running_instance(show=True):
+        print("Mobile Dock is already running. Its window is open now.")
+        return 0
+
+    from . import tray as traylib
+
+    lock = traylib.acquire_single()  # Windows: one copy only. A second start opens the running copy's window.
+    if lock is None:
+        if traylib.signal_running(pair=args.pair):
+            return 0
+        print("Mobile Dock is already running.", file=sys.stderr)
+        return 1
 
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING,
                         format="%(asctime)s %(levelname)s %(message)s")
@@ -97,7 +121,7 @@ def main(argv: list[str] | None = None) -> int:
         events.put((kind, text))
         if args.headless:
             print(f"[{kind}] {text}", flush=True)
-        if kind == "paired" and sys.platform.startswith("linux") and shutil.which("notify-send"):
+        if args.headless and kind == "paired" and sys.platform.startswith("linux") and shutil.which("notify-send"):
             subprocess.run(["notify-send", "Mobile Dock", f"Paired with {text}"], check=False)
 
     server = DockServer(config, get_platform(), notify)
@@ -152,11 +176,29 @@ def main(argv: list[str] | None = None) -> int:
         print("Tk is not installed. Install it (python-tk or tk) or run with --headless.", file=sys.stderr)
         return 1
 
-    app = App(server, events, minimized=args.minimized, updater=updater, restart=restart)
+    tray = None
+    if sys.platform == "win32":
+        tray = traylib.Tray(config_dir() / "tray.ico", on_open=lambda: app.later(app.show),
+                            on_pair=lambda: app.later(app.pair_and_show), on_quit=lambda: app.later(app.quit))
+        if not tray.start():
+            tray = None
+    app = App(server, events, hidden=args.background or args.minimized, updater=updater, restart=restart, tray=tray)
+    pid_path = _pid_file()
+    if pid_path and hasattr(signal, "SIGUSR2"):  # Linux: a second start opens this window, --pair shows a PIN
+        signal.signal(signal.SIGUSR1, lambda *_: app.later(app.pair_and_show))
+        signal.signal(signal.SIGUSR2, lambda *_: app.later(app.show))
+        _write_pid(pid_path)
     if args.pair:
-        app.start_pairing()
-    app.run()
-    server.stop()
+        app.pair_and_show()
+    try:
+        app.run()
+    finally:
+        server.stop()
+        if tray is not None:
+            tray.stop()
+        traylib.release_single(lock)
+        if pid_path and hasattr(signal, "SIGUSR2") and os.path.exists(pid_path):
+            os.unlink(pid_path)
     return 0
 
 

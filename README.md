@@ -47,6 +47,7 @@ The PC window while pairing:
 - Settings: pick the accent color, the tile size, the background glow and whether the dock shows labels. See the phone and PC versions and check for updates now.
 - Arrange (the arrows icon on Apps): tap a tile to pick it up and drop it in its new place, or on the red bar to unpin it.
 - Fullscreen (the corners icon at the end of the dock bar, on every page): hide the dock bar so the open page gets the whole screen. Back brings the bar back.
+- The PC app runs in the background: close its window and the phone stays connected. Open it again from the tray icon.
 - Optional: turn on "Wake up and connect when my PC turns on". When your PC starts, or when you close and reopen the PC app, the phone turns its screen on, opens the dock and connects. It works best while the phone charges.
 
 Both apps share one look: graphite surfaces, blue for actions and selection, and amber for anything live. The PC window shows the connected phone in an amber badge at the top. The Phone tab lists how it connects and since when.
