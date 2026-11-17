@@ -23,15 +23,23 @@ final class Icon extends Drawable {
 
     /** Each outline is parsed once and shared. They are in a 256 by 256 box. */
     private static final Path[] SHAPES = new Path[IconPaths.PATHS.length];
+    private static final Path[] SOLID = new Path[IconPaths.FILLED.length];
 
     private final Kind kind;
+    private final boolean filled;
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint label = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path drawn = new Path();
     private final Matrix fit = new Matrix();
 
     Icon(Kind kind, int color) {
+        this(kind, color, false);
+    }
+
+    /** filled: the solid glyph, for a white icon inside a colored square, as in iOS Settings. */
+    Icon(Kind kind, int color, boolean filled) {
         this.kind = kind;
+        this.filled = filled;
         fill.setColor(color);
         fill.setStyle(Paint.Style.FILL);
         label.setColor(color);
@@ -45,10 +53,11 @@ final class Icon extends Drawable {
         invalidateSelf();
     }
 
-    private static Path shape(Kind kind) {
+    private static Path shape(Kind kind, boolean filled) {
         int i = kind.ordinal();
-        if (SHAPES[i] == null) SHAPES[i] = parse(IconPaths.PATHS[i]);
-        return SHAPES[i];
+        Path[] cache = filled ? SOLID : SHAPES;
+        if (cache[i] == null) cache[i] = parse(filled ? IconPaths.FILLED[i] : IconPaths.PATHS[i]);
+        return cache[i];
     }
 
     /** Reads "M x y", "L x y", "C x1 y1 x2 y2 x y" and "Z", separated by spaces. */
@@ -83,7 +92,7 @@ final class Icon extends Drawable {
         // Phosphor fills almost its whole box. 80 percent keeps the old margin around each icon.
         fit.setScale(s * 0.8f / 256f, s * 0.8f / 256f);
         fit.postTranslate(ox + s * 0.1f, oy + s * 0.1f);
-        shape(kind).transform(fit, drawn);
+        shape(kind, filled).transform(fit, drawn);
         c.drawPath(drawn, fill);
         if (kind == Kind.BACK5 || kind == Kind.FORWARD5) {
             label.setTextSize(s * 0.28f);  // the 5 sits inside the circular arrow

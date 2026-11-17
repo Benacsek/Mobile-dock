@@ -956,6 +956,9 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private boolean rail;
     private TextView sideName, sideStatus;
     private View sideDot;
+    /** The last connection state, so a rebuilt dock and Settings show it too. */
+    private boolean pcConnected;
+    private String pcStatus = "Connecting";
     /** Pages with a row in the sidebar. Settings has the gear, Capture opens from Controls. */
     private static final int[] SIDEBAR_PAGES = {APPS, SEARCH, PLAYING, SHORTCUTS, CONTROLS, TOUCH, STATS};
     private static final String[] SIDEBAR_NAMES = {"Apps", "Search", "Playing", "Shortcuts", "Controls", "Touch",
@@ -979,6 +982,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             root.addView(dockView);
         }
         dockView.setVisibility(View.VISIBLE);
+        showPc(pcConnected, pcStatus);  // a rebuilt dock shows the real state, not "connected"
         if (connectView != null) connectView.setVisibility(View.GONE);
         dockBanner.setVisibility(View.GONE);
         apps.load();
@@ -1101,7 +1105,6 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             }
         });
         panels.add(settings);
-        if (rail) settings.setPc(client.hostName.length() > 0 ? client.hostName : "Your PC", "Connected over Wi-Fi", true);
         for (View p : panels) content.addView(p);
         capture.setRecording(recording);
         dock.addView(content, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
@@ -1316,6 +1319,8 @@ public final class MainActivity extends Activity implements DockClient.Listener 
 
     /** The PC name and how it is connected, at the top of the sidebar, or in Settings and a dot with the rail. */
     private void showPc(boolean connected, String status) {
+        pcConnected = connected;
+        pcStatus = status;
         if (rail && settings != null && sideDot != null) {
             sideDot.setVisibility(connected ? View.GONE : View.VISIBLE);
             settings.setPc(client.hostName.length() > 0 ? client.hostName : "Your PC",
@@ -1424,7 +1429,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 }
                 break;
             case DockClient.DISCONNECTED:
-                showPc(false, "Reconnecting");
+                showPc(false, message);  // why it dropped, such as "PC not reachable. Retrying"
                 if (docked) showBanner(message);
                 else connectStatus.setText(message + ". Tap Search again to stop.");
                 break;

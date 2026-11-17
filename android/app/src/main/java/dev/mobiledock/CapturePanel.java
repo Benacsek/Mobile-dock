@@ -174,7 +174,7 @@ final class CapturePanel extends ScrollView {
 
     void setRecording(boolean on) {
         ((ImageView) recordTile.getChildAt(0)).setImageDrawable(
-                new Icon(on ? Icon.Kind.STOP : Icon.Kind.RECORD, 0xFFFFFFFF));
+                new Icon(on ? Icon.Kind.STOP : Icon.Kind.RECORD, 0xFFFFFFFF, true));
         TextView label = (TextView) recordTile.getChildAt(1);
         label.setText(on ? "Stop recording" : "Record the screen");
         label.setTextColor(on ? Ui.DANGER : Ui.TEXT);

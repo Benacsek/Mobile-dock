@@ -4,6 +4,11 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 2.6.1
+
+- Icons closer to Apple's: solid white icons inside the colored squares, as in iOS Settings. Music is one note, Controls shows sliders, Fullscreen shows two arrows, Settings a gear and Mute a crossed out speaker.
+- The orange dot on Settings now explains itself. Settings says the PC is not connected, why, and what to check. Before, it only said Reconnecting.
+
 ## 2.6.0
 
 - Controls is calmer: the PC actions are six tiles that fit without scrolling. Capture is one of them.

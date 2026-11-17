@@ -248,7 +248,7 @@ final class Ui {
     /** A colored rounded square with a white line icon, like the icons in iOS Settings. */
     static View iconTile(Context c, Icon.Kind kind, int color) {
         ImageView v = new ImageView(c);
-        v.setImageDrawable(new Icon(kind, 0xFFFFFFFF));
+        v.setImageDrawable(new Icon(kind, 0xFFFFFFFF, true));
         int p = dp(c, 6);
         v.setPadding(p, p, p, p);
         v.setBackground(rounded(c, color, 8));

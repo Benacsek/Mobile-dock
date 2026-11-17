@@ -124,9 +124,10 @@ final class SettingsPanel extends android.widget.ScrollView {
         body.addView(new View(c), new LinearLayout.LayoutParams(1, Ui.dp(c, 12)));
         LinearLayout pc = Ui.card(c);
         if (pcName != null) {
+            String shown = pcConnected ? pcStatus : "Not connected";
             LinearLayout row = Ui.listRow(c, Icon.Kind.MONITOR, pcConnected ? Ui.GREEN : Ui.SIGNAL, pcName,
-                    Ui.value(c, pcStatus));
-            row.setContentDescription(pcName + ", " + pcStatus);
+                    Ui.value(c, shown));
+            row.setContentDescription(pcName + ", " + shown);
             pc.addView(row);
             pc.addView(Ui.hairline(c, 54));
         }
@@ -134,6 +135,13 @@ final class SettingsPanel extends android.widget.ScrollView {
         pc.addView(Ui.hairline(c, 16));
         pc.addView(disconnectRow(c));
         body.addView(pc);
+        if (pcName != null && !pcConnected) {
+            // The orange dot on the gear leads here, so say what is wrong and what to try.
+            TextView why = Ui.text(c, pcStatus + ". The phone keeps trying by itself. Check that the PC is on, "
+                    + "Mobile Dock runs on it, and both are on the same Wi-Fi or the USB cable is in.", 13, Ui.SIGNAL);
+            why.setPadding(Ui.dp(c, 16), Ui.dp(c, 6), Ui.dp(c, 16), 0);
+            body.addView(why);
+        }
         body.addView(new View(c), new LinearLayout.LayoutParams(1, Ui.dp(c, 20)));
         LinearLayout card = Ui.card(c);
         card.addView(groupRow(c, Icon.Kind.SUN, 0xFF0088FF, DISPLAY,
