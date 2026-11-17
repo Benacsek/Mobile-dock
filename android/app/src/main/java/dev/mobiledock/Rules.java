@@ -83,6 +83,11 @@ final class Rules {
         return mask;
     }
 
+    /** Phones get the narrow icon rail, tablets keep the sidebar with labels. Uses the screen's short side in dp. */
+    static boolean useRail(int shortSideDp) {
+        return shortSideDp < 600;
+    }
+
     /** How many side tiles sit in each row: one or two stack, three put one wide tile over two, four make 2 x 2. */
     static int[] gridRows(int n) {
         if (n <= 0) return new int[0];

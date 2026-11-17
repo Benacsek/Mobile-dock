@@ -191,6 +191,37 @@ jobs:
           "$adb" shell input swipe 900 650 900 100 400
           sleep 2
           "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-settings-checklist.png"
+          # The connect screen: each state of the PC list, then each page of Other ways to connect.
+          for entry in 2:searching:0:connect-searching 2:found:0:connect-found 1:found:0:connect-found-light \
+              2:none:0:connect-none 2:none:1:connect-address 2:none:2:connect-usb 2:none:3:connect-start; do
+            IFS=: read -r t state cp name <<< "$entry"; n=$((n + 1))
+            "$adb" shell am start -W -n dev.mobiledock/.MainActivity --ez demo true --ei theme "$t" --ei page -1 \
+              --es connect_state "$state" --ei connect_page "$cp" > /dev/null
+            sleep 3
+            "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-$name.png"
+          done
+          # Rail option B: Fullscreen as a 9th rail item. Option A keeps it in Settings, Display.
+          for entry in 2:0:apps 2:7:stats 1:5:capture; do
+            IFS=: read -r t page name <<< "$entry"; n=$((n + 1))
+            "$adb" shell am start -W -n dev.mobiledock/.MainActivity --ez demo true --ei theme "$t" \
+              --ei page "$page" --ez rail_fullscreen true > /dev/null
+            sleep 5
+            "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-railb-$name.png"
+          done
+          # A tablet, 1280 x 800 dp: it keeps the sidebar with labels.
+          "$adb" shell wm size 1920x1200
+          "$adb" shell wm density 240
+          "$adb" shell am force-stop dev.mobiledock
+          for entry in 0:apps 8:settings; do
+            page="${entry%%:*}"; name="${entry#*:}"; n=$((n + 1))
+            "$adb" shell am start -W -n dev.mobiledock/.MainActivity --ez demo true --ei theme 2 \
+              --ei page "$page" > /dev/null
+            sleep 5
+            "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-tablet-$name.png"
+          done
+          "$adb" shell wm size reset
+          "$adb" shell wm density reset
+          "$adb" shell am force-stop dev.mobiledock
           # A small phone, 533 x 320 dp: the Settings list must fit without scrolling, two side tiles must fit.
           "$adb" shell wm size 800x480
           "$adb" shell wm density 240
@@ -199,6 +230,13 @@ jobs:
             sp="${entry%%:*}"; name="${entry#*:}"; n=$((n + 1))
             "$adb" shell am start -W -n dev.mobiledock/.MainActivity --ez demo true --ei theme 2 --ei page 8 \
               --ei settings_page "$sp" > /dev/null
+            sleep 3
+            "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-small-$name.png"
+          done
+          for entry in 0:apps 5:capture; do
+            page="${entry%%:*}"; name="${entry#*:}"; n=$((n + 1))
+            "$adb" shell am start -W -n dev.mobiledock/.MainActivity --ez demo true --ei theme 2 \
+              --ei page "$page" > /dev/null
             sleep 3
             "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-small-$name.png"
           done

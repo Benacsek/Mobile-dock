@@ -27,6 +27,9 @@ final class SettingsPanel extends android.widget.ScrollView {
     private final Kit.OnPick onPage;
     private final LinearLayout list;
     private int page;
+    private String pcName, pcStatus;  // shown at the top of the list when the dock uses the icon rail
+    private boolean pcConnected;
+    private Runnable hideSidebar;  // the rail has no Fullscreen button, so Display offers it
 
     /** onPage hears every page change, so the open page survives the rebuild after a change. */
     SettingsPanel(Context c, SharedPreferences prefs, Runnable apply, Runnable preview, UpdatesPanel updates,
@@ -53,6 +56,19 @@ final class SettingsPanel extends android.widget.ScrollView {
         scrollTo(0, 0);
     }
 
+    /** With the icon rail, the PC and its connection move from the sidebar header to the top of the list. */
+    void setPc(String name, String status, boolean connected) {
+        pcName = name;
+        pcStatus = status;
+        pcConnected = connected;
+        if (page == LIST) build();
+    }
+
+    /** With the icon rail, Display gets a row that hides it. */
+    void setHideSidebar(Runnable hide) {
+        hideSidebar = hide;
+    }
+
     /** Back from a page: a tile picker returns to Idle screen, the rest to the list. False on the list itself. */
     boolean back() {
         if (page == LIST) return false;
@@ -63,7 +79,14 @@ final class SettingsPanel extends android.widget.ScrollView {
     private void build() {
         Context c = getContext();
         list.removeAllViews();
-        if (page != LIST) list.addView(backLink(c, page >= PICK_BIG ? "Idle screen" : "Settings"));
+        if (page != LIST) {
+            list.addView(Kit.backLink(c, page >= PICK_BIG ? "Idle screen" : "Settings", new Runnable() {
+                @Override
+                public void run() {
+                    back();
+                }
+            }));
+        }
         list.addView(Ui.title(c, PAGE_NAMES[page]));
         if (page == LIST) buildList(c);
         else if (page == DISPLAY) buildDisplay(c);
@@ -77,30 +100,18 @@ final class SettingsPanel extends android.widget.ScrollView {
         }
     }
 
-    /** "‹ Settings" in the accent color, above the page title. */
-    private View backLink(Context c, String label) {
-        LinearLayout row = Ui.row(c);
-        row.setPadding(0, Ui.dp(c, 6), Ui.dp(c, 12), Ui.dp(c, 2));
-        ImageView arrow = new ImageView(c);
-        arrow.setImageDrawable(new Icon(Icon.Kind.BACK, Ui.ACCENT));
-        row.addView(arrow, new LinearLayout.LayoutParams(Ui.dp(c, 24), Ui.dp(c, 24)));
-        row.addView(Ui.text(c, label, 17, Ui.ACCENT));
-        row.setClickable(true);
-        row.setContentDescription("Back to " + label);
-        row.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                back();
-            }
-        });
-        LinearLayout holder = Ui.row(c);
-        holder.addView(row);
-        return holder;
-    }
-
     /** The front page: one row per group, with what is set now on the right. */
     private void buildList(Context c) {
         list.addView(new View(c), new LinearLayout.LayoutParams(1, Ui.dp(c, 12)));
+        if (pcName != null) {
+            LinearLayout pc = Ui.card(c);
+            LinearLayout row = Ui.listRow(c, Icon.Kind.MONITOR, pcConnected ? Ui.GREEN : Ui.SIGNAL, pcName,
+                    Ui.value(c, pcStatus));
+            row.setContentDescription(pcName + ", " + pcStatus);
+            pc.addView(row);
+            list.addView(pc);
+            list.addView(new View(c), new LinearLayout.LayoutParams(1, Ui.dp(c, 20)));
+        }
         LinearLayout card = Ui.card(c);
         card.addView(groupRow(c, Icon.Kind.SUN, 0xFF0088FF, DISPLAY,
                 Ui.THEME_NAMES[Math.max(0, Math.min(2, prefs.getInt(Ui.PREF_THEME, 0)))]));
@@ -115,38 +126,12 @@ final class SettingsPanel extends android.widget.ScrollView {
     }
 
     private LinearLayout groupRow(Context c, Icon.Kind kind, int color, final int target, String value) {
-        LinearLayout end = valueEnd(c, value);
-        LinearLayout row = Ui.listRow(c, kind, color, PAGE_NAMES[target], end);
-        keepLabel(row, end);
-        row.setContentDescription(PAGE_NAMES[target] + ", " + value);
-        Ui.pressableRow(c, row, new OnClickListener() {
+        return Kit.navRow(c, kind, color, PAGE_NAMES[target], value, new OnClickListener() {
             @Override
             public void onClick(View v) {
                 show(target);
             }
         });
-        return row;
-    }
-
-    /** The gray value and a chevron. The value is cut with "..." when the row is short of room. */
-    private static LinearLayout valueEnd(Context c, String value) {
-        LinearLayout end = Ui.row(c);
-        end.setGravity(Gravity.CENTER_VERTICAL | Gravity.RIGHT);
-        TextView v = Ui.value(c, value);
-        v.setSingleLine(true);
-        v.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        v.setGravity(Gravity.RIGHT);
-        end.addView(v, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        end.addView(Ui.chevron(c));
-        return end;
-    }
-
-    /** The row's name keeps its full width, and the value takes what is left. */
-    private static void keepLabel(LinearLayout row, LinearLayout end) {
-        View label = row.getChildAt(row.indexOfChild(end) - 1);
-        label.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT));
-        end.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
     }
 
     /** "Clock, Date and Battery". */
@@ -176,6 +161,18 @@ final class SettingsPanel extends android.widget.ScrollView {
                 save(Ui.PREF_THEME, index);
             }
         }));
+
+        if (hideSidebar != null) {
+            LinearLayout hide = Ui.card(c);
+            hide.addView(Kit.navRow(c, Icon.Kind.EXPAND, 0xFF8E8E93, "Hide the sidebar", "", new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    hideSidebar.run();
+                }
+            }));
+            list.addView(Ui.header(c, "Sidebar"));
+            list.addView(hide);
+        }
 
         list.addView(Ui.header(c, "Accent color"));
         LinearLayout card = Ui.card(c);
@@ -347,17 +344,7 @@ final class SettingsPanel extends android.widget.ScrollView {
     }
 
     private LinearLayout pickRow(Context c, final int target, String value) {
-        LinearLayout end = valueEnd(c, value);
-        LinearLayout row = Ui.listRow(c, null, 0, PAGE_NAMES[target], end);
-        keepLabel(row, end);
-        row.setContentDescription(PAGE_NAMES[target] + ", " + value);
-        Ui.pressableRow(c, row, new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                show(target);
-            }
-        });
-        return row;
+        return groupRow(c, null, 0, target, value);
     }
 
     /** One tile choice per row, a checkmark on the chosen one. Picking saves and returns to Idle screen. */

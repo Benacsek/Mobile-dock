@@ -47,7 +47,6 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private AppsPanel apps;
     private ShortcutsPanel shortcuts;
     private TextView watchStatus;
-    private Button wakeButton;
     private StatsPanel stats;
     private FileSender sender;
     private Uri pendingShare;
@@ -133,7 +132,23 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         int page = intent.getIntExtra("page", APPS);
         if (page < 0) {
             showConnect();
+            // CI pictures each state of the PC list, and each page of Other ways to connect.
+            String state = intent.getStringExtra("connect_state");
+            demoWake = "none".equals(state);
+            if ("searching".equals(state)) showSearching();
+            List<Discovery.Host> hosts = new ArrayList<Discovery.Host>();
+            if ("found".equals(state)) {
+                hosts.add(new Discovery.Host("192.168.1.20", Connection.PORT, "demo-paired", "Desk-PC", "windows"));
+                hosts.add(new Discovery.Host("192.168.1.31", Connection.PORT, "demo-new", "Studio-Laptop", "linux"));
+            }
+            if ("found".equals(state) || "none".equals(state)) showHosts(hosts);
+            showOther(intent.getIntExtra("connect_page", OTHER_LIST));
             return true;
+        }
+        boolean railFs = intent.getBooleanExtra("rail_fullscreen", false);
+        if (railFs != railFullscreen) {
+            railFullscreen = railFs;
+            if (dockView != null) rebuildDock();
         }
         if (dockView == null || dockView.getVisibility() != View.VISIBLE) onState(DockClient.CONNECTED, "Desk-PC");
         if (dimmed) wake();
@@ -411,6 +426,10 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             return;
         }
         boolean docked = dockView != null && dockView.getVisibility() == View.VISIBLE;
+        if (!docked && connectView != null && otherPage != OTHER_LIST) {
+            showOther(OTHER_LIST);
+            return;
+        }
         if (docked && fullscreen) {
             setFullscreen(false);
             return;
@@ -469,7 +488,6 @@ public final class MainActivity extends Activity implements DockClient.Listener 
 
     private void showConnect() {
         if (connectView == null) connectView = buildConnect();
-        wakeButton.setVisibility(store.mac(store.lastHost()).length() > 0 ? View.VISIBLE : View.GONE);
         if (connectView.getParent() == null) root.addView(connectView);
         if (dimmed) wake();
         root.removeCallbacks(dimTask);
@@ -479,6 +497,10 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         if (dockView != null) dockView.setVisibility(View.GONE);
     }
 
+    /**
+     * The connect screen. Left: the PCs on this Wi-Fi, while searching, when found, or steps when none is
+     * found. Right: other ways to connect, as a short list where each row opens inside the card.
+     */
     private View buildConnect() {
         LinearLayout page = Ui.row(this);
         page.setGravity(Gravity.TOP);
@@ -488,15 +510,15 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         int cardPad = Ui.dp(this, 18);
         LinearLayout left = Ui.column(this);
         left.setBackground(Ui.rounded(this, Ui.SURFACE, 18));
-        left.setPadding(cardPad, cardPad, cardPad, cardPad);
+        left.setPadding(cardPad, cardPad, cardPad, Ui.dp(this, 12));
         LinearLayout brand = Ui.row(this);
-        brand.addView(Ui.logo(this, 28));
-        TextView name = Ui.title(this, " Mobile Dock");
-        brand.addView(name);
+        brand.addView(Ui.logo(this, 20));
+        brand.addView(Ui.strong(this, "  Mobile Dock", 15, Ui.MUTED));
         left.addView(brand);
-        connectStatus = Ui.text(this, "Looking for your PC", 15, Ui.MUTED);
-        left.addView(connectStatus, Ui.fillWidth(this, 4));
-        left.addView(Ui.text(this, "PCs on this network", 14, Ui.TEXT), Ui.fillWidth(this, 4));
+        left.addView(Ui.title(this, "Connect to your PC"), Ui.fillWidth(this, 0));
+        connectStatus = Ui.text(this, "Looking for PCs on this Wi-Fi", 15, Ui.MUTED);
+        connectStatus.setPadding(Ui.dp(this, 4), 0, 0, Ui.dp(this, 6));
+        left.addView(connectStatus);
         ScrollView scroll = new ScrollView(this);
         hostList = Ui.column(this);
         scroll.addView(hostList);
@@ -509,55 +531,113 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 scan();
             }
         });
-        LinearLayout buttons = Ui.row(this);
-        buttons.addView(again, Ui.wrap(this, 4));
-        wakeButton = Ui.button(this, "Wake PC");
-        wakeButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                wakePc();
-            }
-        });
-        buttons.addView(wakeButton, Ui.wrap(this, 4));
-        left.addView(buttons);
-        page.addView(left, Ui.weight(1f));
+        left.addView(again, Ui.wrap(this, 4));
+        page.addView(left, Ui.weight(3f));
 
         View gap = new View(this);
         page.addView(gap, new LinearLayout.LayoutParams(pad, 1));
 
-        LinearLayout right = Ui.column(this);
-        right.setBackground(Ui.rounded(this, Ui.SURFACE, 18));
-        right.setPadding(cardPad, cardPad, cardPad, cardPad);
-        right.addView(Ui.header(this, "Connect by address"));
-        LinearLayout addrRow = Ui.row(this);
-        addressField = new EditText(this);
-        Ui.searchField(this, addressField, "192.168.1.20");
-        addressField.setCompoundDrawables(null, null, null, null);
-        addressField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
-        addressField.setText(store.lastHost().equals("127.0.0.1") ? "" : store.lastHost());
-        addrRow.addView(addressField, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        Button go = Ui.accentButton(this, "Connect");
-        go.setOnClickListener(new View.OnClickListener() {
+        other = Ui.column(this);
+        other.setBackground(Ui.rounded(this, Ui.SURFACE, 18));
+        other.setPadding(0, Ui.dp(this, 10), 0, Ui.dp(this, 10));
+        ScrollView rightScroll = new ScrollView(this);
+        rightScroll.addView(other);
+        page.addView(rightScroll, Ui.weight(2f));
+        showOther(OTHER_LIST);
+        return page;
+    }
+
+    private static final int OTHER_LIST = 0, OTHER_ADDRESS = 1, OTHER_USB = 2, OTHER_START = 3;
+    private LinearLayout other;
+    private boolean demoWake;  // CI shows the Wake row without a saved PC
+    private int otherPage;
+
+    /** Fills the right card: the list of other ways, or one of them with a link back. */
+    private void showOther(int which) {
+        otherPage = which;
+        other.removeAllViews();
+        watchStatus = null;
+        int side = Ui.dp(this, 16);
+        if (which == OTHER_LIST) {
+            TextView head = Ui.strong(this, "Other ways to connect", 17, Ui.TEXT);
+            head.setPadding(side, Ui.dp(this, 4), side, Ui.dp(this, 6));
+            other.addView(head);
+            String last = store.lastHost().equals("127.0.0.1") ? "" : store.lastHost();
+            other.addView(otherRow(Icon.Kind.GLOBE, 0xFF0088FF, "Enter address", last, OTHER_ADDRESS));
+            other.addView(Ui.hairline(this, 54));
+            other.addView(otherRow(Icon.Kind.SEND, 0xFF8E8E93, "USB cable", "", OTHER_USB));
+            other.addView(Ui.hairline(this, 54));
+            other.addView(otherRow(Icon.Kind.POWER, 0xFF34C759, "Start with your PC",
+                    WatchService.enabled(this) ? "On" : "Off", OTHER_START));
+            other.addView(Ui.hairline(this, 0));
+            LinearLayout forget = Ui.listRow(this, null, 0, "Forget paired PCs", null);
+            ((TextView) forget.getChildAt(0)).setTextColor(Ui.DANGER);
+            Ui.pressableRow(this, forget, new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    askForget();
+                }
+            });
+            other.addView(forget);
+            return;
+        }
+        LinearLayout body = Ui.column(this);
+        body.setPadding(side, 0, side, Ui.dp(this, 6));
+        body.addView(Kit.backLink(this, "Other ways", new Runnable() {
+            @Override
+            public void run() {
+                showOther(OTHER_LIST);
+            }
+        }));
+        if (which == OTHER_ADDRESS) {
+            body.addView(Ui.strong(this, "Enter address", 20, Ui.TEXT), Ui.fillWidth(this, 4));
+            LinearLayout addrRow = Ui.row(this);
+            addressField = new EditText(this);
+            Ui.searchField(this, addressField, "192.168.1.20");
+            addressField.setCompoundDrawables(null, null, null, null);
+            addressField.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+            addressField.setText(store.lastHost().equals("127.0.0.1") ? "" : store.lastHost());
+            addrRow.addView(addressField, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+            Button go = Ui.accentButton(this, "Connect");
+            go.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    connectTyped();
+                }
+            });
+            addrRow.addView(go, Ui.wrap(this, 4));
+            body.addView(addrRow, Ui.fillWidth(this, 4));
+            body.addView(Ui.text(this, "The PC window shows its address under Pair a phone.", 13, Ui.MUTED),
+                    Ui.fillWidth(this, 4));
+        } else if (which == OTHER_USB) {
+            body.addView(Ui.strong(this, "USB cable", 20, Ui.TEXT), Ui.fillWidth(this, 4));
+            body.addView(Ui.text(this, "Turn on USB debugging, plug in, then click Enable USB on the PC. Needs Android 5.0 or newer. On older phones, use USB tethering and connect by address.", 13, Ui.MUTED), Ui.fillWidth(this, 4));
+            Button usb = Ui.button(this, "Connect over USB");
+            usb.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    client.connect("127.0.0.1", Connection.PORT);
+                }
+            });
+            body.addView(usb, Ui.wrap(this, 4));
+        } else {
+            body.addView(Ui.strong(this, "Start with your PC", 20, Ui.TEXT), Ui.fillWidth(this, 4));
+            buildStartWithPc(body);
+        }
+        other.addView(body);
+    }
+
+    private View otherRow(Icon.Kind kind, int color, String label, String value, final int target) {
+        return Kit.navRow(this, kind, color, label, value, new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                connectTyped();
+                showOther(target);
             }
         });
-        addrRow.addView(go, Ui.wrap(this, 4));
-        right.addView(addrRow, Ui.fillWidth(this, 0));
+    }
 
-        right.addView(Ui.header(this, "USB cable"));
-        right.addView(Ui.text(this, "Turn on USB debugging, plug in, then click Enable USB on the PC. Needs Android 5.0 or newer. On older phones, use USB tethering and connect by address.", 13, Ui.MUTED), Ui.fillWidth(this, 4));
-        Button usb = Ui.button(this, "Connect over USB");
-        usb.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                client.connect("127.0.0.1", Connection.PORT);
-            }
-        });
-        right.addView(usb, Ui.wrap(this, 4));
-
-        right.addView(Ui.header(this, "Start with your PC"));
+    /** The two switches, the watcher status, Fix permissions and Show log. */
+    private void buildStartWithPc(LinearLayout right) {
         final CheckBox wakeBox = new CheckBox(this);
         wakeBox.setText("Wake up and connect when my PC turns on");
         wakeBox.setTextColor(Ui.TEXT);
@@ -590,6 +670,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         int sp = Ui.dp(this, 10);
         watchStatus.setPadding(sp, sp, sp, sp);
         right.addView(watchStatus, Ui.fillWidth(this, 4));
+        updateWatchStatus();
         LinearLayout watchButtons = Ui.row(this);
         Button fix = Ui.accentButton(this, "Fix permissions");
         fix.setOnClickListener(new View.OnClickListener() {
@@ -615,29 +696,19 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         });
         watchButtons.addView(showLog, Ui.wrap(this, 4));
         right.addView(watchButtons, Ui.fillWidth(this, 0));
+    }
 
-        Button forget = Ui.button(this, "Forget paired PCs");
-        forget.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                new AlertDialog.Builder(MainActivity.this).setTitle("Forget paired PCs?")
-                        .setMessage("Paired: " + store.pairedNames() + "\nYou will need a new PIN to connect again.")
-                        .setPositiveButton("Forget", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface d, int w) {
-                                client.disconnect();
-                                store.forgetAll();
-                                scan();
-                            }
-                        }).setNegativeButton("Cancel", null).show();
-            }
-        });
-        right.addView(forget, Ui.wrap(this, 4));
-        ScrollView rightScroll = new ScrollView(this);
-        rightScroll.setFillViewport(true);
-        rightScroll.addView(right);
-        page.addView(rightScroll, Ui.weight(1f));
-        return page;
+    private void askForget() {
+        new AlertDialog.Builder(MainActivity.this).setTitle("Forget paired PCs?")
+                .setMessage("Paired: " + store.pairedNames() + "\nYou will need a new PIN to connect again.")
+                .setPositiveButton("Forget", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface d, int w) {
+                        client.disconnect();
+                        store.forgetAll();
+                        scan();
+                    }
+                }).setNegativeButton("Cancel", null).show();
     }
 
     private void explainWakePermissions() {
@@ -738,8 +809,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     }
 
     private void scan() {
-        connectStatus.setText("Looking for your PC");
-        hostList.removeAllViews();
+        showSearching();
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -754,25 +824,95 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         }, "discovery").start();
     }
 
+    /** Three gray placeholder rows in the shape of the PC rows. They pulse unless animations are off. */
+    private void showSearching() {
+        connectStatus.setText("Looking for PCs on this Wi-Fi");
+        hostList.removeAllViews();
+        boolean motion = animationsOn();
+        for (int i = 0; i < 3; i++) {
+            LinearLayout row = Ui.row(this);
+            row.setMinimumHeight(Ui.dp(this, 48));
+            row.setPadding(Ui.dp(this, 4), Ui.dp(this, 4), 0, Ui.dp(this, 4));
+            View tile = new View(this);
+            tile.setBackground(Ui.rounded(this, Ui.SURFACE_HI, 8));
+            LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(Ui.dp(this, 30), Ui.dp(this, 30));
+            tlp.rightMargin = Ui.dp(this, 12);
+            row.addView(tile, tlp);
+            View bar = new View(this);
+            bar.setBackground(Ui.rounded(this, Ui.SURFACE_HI, 6));
+            row.addView(bar, new LinearLayout.LayoutParams(Ui.dp(this, 150 - i * 30), Ui.dp(this, 14)));
+            if (motion) {
+                android.view.animation.AlphaAnimation pulse = new android.view.animation.AlphaAnimation(1f, 0.4f);
+                pulse.setDuration(800);
+                pulse.setStartOffset(i * 150);
+                pulse.setRepeatMode(android.view.animation.Animation.REVERSE);
+                pulse.setRepeatCount(android.view.animation.Animation.INFINITE);
+                row.startAnimation(pulse);
+            }
+            hostList.addView(row);
+            if (i < 2) hostList.addView(Ui.hairline(this, 46));
+        }
+    }
+
+    /** False when the phone's animations are off, such as with Remove animations in accessibility settings. */
+    @SuppressWarnings("deprecation")
+    private boolean animationsOn() {
+        float scale = Build.VERSION.SDK_INT >= 17
+                ? android.provider.Settings.Global.getFloat(getContentResolver(),
+                        android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+                : android.provider.Settings.System.getFloat(getContentResolver(),
+                        android.provider.Settings.System.ANIMATOR_DURATION_SCALE, 1f);
+        return scale > 0f;
+    }
+
     private void showHosts(List<Discovery.Host> found) {
         hostList.removeAllViews();
-        if (found.isEmpty()) {
-            connectStatus.setText("No PC found. Is the Mobile Dock host running on the same Wi-Fi?");
-            return;
-        }
-        connectStatus.setText("Tap your PC to connect");
-        for (final Discovery.Host h : found) {
-            String label = h.name + "   " + h.address + (store.isPaired(h.id) ? "   paired" : "");
-            Button b = Ui.button(this, label);
-            b.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
-            b.setOnClickListener(new View.OnClickListener() {
+        String last = store.lastHost();
+        boolean lastFound = false;
+        for (Discovery.Host h : found) lastFound |= h.address.equals(last);
+        if (demoWake || !lastFound && store.mac(last).length() > 0) {  // a known PC that may be asleep
+            hostList.addView(Kit.navRow(this, Icon.Kind.POWER, Ui.SIGNAL, "Wake your PC", demoWake ? "192.168.1.20" : last, new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    if (store.isPaired(h.id)) client.connect(h.address, h.port);
-                    else askPin(h.address, h.port, null);
+                    wakePc();
                 }
-            });
-            hostList.addView(b, Ui.fillWidth(this, 4));
+            }));
+            hostList.addView(Ui.hairline(this, 54));
+        }
+        if (found.isEmpty()) {
+            connectStatus.setText("No PC found yet. Try these steps.");
+            String[] steps = {"Open Mobile Dock on your PC.", "Connect the PC and this phone to the same Wi-Fi.",
+                "Or scan the QR code on the PC with this phone's camera."};
+            for (int i = 0; i < steps.length; i++) {
+                LinearLayout row = Ui.row(this);
+                row.setMinimumHeight(Ui.dp(this, 44));
+                TextView n = Ui.strong(this, String.valueOf(i + 1), 15, Ui.ACCENT);
+                n.setGravity(Gravity.CENTER);
+                n.setBackground(Ui.rounded(this, Ui.SURFACE_HI, 14));
+                LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(Ui.dp(this, 28), Ui.dp(this, 28));
+                nlp.setMargins(Ui.dp(this, 2), 0, Ui.dp(this, 12), 0);
+                row.addView(n, nlp);
+                row.addView(Ui.text(this, steps[i], 16, Ui.TEXT), new LinearLayout.LayoutParams(0,
+                        LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+                hostList.addView(row);
+            }
+            return;
+        }
+        connectStatus.setText(found.size() == 1 ? "Found 1 PC. Tap it to connect." : "Found " + found.size() + " PCs. Tap yours to connect.");
+        for (int i = 0; i < found.size(); i++) {
+            final Discovery.Host h = found.get(i);
+            final boolean paired = store.isPaired(h.id) || Demo.on && h.id.equals("demo-paired");
+            LinearLayout row = Kit.navRow(this, Icon.Kind.MONITOR, paired ? Ui.ACCENT : 0xFF8E8E93, h.name,
+                    paired ? "Paired" : "New", new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            if (paired) client.connect(h.address, h.port);
+                            else askPin(h.address, h.port, null);
+                        }
+                    });
+            row.setContentDescription(h.name + ", " + (paired ? "paired" : "new") + ", " + h.address);
+            hostList.addView(row);
+            if (i < found.size() - 1) hostList.addView(Ui.hairline(this, 54));
         }
     }
 
@@ -809,6 +949,8 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private boolean fullscreen;
     private LinearLayout sidebar, dock;
     private View exitFull, gear;
+    /** Phones get a 64 dp icon rail instead of the sidebar. railFullscreen is demo option B: Fullscreen in the rail. */
+    private boolean rail, railFullscreen;
     private TextView sideName, sideStatus;
     private View sideDot;
     /** Pages with a row in the sidebar. Settings has the gear, Capture opens from Controls. */
@@ -857,6 +999,8 @@ public final class MainActivity extends Activity implements DockClient.Listener 
 
     private View buildDock() {
         FrameLayout frame = new FrameLayout(this);
+        android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
+        rail = Rules.useRail((int) (Math.min(metrics.widthPixels, metrics.heightPixels) / metrics.density));
         dock = Ui.column(this);
         int pad = Ui.dp(this, 10);
         dock.setPadding(pad, pad, pad, Ui.dp(this, 6));
@@ -955,6 +1099,17 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             }
         });
         panels.add(settings);
+        if (rail) {
+            settings.setPc(client.hostName.length() > 0 ? client.hostName : "Your PC", "Connected over Wi-Fi", true);
+            if (!railFullscreen) {
+                settings.setHideSidebar(new Runnable() {
+                    @Override
+                    public void run() {
+                        setFullscreen(true);
+                    }
+                });
+            }
+        }
         for (View p : panels) content.addView(p);
         capture.setRecording(recording);
         dock.addView(content, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
@@ -964,7 +1119,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 FrameLayout.LayoutParams.MATCH_PARENT);
         dlp.leftMargin = sidebarWidth();
         frame.addView(dock, dlp);
-        sidebar = buildSidebar();
+        sidebar = rail ? buildRail() : buildSidebar();
         frame.addView(sidebar);
 
         ImageView exit = Ui.iconButton(this, Icon.Kind.SHRINK, 48, 0x00000000, Ui.PRESSED, Ui.ACCENT);
@@ -999,7 +1154,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     }
 
     private int sidebarWidth() {
-        return Ui.dp(this, 206);
+        return Ui.dp(this, rail ? 70 : 206);
     }
 
     /**
@@ -1088,8 +1243,89 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         return side;
     }
 
-    /** The PC name and how it is connected, at the top of the sidebar. */
+    /**
+     * The 64 dp icon rail for phones: 7 page icons, then Settings at the bottom with a dot while the PC is
+     * not connected. The PC name moves to the top of Settings. Long press an icon to see its name.
+     */
+    private LinearLayout buildRail() {
+        LinearLayout side = Ui.column(this);
+        side.setBackground(Kit.glass(this, 24));
+        int in = Kit.glassInset(this);
+        side.setPadding(in + Ui.dp(this, 6), in + Ui.dp(this, 6), in + Ui.dp(this, 6), in + Ui.dp(this, 6));
+        FrameLayout.LayoutParams slp = new FrameLayout.LayoutParams(Ui.dp(this, 64), FrameLayout.LayoutParams.MATCH_PARENT);
+        int m = Ui.dp(this, 2);
+        slp.setMargins(m, m, 0, m);
+        side.setLayoutParams(slp);
+        if (railFullscreen) {
+            side.addView(railItem(Icon.Kind.EXPAND, "Fullscreen", -1), Ui.weight(1f));
+            View line = new View(this);
+            line.setBackgroundColor(Ui.LINE);
+            LinearLayout.LayoutParams llp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1);
+            llp.setMargins(Ui.dp(this, 10), Ui.dp(this, 2), Ui.dp(this, 10), Ui.dp(this, 2));
+            side.addView(line, llp);
+        }
+        for (int i = 0; i < SIDEBAR_PAGES.length; i++) {
+            side.addView(railItem(SIDEBAR_ICONS[i], SIDEBAR_NAMES[i], SIDEBAR_PAGES[i]), Ui.weight(1f));
+        }
+        View gap = new View(this);
+        gap.setBackgroundColor(Ui.LINE);
+        LinearLayout.LayoutParams glp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1);
+        glp.setMargins(Ui.dp(this, 10), Ui.dp(this, 2), Ui.dp(this, 10), Ui.dp(this, 2));
+        side.addView(gap, glp);
+        side.addView(railItem(Icon.Kind.GEAR, "Settings", SETTINGS), Ui.weight(1f));
+        return side;
+    }
+
+    /** One rail icon. page -1 is Fullscreen. Settings carries the connection dot. */
+    private View railItem(Icon.Kind kind, final String name, final int page) {
+        LinearLayout item = Ui.row(this);
+        item.setGravity(Gravity.CENTER);
+        item.setClickable(true);
+        item.setContentDescription(name);
+        FrameLayout holder = new FrameLayout(this);
+        ImageView icon = new ImageView(this);
+        icon.setImageDrawable(new Icon(kind, Ui.ACCENT));
+        holder.addView(icon, new FrameLayout.LayoutParams(Ui.dp(this, 22), Ui.dp(this, 22), Gravity.CENTER));
+        if (page == SETTINGS) {
+            sideDot = new View(this);
+            sideDot.setBackground(Ui.rounded(this, Ui.SIGNAL, 5));
+            sideDot.setVisibility(View.GONE);
+            holder.addView(sideDot, new FrameLayout.LayoutParams(Ui.dp(this, 10), Ui.dp(this, 10), Gravity.TOP | Gravity.RIGHT));
+        }
+        item.addView(holder, new LinearLayout.LayoutParams(Ui.dp(this, 30), Ui.dp(this, 30)));
+        item.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (page == -1) {
+                    setFullscreen(true);
+                    return;
+                }
+                if (page == SETTINGS) settings.show(SettingsPanel.LIST);  // Settings always opens the list
+                select(page);
+            }
+        });
+        item.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                toast(name);
+                return true;
+            }
+        });
+        if (page >= 0) {
+            item.setTag(page);
+            tabs.add(item);
+        }
+        return item;
+    }
+
+    /** The PC name and how it is connected, at the top of the sidebar, or in Settings and a dot with the rail. */
     private void showPc(boolean connected, String status) {
+        if (rail && settings != null && sideDot != null) {
+            sideDot.setVisibility(connected ? View.GONE : View.VISIBLE);
+            settings.setPc(client.hostName.length() > 0 ? client.hostName : "Your PC",
+                    connected ? "Connected over " + status : status, connected);
+            return;
+        }
         if (sideName == null) return;
         if (client.hostName.length() > 0) sideName.setText(client.hostName);
         sideStatus.setText(status);
@@ -1112,9 +1348,11 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         for (LinearLayout row : tabs) {
             boolean on = ((Integer) row.getTag()) == lit;
             row.setBackground(on ? Ui.rounded(this, Ui.SELECTED, 12) : null);
-            ((TextView) row.getChildAt(1)).setTypeface(on ? Ui.semibold() : Ui.regular());
+            if (row.getChildAt(1) instanceof TextView) {
+                ((TextView) row.getChildAt(1)).setTypeface(on ? Ui.semibold() : Ui.regular());
+            }
         }
-        gear.setBackground(index == SETTINGS ? Ui.rounded(this, Ui.SELECTED, 18) : null);
+        if (gear != null) gear.setBackground(index == SETTINGS ? Ui.rounded(this, Ui.SELECTED, 18) : null);
         if (index != APPS && apps.arranging()) apps.setArrange(false);
         media.setActive(index == PLAYING);
         stats.setActive(index == STATS);

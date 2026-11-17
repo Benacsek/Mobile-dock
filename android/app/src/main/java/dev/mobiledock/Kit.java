@@ -260,4 +260,49 @@ final class Kit {
             }
         });
     }
+
+    /** "‹ Settings" in the accent color, above a page title. */
+    static View backLink(Context c, String label, final Runnable back) {
+        LinearLayout row = Ui.row(c);
+        row.setPadding(0, Ui.dp(c, 6), Ui.dp(c, 12), Ui.dp(c, 2));
+        android.widget.ImageView arrow = new android.widget.ImageView(c);
+        arrow.setImageDrawable(new Icon(Icon.Kind.BACK, Ui.ACCENT));
+        row.addView(arrow, new LinearLayout.LayoutParams(Ui.dp(c, 24), Ui.dp(c, 24)));
+        row.addView(Ui.text(c, label, 17, Ui.ACCENT));
+        row.setClickable(true);
+        row.setContentDescription("Back to " + label);
+        row.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                back.run();
+            }
+        });
+        LinearLayout holder = Ui.row(c);
+        holder.addView(row);
+        return holder;
+    }
+
+    /**
+     * A row that opens a page: icon tile, label, the gray value and a chevron. The label keeps its full
+     * width and the value is cut with "..." when the row is short of room.
+     */
+    static LinearLayout navRow(Context c, Icon.Kind kind, int color, String label, String value,
+            View.OnClickListener click) {
+        LinearLayout end = Ui.row(c);
+        end.setGravity(Gravity.CENTER_VERTICAL | Gravity.RIGHT);
+        TextView v = Ui.value(c, value);
+        v.setSingleLine(true);
+        v.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        v.setGravity(Gravity.RIGHT);
+        end.addView(v, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        end.addView(Ui.chevron(c));
+        LinearLayout row = Ui.listRow(c, kind, color, label, end);
+        View name = row.getChildAt(row.indexOfChild(end) - 1);
+        name.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        end.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        row.setContentDescription(value.length() > 0 ? label + ", " + value : label);
+        Ui.pressableRow(c, row, click);
+        return row;
+    }
 }

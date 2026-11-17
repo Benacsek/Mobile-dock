@@ -119,4 +119,13 @@ public class RulesTest {
         assertArrayEquals(defaults, Rules.moveTile(defaults, mask, 5, -1));  // already first
         assertArrayEquals(new int[] {2, 5, 3}, Rules.checkedTiles(mask, Rules.moveTile(defaults, mask, 2, -1), 4));
     }
+
+    @Test
+    public void phonesGetTheRailAndTabletsTheSidebar() {
+        assertTrue(Rules.useRail(320));  // the small-phone check in CI
+        assertTrue(Rules.useRail(360));  // the CI phone
+        assertTrue(Rules.useRail(412));  // a Pixel 7 in landscape
+        assertFalse(Rules.useRail(600));
+        assertFalse(Rules.useRail(800));  // a 10 inch tablet
+    }
 }
