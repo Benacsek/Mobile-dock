@@ -203,7 +203,8 @@ final class Kit {
         bar.setProgressDrawable(track);
         GradientDrawable thumb = Ui.rounded(c, 0xFFFFFFFF, 12);
         thumb.setSize(Ui.dp(c, 38), Ui.dp(c, 24));
-        thumb.setStroke(1, Ui.DARK ? 0x00000000 : 0x1F000000);
+        // In light mode a white knob sits on a white card, so it gets a gray rim: 5:1 against white.
+        thumb.setStroke(Ui.dp(c, 1), Ui.DARK ? 0x00000000 : Ui.MUTED);
         bar.setThumb(thumb);
         bar.setThumbOffset(Ui.dp(c, 4));
         bar.setMinimumHeight(Ui.dp(c, 24));

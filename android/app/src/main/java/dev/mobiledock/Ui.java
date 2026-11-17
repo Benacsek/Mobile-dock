@@ -393,7 +393,6 @@ final class Ui {
             case BACK: return "Back";
             case PLUS: return "Add";
             case REFRESH: return "Refresh";
-            case FOLLOW: return "Follow the app in front";
             case EXPAND: return "Fullscreen";
             case SHRINK: return "Exit fullscreen";
             case GRIP: return "Arrange apps";

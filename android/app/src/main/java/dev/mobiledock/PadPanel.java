@@ -6,6 +6,7 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -22,7 +23,11 @@ final class PadPanel extends LinearLayout {
     private int maxPointers;
     private boolean moved;
     private final float slop;
+    private static final float[] SPEEDS = {0.8f, 1.6f, 2.4f};
+    private static final String[] SPEED_NAMES = {"Slow", "Normal", "Fast"};
     private float speed = 1.6f;
+    private FrameLayout padFrame;
+    private View speedBar;
 
     @SuppressLint("ClickableViewAccessibility")
     PadPanel(Context c, final DockClient client) {
@@ -31,7 +36,7 @@ final class PadPanel extends LinearLayout {
         setOrientation(VERTICAL);
         slop = Ui.dp(c, 8);
 
-        TextView pad = Ui.text(c, "Touchpad\n\nTap to click. Two fingers to scroll or right click.", 14, Ui.MUTED);
+        TextView pad = Ui.text(c, "Tap to click. Two fingers to scroll or right click.", 14, Ui.MUTED);
         pad.setGravity(Gravity.CENTER);
         pad.setBackground(Ui.rounded(c, Ui.SURFACE, 16));
         pad.setOnTouchListener(new OnTouchListener() {
@@ -40,21 +45,16 @@ final class PadPanel extends LinearLayout {
                 return touch(e);
             }
         });
-        addView(pad, new LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
+        // Pointer speed sits in the pad's top corner, apart from the mouse buttons.
+        padFrame = new FrameLayout(c);
+        padFrame.addView(pad);
+        addSpeed(c);
+        addView(padFrame, new LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
 
         LinearLayout buttons = Ui.row(c);
         buttons.addView(holdButton(c, "Left", "left"), new LayoutParams(0, Ui.dp(c, 56), 1.4f));
         buttons.addView(holdButton(c, "Middle", "middle"), new LayoutParams(0, Ui.dp(c, 56), 1.2f));
         buttons.addView(holdButton(c, "Right", "right"), new LayoutParams(0, Ui.dp(c, 56), 1.4f));
-        final Button speedBtn = Ui.keyButton(c, "Speed 2");
-        speedBtn.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                speed = speed > 2.5f ? 0.8f : speed + 0.8f;
-                speedBtn.setText("Speed " + Math.round(speed / 0.8f));
-            }
-        });
-        buttons.addView(speedBtn, new LayoutParams(0, Ui.dp(c, 56), 1.2f));
         LayoutParams lp = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
         lp.topMargin = Ui.dp(c, 8);
         addView(buttons, lp);
@@ -141,5 +141,23 @@ final class PadPanel extends LinearLayout {
             default:
                 return true;
         }
+    }
+
+    /** The Slow, Normal, Fast control. Picking one draws it again with the new choice raised. */
+    private void addSpeed(final Context c) {
+        if (speedBar != null) padFrame.removeView(speedBar);
+        int chosen = 1;
+        for (int i = 0; i < SPEEDS.length; i++) if (SPEEDS[i] == speed) chosen = i;
+        speedBar = Kit.segmented(c, SPEED_NAMES, chosen, new Kit.OnPick() {
+            @Override
+            public void picked(int index) {
+                speed = SPEEDS[index];
+                addSpeed(c);
+            }
+        });
+        speedBar.setContentDescription("Pointer speed");
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(Ui.dp(c, 240), Ui.dp(c, 40), Gravity.TOP | Gravity.RIGHT);
+        lp.setMargins(0, Ui.dp(c, 10), Ui.dp(c, 10), 0);
+        padFrame.addView(speedBar, lp);
     }
 }

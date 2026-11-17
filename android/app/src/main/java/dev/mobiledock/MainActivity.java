@@ -961,7 +961,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private static final String[] SIDEBAR_NAMES = {"Apps", "Search", "Playing", "Shortcuts", "Controls", "Touch",
         "Stats"};
     private static final Icon.Kind[] SIDEBAR_ICONS = {Icon.Kind.APPS, Icon.Kind.SEARCH, Icon.Kind.MUSIC,
-        Icon.Kind.SHORTCUTS, Icon.Kind.SLIDERS, Icon.Kind.PEN, Icon.Kind.CHART};
+        Icon.Kind.COMMAND, Icon.Kind.SLIDERS, Icon.Kind.TOUCHPAD, Icon.Kind.CHART};
     private CapturePanel capture;
     private NightView night;
     private boolean dimmed, swallowGesture, tapPending;

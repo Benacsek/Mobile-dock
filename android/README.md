@@ -35,10 +35,10 @@ App icons all get the same rounded-square shape. Names can use two lines. The gr
 - Apps: tap a tile to open it on the PC. Long press a tile to drag it. Drop it on another tile to move it there, or on the red bar to unpin. Its icons are + to pin more apps and the dots for Arrange.
 - Search: type in the box and tap Search. Auto picks the place: a keyword like `yt lofi`, a site like `youtube` or `github.com`, the app in front on the PC, then the default search. Tap a preset chip to choose one yourself. Long press a chip to see its keyword. Your last 10 searches sit below, one tap to repeat.
 - Playing: album art, title, artist, album and a progress bar you can drag to seek. Play, skip, shuffle, repeat and volume. The -5 and +5 buttons move a video or song by 5 seconds, even with its window in the background. Opening Spotify or another music app from Apps jumps here.
-- Shortcuts: tiles for the app in front on the PC. The target icon in the header turns Follow on or off. Tap the pad name to pick another pad.
+- Shortcuts: tiles for the app in front on the PC. The pad name at the top opens a list: Follow the app in front, or one pad that stays. While it follows, the name reads "Auto: Figma".
 - Controls: volume, mute, lock, screen off, sleep, show desktop, Task Manager, Capture and Disconnect. Sleep asks first. The volume mixer lists every app playing sound with its own slider and mute button. Tap the refresh icon after you start a new app.
 - Capture (from Controls, Back returns there): screenshot, snip a region (Win+Shift+S on Windows), record, picture to the PC clipboard and file to Downloads. Clipboard text: Phone to PC and PC to phone.
-- Touch: switch between Touchpad, Keyboard and Sign at the top.
+- Touch: switch between Touchpad, Keyboard and Sign at the top. Pointer speed (Slow, Normal or Fast) sits in the touchpad's top corner.
   - Touchpad: one finger moves. Tap to click. Two finger tap is right click, three finger tap is middle click. Two fingers scroll. Hold Left and move to drag.
   - Keyboard: type in the box and the text goes to the PC as you type. Tap Ctrl, Alt, Shift or Win before a key to make a shortcut.
   - Sign: draw with your finger. Send to PC puts a PNG with a clear background on the clipboard. Paste it with Ctrl+V.

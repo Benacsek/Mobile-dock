@@ -4,6 +4,13 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 2.4.2
+
+- New icons for Touch (a touchpad) and Shortcuts (the Command key), so no two icons in the column look alike.
+- Shortcuts: one button at the top picks the pad. Its list starts with Follow the app in front. The separate target button is gone.
+- Touch: pointer speed moved from the mouse buttons to the touchpad's top corner, as Slow, Normal and Fast.
+- Sliders in light mode have a gray rim, so you can see the knob on a white card.
+
 ## 2.4.1
 
 - Labels under app icons in Settings, Display works again. Turn it off and Apps shows only the icons, a little bigger.

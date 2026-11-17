@@ -6,7 +6,6 @@ import android.content.DialogInterface;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -21,9 +20,7 @@ import org.json.JSONObject;
  */
 final class ShortcutsPanel extends LinearLayout {
     private final DockClient client;
-    private final TextView appLabel;
     private final Button padButton;
-    private final ImageView follow;
     private final LinearLayout grid;
     private JSONArray pads = new JSONArray();
     private String padId = "";
@@ -39,26 +36,12 @@ final class ShortcutsPanel extends LinearLayout {
         LinearLayout header = Ui.row(c);
         TextView title = Ui.title(c, "Shortcuts");
         header.addView(title);
-        appLabel = Ui.text(c, "", 13, Ui.MUTED);
-        appLabel.setPadding(Ui.dp(c, 12), 0, 0, 0);
-        appLabel.setSingleLine(true);
-        header.addView(appLabel, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
-        follow = Ui.iconButton(c, Icon.Kind.FOLLOW, 40, 0x00000000, Ui.SELECTED, Ui.ACCENT);
-        follow.setSelected(true);
-        ((Icon) follow.getDrawable()).setColor(Ui.onAccent());  // white on the accent fill while following
-        follow.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                following = !following;
-                follow.setSelected(following);
-                ((Icon) follow.getDrawable()).setColor(following ? Ui.onAccent() : Ui.ACCENT);
-                Toast.makeText(getContext(), following ? "Follows the app in front" : "Stays on this pad",
-                        Toast.LENGTH_SHORT).show();
-                if (following) load();
-            }
-        });
-        header.addView(follow);
+        header.addView(Ui.spacer(c));
         padButton = Ui.button(c, "Pad");
+        Icon chevron = new Icon(Icon.Kind.CHEVRON, Ui.ACCENT);  // the pill opens a list
+        chevron.setBounds(0, 0, Ui.dp(c, 12), Ui.dp(c, 12));
+        padButton.setCompoundDrawables(null, null, chevron, null);
+        padButton.setCompoundDrawablePadding(Ui.dp(c, 6));
         padButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -106,7 +89,6 @@ final class ShortcutsPanel extends LinearLayout {
     /** Called when the PC reports a new app in front. */
     void onContext(JSONObject ctx) {
         app = ctx.optString("app");
-        appLabel.setText(app.length() == 0 ? "" : "In front: " + app.replace(".exe", ""));
         if (following || padId.length() == 0) padId = ctx.optString("pad", padId);
         rebuild();
     }
@@ -119,17 +101,28 @@ final class ShortcutsPanel extends LinearLayout {
         return pads.length() > 0 ? pads.optJSONObject(0) : null;
     }
 
+    /** One list: follow the app in front, or stay on one pad. The current choice has a mark. */
     private void choosePad() {
         if (pads.length() == 0) return;
-        final String[] names = new String[pads.length()];
-        for (int i = 0; i < pads.length(); i++) names[i] = pads.optJSONObject(i).optString("name");
+        final String[] names = new String[pads.length() + 1];
+        String front = app.replace(".exe", "");
+        names[0] = "Follow the app in front" + (front.length() > 0 ? " (" + front + ")" : "");
+        int chosen = 0;
+        for (int i = 0; i < pads.length(); i++) {
+            names[i + 1] = pads.optJSONObject(i).optString("name");
+            if (!following && pads.optJSONObject(i).optString("id").equals(padId)) chosen = i + 1;
+        }
         new AlertDialog.Builder(getContext()).setTitle("Show pad")
-                .setItems(names, new DialogInterface.OnClickListener() {
+                .setSingleChoiceItems(names, chosen, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface d, int which) {
-                        padId = pads.optJSONObject(which).optString("id");
-                        following = false;  // you picked one, so stay on it
-                        follow.setSelected(false);
+                        d.dismiss();
+                        following = which == 0;  // a pad you pick stays until you pick Follow again
+                        if (following) {
+                            load();
+                            return;
+                        }
+                        padId = pads.optJSONObject(which - 1).optString("id");
                         rebuild();
                     }
                 }).show();
@@ -144,7 +137,7 @@ final class ShortcutsPanel extends LinearLayout {
             return;
         }
         padId = pad.optString("id");
-        padButton.setText(pad.optString("name"));
+        padButton.setText((following ? "Auto: " : "") + pad.optString("name"));
         JSONArray tiles = pad.optJSONArray("tiles");
         if (tiles == null || tiles.length() == 0) {
             TextView none = Ui.text(c, "This pad has no tiles yet. Add some in the PC window under Shortcut pads.", 14, Ui.MUTED);

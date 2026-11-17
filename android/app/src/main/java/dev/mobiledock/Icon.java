@@ -17,8 +17,8 @@ final class Icon extends Drawable {
     enum Kind {
         PLAY, PAUSE, PREV, NEXT, SHUFFLE, REPEAT, REPEAT_ONE, VOL_DOWN, VOL_UP, MUTE,
         APPS, MUSIC, TOUCHPAD, KEYBOARD, CAMERA, RECORD, STOP, POWER, BACK, PLUS, REFRESH,
-        SHORTCUTS, CHART, SEND, FOLLOW,
-        SLIDERS, SUN, MONITOR, LOCK, MOON, PEN, PICTURE, FILE, SCISSORS, GRIP, EXPAND, SHRINK, CLIPBOARD, BACK5, FORWARD5, SEARCH, GLOBE, PIN, CLOSE, CHEVRON, GEAR, CLOCK, SPEAKER, CHECK
+        COMMAND, CHART, SEND,
+        SLIDERS, SUN, MONITOR, LOCK, MOON, PICTURE, FILE, SCISSORS, GRIP, EXPAND, SHRINK, CLIPBOARD, BACK5, FORWARD5, SEARCH, GLOBE, PIN, CLOSE, CHEVRON, GEAR, CLOCK, SPEAKER, CHECK
     }
 
     private final Kind kind;
@@ -178,11 +178,15 @@ final class Icon extends Drawable {
                 seg(c, 0.5f, 0.2f, 0.5f, 0.8f);
                 seg(c, 0.2f, 0.5f, 0.8f, 0.5f);
                 break;
-            case SHORTCUTS:
-                for (int i = 0; i < 9; i++) {
-                    float l = 0.16f + (i % 3) * 0.24f, t = 0.16f + (i / 3) * 0.24f;
-                    c.drawRoundRect(box(l, t, l + 0.18f, t + 0.18f), r * 0.6f, r * 0.6f, fill);
-                }
+            case COMMAND:  // the Command key symbol: a square with a loop at each corner
+                seg(c, 0.4f, 0.29f, 0.4f, 0.71f);
+                seg(c, 0.6f, 0.29f, 0.6f, 0.71f);
+                seg(c, 0.29f, 0.4f, 0.71f, 0.4f);
+                seg(c, 0.29f, 0.6f, 0.71f, 0.6f);
+                c.drawArc(box(0.18f, 0.18f, 0.4f, 0.4f), 90, 270, false, line);
+                c.drawArc(box(0.6f, 0.18f, 0.82f, 0.4f), 180, 270, false, line);
+                c.drawArc(box(0.18f, 0.6f, 0.4f, 0.82f), 0, 270, false, line);
+                c.drawArc(box(0.6f, 0.6f, 0.82f, 0.82f), 270, 270, false, line);
                 break;
             case CHART:
                 seg(c, 0.16f, 0.82f, 0.86f, 0.82f);
@@ -200,10 +204,6 @@ final class Icon extends Drawable {
                 seg(c, 0.2f, 0.62f, 0.2f, 0.82f);
                 seg(c, 0.2f, 0.82f, 0.8f, 0.82f);
                 seg(c, 0.8f, 0.82f, 0.8f, 0.62f);
-                break;
-            case FOLLOW:
-                c.drawCircle(x(0.5f), y(0.5f), s * 0.3f, line);
-                c.drawCircle(x(0.5f), y(0.5f), s * 0.1f, fill);
                 break;
             case SLIDERS:
                 for (int i = 0; i < 3; i++) {
@@ -232,13 +232,6 @@ final class Icon extends Drawable {
             case MOON:
                 c.drawArc(box(0.2f, 0.18f, 0.8f, 0.82f), 60, 260, false, line);
                 c.drawArc(box(0.42f, 0.16f, 0.86f, 0.62f), 120, 150, false, line);
-                break;
-            case PEN:
-                seg(c, 0.16f, 0.74f, 0.32f, 0.58f);
-                seg(c, 0.32f, 0.58f, 0.46f, 0.7f);
-                seg(c, 0.46f, 0.7f, 0.62f, 0.5f);
-                seg(c, 0.62f, 0.5f, 0.84f, 0.62f);
-                seg(c, 0.2f, 0.84f, 0.84f, 0.84f);
                 break;
             case PICTURE:
                 c.drawRoundRect(box(0.14f, 0.22f, 0.86f, 0.78f), s * 0.07f, s * 0.07f, line);
