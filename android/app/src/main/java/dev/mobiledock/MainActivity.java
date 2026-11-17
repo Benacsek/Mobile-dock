@@ -140,8 +140,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         if (page == 99) {  // the idle screen. CI can pick its tiles and color.
             android.content.SharedPreferences.Editor e = WatchService.prefs(this).edit();
             if (intent.hasExtra("idle_main")) e.putInt(NightView.PREF_MAIN, intent.getIntExtra("idle_main", 0));
-            if (intent.hasExtra("idle_side")) e.putInt(NightView.PREF_SIDE, intent.getIntExtra("idle_side", 0));
-            if (intent.hasExtra("idle_side2")) e.putInt(NightView.PREF_SIDE2, intent.getIntExtra("idle_side2", 4));
+            if (intent.hasExtra("idle_tiles")) e.putInt(NightView.PREF_TILES, intent.getIntExtra("idle_tiles", 1));
             if (intent.hasExtra("idle_color")) e.putInt(NightView.PREF_COLOR, intent.getIntExtra("idle_color", 0));
             e.commit();
             dim();

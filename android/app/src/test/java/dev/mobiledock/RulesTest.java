@@ -88,4 +88,20 @@ public class RulesTest {
         assertEquals(29, leap[29]);
         assertEquals(0, leap[30]);
     }
+
+    @Test
+    public void idleTilesFollowTheChecklist() {
+        int[] order = {5, 0, 1, 2, 3};  // Clock, Date, Calendar, Playing, Battery
+        int all = (1 << 5) | 1 | 2 | 4 | 8;
+        assertArrayEquals(new int[] {5, 0, 1, 2}, Rules.checkedTiles(all, order, 4));  // at most 4
+        assertArrayEquals(new int[] {2, 3}, Rules.checkedTiles(4 | 8, order, 4));
+        assertArrayEquals(new int[0], Rules.checkedTiles(0, order, 4));
+        // 2.2.0 kept two slots. Date and None become just Date, Playing and Battery stay both.
+        assertEquals(1, Rules.legacyTileMask(0, 4, 4, 6));
+        assertEquals(4 | 8, Rules.legacyTileMask(2, 3, 4, 6));
+        assertEquals(0, Rules.legacyTileMask(4, 4, 4, 6));
+        assertArrayEquals(new int[] {1, 1}, Rules.gridRows(2));
+        assertArrayEquals(new int[] {2, 1}, Rules.gridRows(3));
+        assertArrayEquals(new int[] {2, 2}, Rules.gridRows(4));
+    }
 }

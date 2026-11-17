@@ -15,11 +15,10 @@ import android.widget.TextView;
 final class SettingsPanel extends android.widget.ScrollView {
     static final String PREF_VOLUME_KEYS = "volume_keys";
     static final String PREF_DIM = "dim_minutes";
-    /** The pages. The three tile pickers open from the Idle screen page and go back there. */
-    static final int LIST = 0, DISPLAY = 1, IDLE = 2, BUTTONS = 3, UPDATES = 4, PICK_BIG = 5, PICK_SIDE = 6,
-            PICK_SIDE2 = 7;
+    /** The pages. The big tile picker opens from the Idle screen page and goes back there. */
+    static final int LIST = 0, DISPLAY = 1, IDLE = 2, BUTTONS = 3, UPDATES = 4, PICK_BIG = 5;
     private static final String[] PAGE_NAMES = {"Settings", "Display", "Idle screen", "Buttons and feedback",
-        "Updates", "Big tile", "Side tile", "Second side tile"};
+        "Updates", "Big tile"};
     private static final int[] DIM_MINUTES = {0, 1, 5, 15};
     private static final String[] DIM_NAMES = {"Off", "1 min", "5 min", "15 min"};
     private final SharedPreferences prefs;
@@ -73,12 +72,8 @@ final class SettingsPanel extends android.widget.ScrollView {
         else if (page == UPDATES) {
             if (updates.getParent() != null) ((android.view.ViewGroup) updates.getParent()).removeView(updates);
             list.addView(updates);
-        } else if (page == PICK_BIG) {
-            buildPicker(c, NightView.PREF_MAIN, 0, NightView.MAIN_NAMES, new int[] {0, 1, 2});
         } else {
-            boolean first = page == PICK_SIDE;
-            buildPicker(c, first ? NightView.PREF_SIDE : NightView.PREF_SIDE2,
-                    first ? NightView.DATE : NightView.NONE, NightView.SIDE_NAMES, NightView.SIDE_ORDER);
+            buildPicker(c, NightView.PREF_MAIN, 0, NightView.MAIN_NAMES, new int[] {0, 1, 2});
         }
     }
 
@@ -157,14 +152,10 @@ final class SettingsPanel extends android.widget.ScrollView {
     /** "Clock, Date and Battery". */
     private String idleSummary() {
         String s = NightView.MAIN_NAMES[pick(NightView.PREF_MAIN, 0, NightView.MAIN_NAMES.length)];
-        String[] sides = new String[2];
-        int n = 0;
-        for (int side : new int[] {pick(NightView.PREF_SIDE, NightView.DATE, NightView.SIDE_NAMES.length),
-            pick(NightView.PREF_SIDE2, NightView.NONE, NightView.SIDE_NAMES.length)}) {
-            if (side != NightView.NONE) sides[n++] = NightView.SIDE_NAMES[side];
+        int[] sides = NightView.sideTiles(prefs);
+        for (int i = 0; i < sides.length; i++) {
+            s += (i == sides.length - 1 ? " and " : ", ") + NightView.SIDE_NAMES[sides[i]];
         }
-        if (n == 1) return s + " and " + sides[0];
-        if (n == 2) return s + ", " + sides[0] + " and " + sides[1];
         return s;
     }
 
@@ -274,7 +265,7 @@ final class SettingsPanel extends android.widget.ScrollView {
             s.setOnClickListener(new OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    save(NightView.PREF_COLOR, index);
+                    saveIdle(NightView.PREF_COLOR, index);
                 }
             });
             swatches.addView(s, new LinearLayout.LayoutParams(0, Ui.dp(c, 64), 1f));
@@ -286,14 +277,35 @@ final class SettingsPanel extends android.widget.ScrollView {
         LinearLayout tiles = Ui.card(c);
         tiles.addView(pickRow(c, PICK_BIG,
                 NightView.MAIN_NAMES[pick(NightView.PREF_MAIN, 0, NightView.MAIN_NAMES.length)]));
-        tiles.addView(Ui.hairline(c, 16));
-        tiles.addView(pickRow(c, PICK_SIDE,
-                NightView.SIDE_NAMES[pick(NightView.PREF_SIDE, NightView.DATE, NightView.SIDE_NAMES.length)]));
-        tiles.addView(Ui.hairline(c, 16));
-        tiles.addView(pickRow(c, PICK_SIDE2,
-                NightView.SIDE_NAMES[pick(NightView.PREF_SIDE2, NightView.NONE, NightView.SIDE_NAMES.length)]));
         list.addView(tiles);
-        TextView note = Ui.text(c, "Two side tiles sit one above the other.", 13, Ui.MUTED);
+
+        // The side tiles as a checklist. When 4 are checked, the rest wait until one is unchecked.
+        list.addView(Ui.header(c, "Side tiles"));
+        final int mask = NightView.tileMask(prefs);
+        int checked = NightView.sideTiles(prefs).length;
+        LinearLayout sides = Ui.card(c);
+        for (int i = 0; i < NightView.SIDE_ORDER.length; i++) {
+            final int tile = NightView.SIDE_ORDER[i];
+            boolean on = (mask & (1 << tile)) != 0;
+            boolean open = on || checked < NightView.MAX_SIDE;
+            LinearLayout row = Ui.listRow(c, null, 0, NightView.SIDE_NAMES[tile], on ? checkMark(c) : null);
+            row.setContentDescription(NightView.SIDE_NAMES[tile] + (on ? ", shown" : ", hidden"));
+            if (open) {
+                Ui.pressableRow(c, row, new OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        saveIdle(NightView.PREF_TILES, mask ^ (1 << tile));
+                    }
+                });
+            } else {
+                row.setAlpha(0.4f);
+            }
+            if (i > 0) sides.addView(Ui.hairline(c, 16));
+            sides.addView(row);
+        }
+        list.addView(sides);
+        TextView note = Ui.text(c, "Check up to " + NightView.MAX_SIDE + ". One or two sit one above the other, "
+                + "three or four share a grid.", 13, Ui.MUTED);
         note.setPadding(Ui.dp(c, 16), Ui.dp(c, 6), Ui.dp(c, 16), 0);
         list.addView(note);
 
@@ -303,7 +315,7 @@ final class SettingsPanel extends android.widget.ScrollView {
         list.addView(Kit.segmented(c, DIM_NAMES, dimIndex, new Kit.OnPick() {
             @Override
             public void picked(int index) {
-                save(PREF_DIM, DIM_MINUTES[index]);
+                saveIdle(PREF_DIM, DIM_MINUTES[index]);
             }
         }));
 
@@ -341,14 +353,7 @@ final class SettingsPanel extends android.widget.ScrollView {
         LinearLayout card = Ui.card(c);
         for (int i = 0; i < order.length; i++) {
             final int value = order[i];
-            View check = null;
-            if (value == chosen) {
-                ImageView mark = new ImageView(c);
-                mark.setImageDrawable(new Icon(Icon.Kind.CHECK, Ui.ACCENT));
-                mark.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(c, 22), Ui.dp(c, 22)));
-                check = mark;
-            }
-            LinearLayout row = Ui.listRow(c, null, 0, names[value], check);
+            LinearLayout row = Ui.listRow(c, null, 0, names[value], value == chosen ? checkMark(c) : null);
             row.setContentDescription(names[value] + (value == chosen ? ", chosen" : ""));
             Ui.pressableRow(c, row, new OnClickListener() {
                 @Override
@@ -362,6 +367,13 @@ final class SettingsPanel extends android.widget.ScrollView {
             card.addView(row);
         }
         list.addView(card);
+    }
+
+    private static View checkMark(Context c) {
+        ImageView mark = new ImageView(c);
+        mark.setImageDrawable(new Icon(Icon.Kind.CHECK, Ui.ACCENT));
+        mark.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(c, 22), Ui.dp(c, 22)));
+        return mark;
     }
 
     private void buildButtons(Context c) {
@@ -394,6 +406,19 @@ final class SettingsPanel extends android.widget.ScrollView {
             }
         });
         return Ui.listRow(c, kind, color, label, sw);
+    }
+
+    /** Idle screen choices change nothing in the dock, so only this page redraws and keeps its scroll. */
+    private void saveIdle(String key, int value) {
+        prefs.edit().putInt(key, value).commit();
+        final int y = getScrollY();
+        build();
+        post(new Runnable() {
+            @Override
+            public void run() {
+                scrollTo(0, y);
+            }
+        });
     }
 
     private void save(String key, int value) {

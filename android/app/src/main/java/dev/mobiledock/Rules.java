@@ -67,4 +67,26 @@ final class Rules {
         for (int d = 1; d <= days; d++) cells[offset + d - 1] = d;
         return cells;
     }
+
+    /** The idle side tiles that are checked in mask (bit 1 << tile), in the order given, at most max of them. */
+    static int[] checkedTiles(int mask, int[] order, int max) {
+        int[] out = new int[Math.min(max, Integer.bitCount(mask))];
+        int n = 0;
+        for (int tile : order) if (n < out.length && (mask & (1 << tile)) != 0) out[n++] = tile;
+        return n == out.length ? out : java.util.Arrays.copyOf(out, n);
+    }
+
+    /** Turns the two side tiles of version 2.2.0 into a checklist mask, so nobody loses their choice. */
+    static int legacyTileMask(int side, int side2, int none, int count) {
+        int mask = 0;
+        for (int s : new int[] {side, side2}) if (s >= 0 && s < count && s != none) mask |= 1 << s;
+        return mask;
+    }
+
+    /** How many side tiles sit in each row: one or two tiles stack, three or four make a 2 x 2 grid. */
+    static int[] gridRows(int n) {
+        if (n <= 0) return new int[0];
+        if (n <= 2) return n == 1 ? new int[] {1} : new int[] {1, 1};
+        return new int[] {2, n - 2};
+    }
 }

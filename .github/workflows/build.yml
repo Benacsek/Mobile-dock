@@ -164,24 +164,33 @@ jobs:
               "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-$look-$name.png"
             done
           done
-          # The idle screen with other tiles and colors. Fields: big tile, side tile, second side tile, color.
-          idles="1:5:3:2:idle-calendar-clock-battery-red 0:2:3:3:idle-clock-playing-battery-orange"
-          idles="$idles 2:3:4:4:idle-playing-battery-green 0:0:4:0:idle-clock-date-blue"
+          # The idle screen with other tiles and colors. Fields: big tile, side tiles as bits, color.
+          # Bits: 1 Date, 2 Calendar, 4 Playing, 8 Battery, 32 Clock.
+          idles="0:15:0:idle-clock-four-blue 1:44:2:idle-calendar-three-red 2:41:4:idle-playing-three-green"
+          idles="$idles 0:12:3:idle-clock-playing-battery-orange"
           for combo in $idles; do
-            IFS=: read -r m sd sd2 col name <<< "$combo"; n=$((n + 1))
+            IFS=: read -r m tiles col name <<< "$combo"; n=$((n + 1))
             "$adb" shell am start -W -n dev.mobiledock/.MainActivity --ez demo true --ei page 99 \
-              --ei idle_main "$m" --ei idle_side "$sd" --ei idle_side2 "$sd2" --ei idle_color "$col" > /dev/null
+              --ei idle_main "$m" --ei idle_tiles "$tiles" --ei idle_color "$col" > /dev/null
             sleep 5
             "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-$name.png"
           done
-          # Each page of Settings, and a tile picker.
-          for entry in 1:display 2:idle 3:buttons 4:updates 6:pick-side; do
+          # Each page of Settings, and the big tile picker.
+          for entry in 1:display 2:idle 3:buttons 4:updates 5:pick-big; do
             sp="${entry%%:*}"; name="${entry#*:}"; n=$((n + 1))
             "$adb" shell am start -W -n dev.mobiledock/.MainActivity --ez demo true --ei theme 1 --ei page 8 \
               --ei settings_page "$sp" > /dev/null
             sleep 3
             "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-settings-$name.png"
           done
+          # The side tile checklist, further down the Idle screen page.
+          n=$((n + 1))
+          "$adb" shell am start -W -n dev.mobiledock/.MainActivity --ez demo true --ei theme 1 --ei page 8 \
+            --ei settings_page 2 > /dev/null
+          sleep 2
+          "$adb" shell input swipe 900 650 900 100 400
+          sleep 2
+          "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-settings-checklist.png"
           # A small phone, 533 x 320 dp: the Settings list must fit without scrolling, two side tiles must fit.
           "$adb" shell wm size 800x480
           "$adb" shell wm density 240
@@ -195,7 +204,7 @@ jobs:
           done
           n=$((n + 1))
           "$adb" shell am start -W -n dev.mobiledock/.MainActivity --ez demo true --ei page 99 \
-            --ei idle_main 0 --ei idle_side 2 --ei idle_side2 3 --ei idle_color 0 > /dev/null
+            --ei idle_main 0 --ei idle_tiles 15 --ei idle_color 0 > /dev/null
           sleep 5
           "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-small-idle.png"
           "$adb" shell wm size reset

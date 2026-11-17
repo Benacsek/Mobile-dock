@@ -4,6 +4,13 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 2.3.0
+
+- The idle screen's side tiles are a checklist now: Clock, Date, Calendar, Playing and Battery. Check up to 4.
+- One or two side tiles sit one above the other. Three or four share a 2 x 2 grid.
+- Your tiles from 2.2.0 stay checked.
+- Changing the idle screen no longer jumps the Settings page back to the top.
+
 ## 2.2.0
 
 - Settings is a short list now: Display, Idle screen, Buttons and feedback, and Updates. Each opens its own page. Back or Settings at the top returns to the list.

@@ -26,21 +26,23 @@ import java.util.Locale;
 import java.util.Random;
 
 /**
- * The idle screen, like a bedside clock: one big tile and up to two side tiles in a color you pick, on black.
- * Big: clock, calendar or now playing. Each side slot: clock, date, calendar, now playing, battery or nothing.
- * Two side tiles stack, one above the other.
+ * The idle screen, like a bedside clock: one big tile and up to four side tiles in a color you pick, on black.
+ * Big: clock, calendar or now playing. Side, from a checklist: clock, date, calendar, now playing, battery.
+ * One or two side tiles stack, three or four make a 2 x 2 grid.
  * The tiles move a few dp now and then, so no pixel stays lit in the same place for hours.
  */
 final class NightView extends FrameLayout {
     static final String PREF_COLOR = "idle_color", PREF_MAIN = "idle_main", PREF_SIDE = "idle_side",
-            PREF_SIDE2 = "idle_side2";
+            PREF_SIDE2 = "idle_side2", PREF_TILES = "idle_tiles";  // the two slots of 2.2.0, then the checklist
     /** Bright system colors that read well on black. Red is kind to the eyes in a dark room. */
     static final int[] COLORS = {0xFF70B8FF, 0xFFF2F2F7, 0xFFFF4245, 0xFFFF9230, 0xFF30D158, 0xFFFF375F};
     static final String[] COLOR_NAMES = {"Blue", "White", "Red", "Orange", "Green", "Pink"};
     static final String[] MAIN_NAMES = {"Clock", "Calendar", "Playing"};
-    /** Indexed by the saved value. Clock came later, so it is last here and first in SIDE_ORDER. */
+    /** Indexed by the tile's number, which is also its bit in the checklist. Clock came later, so it is last. */
     static final String[] SIDE_NAMES = {"Date", "Calendar", "Playing", "Battery", "None", "Clock"};
-    static final int[] SIDE_ORDER = {5, 0, 1, 2, 3, 4};
+    /** The checklist, top to bottom. Checked tiles show in this order. */
+    static final int[] SIDE_ORDER = {5, 0, 1, 2, 3};
+    static final int MAX_SIDE = 4;
     private static final int CLOCK = 0, CALENDAR = 1, PLAYING = 2;  // big tile
     static final int DATE = 0, SIDE_CALENDAR = 1, SIDE_PLAYING = 2, BATTERY = 3, NONE = 4, SIDE_CLOCK = 5;  // side
 
@@ -69,25 +71,33 @@ final class NightView extends FrameLayout {
         this.client = client;
         color = COLORS[clamp(prefs.getInt(PREF_COLOR, 0), COLORS.length)];
         main = clamp(prefs.getInt(PREF_MAIN, CLOCK), MAIN_NAMES.length);
-        int[] sides = {clamp(prefs.getInt(PREF_SIDE, DATE), SIDE_NAMES.length),
-                clamp(prefs.getInt(PREF_SIDE2, NONE), SIDE_NAMES.length)};
+        int[] sides = sideTiles(prefs);
         setBackgroundColor(0xFF000000);
         setClickable(true);  // the first touch only wakes the dock
         box = Ui.row(c);
         int p = Ui.dp(c, 28);
         box.setPadding(p, p, p, p);
-        // Side tiles share the column. A tile taller than its half shrinks to fit, the clock and calendar
-        // fill whatever room they get.
+        // Side tiles share the column in rows. A tile taller than its cell shrinks to fit, the clock and
+        // calendar fill whatever room they get.
         LinearLayout column = Ui.column(c);
-        for (int side : sides) {
-            if (side == NONE) continue;
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f);
-            if (column.getChildCount() > 0) lp.topMargin = Ui.dp(c, 20);
-            View tile = sideTile(c, side);
-            column.addView(side == SIDE_CLOCK || side == SIDE_CALENDAR ? tile : new Fit(c, tile), lp);
+        int[] rows = Rules.gridRows(sides.length);
+        int k = 0;
+        for (int r = 0; r < rows.length; r++) {
+            LinearLayout line = Ui.row(c);
+            for (int j = 0; j < rows[r]; j++) {
+                int side = sides[k++];
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1f);
+                if (j > 0) lp.leftMargin = Ui.dp(c, 16);
+                View tile = sideTile(c, side);
+                line.addView(side == SIDE_CLOCK || side == SIDE_CALENDAR ? tile : new Fit(c, tile), lp);
+            }
+            LinearLayout.LayoutParams rl = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f);
+            if (r > 0) rl.topMargin = Ui.dp(c, 20);
+            column.addView(line, rl);
         }
         // The clock gets more room than a calendar or a song, so its digits can fill the height.
-        float big = column.getChildCount() == 0 ? 1f : main == CLOCK ? 0.7f : 0.64f;
+        // A grid of side tiles needs about half the width.
+        float big = sides.length == 0 ? 1f : sides.length > 2 ? 0.55f : main == CLOCK ? 0.7f : 0.64f;
         box.addView(bigTile(c), new LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, big));
         if (column.getChildCount() > 0) {
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1f - big);
@@ -95,6 +105,18 @@ final class NightView extends FrameLayout {
             box.addView(column, lp);
         }
         addView(box, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    }
+
+    /** The checklist as bits, 1 << tile. Before the checklist there were two slots, so those become the bits. */
+    static int tileMask(SharedPreferences prefs) {
+        if (prefs.contains(PREF_TILES)) return prefs.getInt(PREF_TILES, 0);
+        return Rules.legacyTileMask(prefs.getInt(PREF_SIDE, DATE), prefs.getInt(PREF_SIDE2, NONE), NONE,
+                SIDE_NAMES.length);
+    }
+
+    /** The checked side tiles, in checklist order. */
+    static int[] sideTiles(SharedPreferences prefs) {
+        return Rules.checkedTiles(tileMask(prefs), SIDE_ORDER, MAX_SIDE);
     }
 
     private static int clamp(int v, int n) {
