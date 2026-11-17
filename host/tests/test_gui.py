@@ -9,6 +9,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 tk = pytest.importorskip("tkinter")
 
 
+@pytest.fixture(autouse=True)
+def free_windows_on_this_thread():
+    """Frees each test's window objects here, on the main thread.
+
+    Left for later, Python may free a Tk variable on another thread, such as the audio thread. Tk then
+    waits for the main thread, which may be waiting for that thread: both stop. The app never hits this,
+    because its main thread always runs the window loop.
+    """
+    import gc
+
+    yield
+    gc.collect()
+
+
 def test_window_builds(tmp_path):
     """Builds the real window. Catches theme or layout errors that only Tk reports."""
     from test_server import FakePlatform

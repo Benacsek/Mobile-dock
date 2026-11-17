@@ -45,7 +45,7 @@ jobs:
           M=host/tests/test_platforms.py::test_mixer_and_clipboard_answer_or_explain
           T="test_window_builds test_close_keeps_running_in_background test_close_quits_when_background_is_off test_without_tray_windows_minimizes test_release_notes_wait_until_the_window_opens"
           for a in $T; do for b in $T; do
-            if [[ "$a" < "$b" ]]; then
+            if [[ "$a" > "$b" ]]; then
               rc=0; timeout 150 python -m pytest -q -p no:cacheprovider $G::$a $G::$b $M > out.txt 2>&1 || rc=$?
               echo "RESULT $a + $b: $rc $(tail -1 out.txt)"
             fi
