@@ -247,6 +247,7 @@ class LinuxPlatform(Platform):
         commands = {
             "lock": ["loginctl", "lock-session"],
             "sleep": ["systemctl", "suspend"],
+            "shutdown": ["systemctl", "poweroff"],
             "display_off": ["hyprctl", "dispatch", "dpms", "off"],
             "desktop": ["hyprctl", "dispatch", "workspace", "empty"],
             "task_manager": ["hyprctl", "dispatch", "exec", "btop"] if not shutil.which("missioncenter")

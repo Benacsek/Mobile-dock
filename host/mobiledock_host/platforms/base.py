@@ -7,8 +7,8 @@ import subprocess
 import time
 from pathlib import Path
 
-# PC controls the phone may trigger. Deliberately no shutdown or restart: too easy to hit by accident.
-SYSTEM_ACTIONS = ("lock", "sleep", "display_off", "desktop", "task_manager")
+# PC controls the phone may trigger. The phone asks before sleep and shutdown. No restart.
+SYSTEM_ACTIONS = ("lock", "sleep", "display_off", "desktop", "task_manager", "shutdown")
 MEDIA_ACTIONS = ("play_pause", "next", "prev", "vol_up", "vol_down", "mute")
 MOUSE_BUTTONS = ("left", "right", "middle")
 MODIFIERS = ("ctrl", "alt", "shift", "meta")

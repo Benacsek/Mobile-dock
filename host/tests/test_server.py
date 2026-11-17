@@ -243,8 +243,9 @@ def test_system_controls_and_update_status(server):
     channel, paired = pair(server, server.pairing.start())
     assert "version" in paired
     assert call(channel, "system", 1, action="lock")["ok"]
-    assert not call(channel, "system", 2, action="shutdown")["ok"]
-    assert called == ["lock"]
+    assert call(channel, "system", 2, action="shutdown")["ok"]
+    assert not call(channel, "system", 4, action="restart")["ok"]
+    assert called == ["lock", "shutdown"]
     status = call(channel, "update.status", 3)
     assert status["ok"] and "pc_version" in status
 

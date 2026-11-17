@@ -407,6 +407,13 @@ class WindowsPlatform(Platform):
             self.key("d", ["meta"])
         elif action == "task_manager":
             self.key("esc", ["ctrl", "shift"])
+        elif action == "shutdown":
+            # A full shutdown, so Wake-on-LAN can turn the PC back on. With /t 0 Windows does not force
+            # apps closed, so an app with unsaved work can still ask first.
+            result = subprocess.run(["shutdown", "/s", "/t", "0"], capture_output=True,
+                                    creationflags=subprocess.CREATE_NO_WINDOW)
+            if result.returncode != 0:
+                raise PlatformError("Windows refused to shut down")
         else:
             raise PlatformError("Unknown control")
 

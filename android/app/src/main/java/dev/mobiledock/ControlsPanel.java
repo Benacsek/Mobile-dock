@@ -69,9 +69,28 @@ final class ControlsPanel extends ScrollView {
                     LinearLayout.LayoutParams.WRAP_CONTENT));
         }
         left.addView(pc);
-        TextView note = Ui.text(c, "There is no shut down button, on purpose.", 13, Ui.MUTED);
-        note.setPadding(Ui.dp(c, 16), Ui.dp(c, 6), Ui.dp(c, 16), 0);
-        left.addView(note);
+        // Apart from the tiles and in red, so it is hard to hit by accident. It always asks first.
+        LinearLayout off = Ui.card(c);
+        LinearLayout shutDown = Ui.listRow(c, Icon.Kind.POWER, Ui.DANGER, "Shut down", null);
+        ((TextView) shutDown.getChildAt(1)).setTextColor(Ui.DANGER);
+        Ui.pressableRow(c, shutDown, new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                new AlertDialog.Builder(getContext()).setTitle("Shut down the PC?")
+                        .setMessage("Save your work on the PC first.")
+                        .setPositiveButton("Shut down", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface d, int w) {
+                                send("system", "shutdown");
+                            }
+                        }).setNegativeButton("Cancel", null).show();
+            }
+        });
+        off.addView(shutDown);
+        LinearLayout.LayoutParams olp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        olp.topMargin = Ui.dp(c, 12);
+        left.addView(off, olp);
         columns.addView(left, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         // The PC volume on top, then one line per app. The page reloads them while it is open.

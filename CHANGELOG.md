@@ -9,6 +9,7 @@ The notes under the newest version show once in both apps after they update.
 - Controls is calmer: the PC actions are six tiles that fit without scrolling. Capture is one of them.
 - Sound: one PC volume slider replaces the three round buttons. Each app in the mixer takes one line instead of two. The list reloads by itself every 5 seconds, so the refresh button is gone.
 - Disconnect moved to the top of Settings and now asks before it disconnects.
+- Shut down: a red button under the tiles turns the PC off after you confirm. Update the PC app too. Turn on your PC on the connect page can start it again if Wake-on-LAN is set up.
 
 ## 2.5.1
 

@@ -92,7 +92,7 @@ Requests are JSON with `t` and an optional numeric `id`. If `id` is present, the
 | update.chunk | offset | data (base64, up to 256 KiB), total |
 | update.status | | pc_version, status, phone_ready (phone version kept on the PC, or empty) |
 | update.refresh | | same as update.status, after a fresh check on GitHub |
-| system | action: lock, sleep, display_off, desktop, task_manager | |
+| system | action: lock, sleep, display_off, desktop, task_manager, shutdown | |
 | search.presets | | presets: [{id, name, keyword, icon_rev}] |
 | search.icon | id | png (base64), or builtin: search, globe, pin or windows |
 | search.run | text, preset (empty for Auto) | did: what happened, for example "YouTube: lofi" |
@@ -114,7 +114,7 @@ Requests are JSON with `t` and an optional numeric `id`. If `id` is present, the
 
 Mouse and keyboard messages are usually sent without `id`, so the PC does not reply.
 
-`system` has no shutdown or restart on purpose. A phone left on a desk should not be able to end your work.
+`system` has shutdown but no restart. The phone asks before it sends sleep or shutdown.
 
 The PC may also send events on its own:
 
