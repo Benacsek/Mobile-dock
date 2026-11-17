@@ -36,6 +36,16 @@ jobs:
         run: |
           curl -sSfL -o "$RUNNER_TEMP/json.jar" https://repo1.maven.org/maven2/org/json/json/20250517/json-20250517.jar
           echo "MDOCK_JSON_JAR=$RUNNER_TEMP/json.jar" >> "$GITHUB_ENV"
+      - name: Experiment, which test blocks the mixer
+        if: runner.os == 'Windows'
+        shell: bash
+        continue-on-error: true
+        run: |
+          M=host/tests/test_platforms.py::test_mixer_and_clipboard_answer_or_explain
+          for t in "" test_window_builds test_close_keeps_running_in_background test_close_quits_when_background_is_off test_without_tray_windows_minimizes test_release_notes_wait_until_the_window_opens; do
+            if [ -n "$t" ]; then a="host/tests/test_gui.py::$t"; else a=""; fi
+            timeout 120 python -m pytest -q -p no:cacheprovider $a $M > out.txt 2>&1; echo "RESULT ${t:-mixer-alone} $? $(tail -1 out.txt)"
+          done
       - run: python -m pytest -q host/tests -rs
 
   windows-exe:
