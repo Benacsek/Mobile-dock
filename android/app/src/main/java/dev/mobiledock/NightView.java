@@ -70,9 +70,11 @@ final class NightView extends FrameLayout {
         box = Ui.row(c);
         int p = Ui.dp(c, 28);
         box.setPadding(p, p, p, p);
-        box.addView(bigTile(c), new LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, side == NONE ? 1f : 0.64f));
+        // The clock gets more room than a calendar or a song, so its digits can fill the height.
+        float big = side == NONE ? 1f : main == CLOCK ? 0.7f : 0.64f;
+        box.addView(bigTile(c), new LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, big));
         if (side != NONE) {
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 0.36f);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1f - big);
             lp.leftMargin = Ui.dp(c, 24);
             box.addView(sideTile(c), lp);
         }
@@ -96,6 +98,8 @@ final class NightView extends FrameLayout {
             words.setPadding(Ui.dp(c, 20), 0, 0, 0);
             songTitle = big(c, "Nothing playing", 30, 0xFFFFFFFF);
             songTitle.setTypeface(Ui.bold());
+            songTitle.setSingleLine(false);
+            songTitle.setMaxLines(2);  // long titles get a second line before they are cut
             songArtist = big(c, "", 22, color);
             words.addView(songTitle);
             words.addView(songArtist);
@@ -118,14 +122,16 @@ final class NightView extends FrameLayout {
         return clock;
     }
 
+    /** Sizes the digits to the time on screen: as tall as the tile allows, then narrowed to its width. */
     private void fitClock(int w, int h) {
         if (w <= 0 || h <= 0) return;
+        String now = clock.getText().length() > 0 ? clock.getText().toString() : "00:00";
         Paint paint = new Paint();
         paint.setTypeface(Ui.bold());
-        float size = h * 0.78f;
+        float size = h * 0.95f;  // digits are about three quarters of the font size, so this fills the height
         paint.setTextSize(size);
-        float text = paint.measureText("00:00");
-        if (text > w * 0.98f) size *= w * 0.98f / text;
+        float text = paint.measureText(now);
+        if (text > w * 0.96f) size *= w * 0.96f / text;
         clock.setTextSize(TypedValue.COMPLEX_UNIT_PX, size);
     }
 
@@ -211,6 +217,7 @@ final class NightView extends FrameLayout {
         if (clock != null) {
             boolean h24 = android.text.format.DateFormat.is24HourFormat(getContext());
             clock.setText(new SimpleDateFormat(h24 ? "H:mm" : "h:mm", Locale.getDefault()).format(new Date()));
+            fitClock(clock.getWidth(), clock.getHeight());  // "8:31" can be bigger than "12:31"
         }
         for (Runnable r : updaters) r.run();
         // A small shift now and then, so the screen does not burn in. Small enough that the layout holds.
