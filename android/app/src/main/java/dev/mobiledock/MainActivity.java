@@ -642,7 +642,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     /** The two switches, the watcher status, Fix permissions and Show log. */
     private void buildStartWithPc(LinearLayout right) {
         final CheckBox wakeBox = new CheckBox(this);
-        wakeBox.setText("Open when your PC starts");
+        wakeBox.setText("On");  // the page title above already names it
         wakeBox.setTextColor(Ui.TEXT);
         Kit.asSwitch(this, wakeBox);
         wakeBox.setChecked(WatchService.enabled(this));
