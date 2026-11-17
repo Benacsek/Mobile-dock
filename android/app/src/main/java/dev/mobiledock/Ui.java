@@ -249,7 +249,7 @@ final class Ui {
     static View iconTile(Context c, Icon.Kind kind, int color) {
         ImageView v = new ImageView(c);
         v.setImageDrawable(new Icon(kind, 0xFFFFFFFF, true));
-        int p = dp(c, 6);
+        int p = dp(c, 4);  // the glyph fills about 60 percent of the square, like iOS Settings
         v.setPadding(p, p, p, p);
         v.setBackground(rounded(c, color, 8));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(c, 30), dp(c, 30));
