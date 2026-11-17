@@ -84,5 +84,5 @@ def test_linux_second_start_opens_the_window(tmp_path, monkeypatch):
 
 def test_updater_and_autostart_start_in_the_background():
     root = Path(tray.__file__).parent
-    assert "--background" in (root / "updater.py").read_text()
-    assert (root / "gui.py").read_text().count("--background") == 2
+    assert "--background" in (root / "updater.py").read_text(encoding="utf-8")
+    assert (root / "gui.py").read_text(encoding="utf-8").count("--background") == 2
