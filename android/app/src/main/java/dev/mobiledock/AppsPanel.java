@@ -229,9 +229,10 @@ final class AppsPanel extends LinearLayout {
             rowPx = Math.max(Ui.dp(c, 92 * Ui.TILE_SCALE), gridHeight / rows);
         }
         // Room for two label lines at the phone's text size, the label margin and the tile padding.
-        int labelRoom = 2 * Ui.text(c, "Ag", 12, Ui.TEXT).getLineHeight() + Ui.dp(c, 18);
+        // With labels off in Settings, Display, the icons take that room.
+        int labelRoom = Ui.LABELS ? 2 * Ui.text(c, "Ag", 12, Ui.TEXT).getLineHeight() + Ui.dp(c, 18) : Ui.dp(c, 12);
         rowPx = Math.max(rowPx, Ui.dp(c, 36) + labelRoom);  // large text: rows grow and the grid scrolls
-        iconPx = Math.max(Ui.dp(c, 36), Math.min(Ui.dp(c, 56 * Ui.TILE_SCALE), rowPx - labelRoom));
+        iconPx = Math.max(Ui.dp(c, 36), Math.min(Ui.dp(c, (Ui.LABELS ? 56 : 72) * Ui.TILE_SCALE), rowPx - labelRoom));
         LinearLayout row = null;
         for (int i = 0; i < apps.size(); i++) {
             if (i % columns == 0) {
@@ -280,7 +281,8 @@ final class AppsPanel extends LinearLayout {
         label.setEllipsize(android.text.TextUtils.TruncateAt.END);
         LayoutParams lp = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
         lp.topMargin = Ui.dp(c, 6);
-        t.addView(label, lp);
+        if (Ui.LABELS) t.addView(label, lp);
+        else t.setContentDescription(app.name);  // screen readers still say the name
 
         t.setOnClickListener(new OnClickListener() {
             @Override

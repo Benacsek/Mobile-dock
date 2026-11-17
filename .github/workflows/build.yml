@@ -200,6 +200,14 @@ jobs:
             sleep 3
             "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-$name.png"
           done
+          # Apps with Labels under app icons off, then on again for the pictures after it.
+          n=$((n + 1))
+          "$adb" shell am start -W -n dev.mobiledock/.MainActivity --ez demo true --ei theme 2 --ei page 0 \
+            --ez labels false > /dev/null
+          sleep 5
+          "$adb" exec-out screencap -p > "shots/$(printf %02d $n)-apps-no-labels.png"
+          "$adb" shell am start -W -n dev.mobiledock/.MainActivity --ez demo true --ei page 0 --ez labels true > /dev/null
+          sleep 2
           # A tablet, 1280 x 800 dp: it keeps the sidebar with labels.
           "$adb" shell wm size 1920x1200
           "$adb" shell wm density 240

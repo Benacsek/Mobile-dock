@@ -129,6 +129,11 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         }
         WatchService.prefs(this).edit().putString("search_recent",
                 "[\"lofi beats to study to\",\"figma auto layout tips\",\"weather this weekend\"]").commit();
+        if (intent.hasExtra("labels") && intent.getBooleanExtra("labels", true) != Ui.LABELS) {  // Apps without names
+            WatchService.prefs(this).edit().putBoolean("labels", intent.getBooleanExtra("labels", true)).commit();
+            Ui.loadTheme(this, WatchService.prefs(this));
+            if (dockView != null) rebuildDock();
+        }
         int page = intent.getIntExtra("page", APPS);
         if (page < 0) {
             showConnect();

@@ -4,6 +4,10 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 2.4.1
+
+- Labels under app icons in Settings, Display works again. Turn it off and Apps shows only the icons, a little bigger.
+
 ## 2.4.0
 
 - On phones, the sidebar is a slim column of icons now. Pages get about 140 dp more room, so labels such as "Picture to clipboard" and the app names in Stats show in full. Long press an icon to see its name.

@@ -44,7 +44,7 @@ App icons all get the same rounded-square shape. Names can use two lines. The gr
   - Sign: draw with your finger. Send to PC puts a PNG with a clear background on the clipboard. Paste it with Ctrl+V.
 - Stats: CPU, GPU, memory, network and disk graphs for the last minute, plus the busiest apps. Temperatures and fan speeds show when the PC can read them.
 - Settings: a short list of four groups. Each opens its own page, and Back or Settings at the top returns to the list.
-  - Display: Appearance (Automatic, Light or Dark), accent color, app icon size and app labels.
+  - Display: Appearance (Automatic, Light or Dark), accent color, app icon size and app labels. With labels off, Apps shows only the icons, a little bigger.
   - Idle screen: its color, its tiles, when it shows, and Preview.
   - Buttons and feedback: tap vibration and the volume buttons switch.
   - Updates: the phone and PC versions, the PC's update status, Check now and Copy diagnostics.
@@ -117,6 +117,7 @@ adb shell am start -n dev.mobiledock/.MainActivity --ez demo true --ei page 0
 
 Pages: -1 connect, 0 Apps, 1 Search, 2 Playing, 3 Shortcuts, 4 Controls, 5 Capture, 6 Touch, 7 Stats, 8 Settings, 99 the night clock.
 On page 8, `--ei settings_page N` opens a Settings page: 0 the list, 1 Display, 2 Idle screen, 3 Buttons and feedback, 4 Updates, 5 the big tile picker.
+`--ez labels false` saves Labels under app icons as off, `--ez labels true` turns it back on.
 On page -1, `--es connect_state searching|found|none` fills the PC list with sample PCs, and `--ei connect_page N` opens one of the other ways to connect: 0 the list, 1 Enter address, 2 USB cable, 3 Start with your PC.
 On page 99, `--ei idle_main`, `--ei idle_tiles`, `--ei idle_color` and `--es idle_order` pick the tiles, color and order. idle_tiles adds up the side tiles: 1 Date, 2 Calendar, 4 Playing, 8 Battery, 32 Clock.
 
