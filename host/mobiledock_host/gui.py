@@ -198,6 +198,7 @@ class FlatButton(tk.Canvas):
             "primary": (ACCENT, ACCENT_HOVER, ACCENT_PRESS, ON_ACCENT),
             "secondary": (SURFACE_HI, HOVER, PRESS, ACCENT),
             "ghost": (None, SURFACE_HI, HOVER, ACCENT),
+            "danger": (None, HOVER, PRESS, DANGER),  # red text for actions that remove something
         }
         base, hover, press, fg = kinds[kind]
         self._bg = bg or parent.cget("background")
@@ -483,7 +484,11 @@ class App:
         pair = section(page, "Pair a phone", f"This PC: {self.server.config.data['host_name']}  ·  {addrs}  ·  "
                        f"port {self.server.port}")
         pair.pack(fill="x", pady=(0, 16))
-        digits = tk.Frame(pair.body, background=SURFACE)
+        # The instruction sits above the PIN, where you look, not in the status line at the bottom.
+        wrapping(tk.Label(pair.body, text="Scan the QR code with the phone's camera, or tap this PC on the phone "
+                          "and type the PIN.", background=SURFACE, foreground=TEXT, font=f["body"], anchor="w",
+                          justify="left")).pack(side="top", fill="x", pady=(0, 12))
+        digits = self.pin_digits = tk.Frame(pair.body, background=SURFACE)
         digits.pack(side="left")
         self.pin_boxes = []
         for i in range(6):
@@ -507,8 +512,17 @@ class App:
         def reflow(event, digits=digits, side=side):
             # On a narrow window the buttons move under the PIN instead of getting cut off.
             narrow = event.width < 600
+            # The QR code needs about 540 px next to the PIN. Below that it moves under the buttons.
+            qr_under = event.width < 540
+            if qr_under != getattr(self, "pair_narrow", None):
+                self.pair_narrow = qr_under
+                if self.qr.winfo_manager():
+                    self.qr.pack_forget()
+                    self._pack_qr()
             if narrow != getattr(side, "narrow", None):
                 side.narrow = narrow
+                qr_shown = bool(self.qr.winfo_manager())
+                self.qr.pack_forget()
                 side.pack_forget()
                 if narrow:
                     side.pack(side="top", fill="x", pady=(14, 0))
@@ -516,6 +530,8 @@ class App:
                 else:
                     digits.pack_configure(side="left")
                     side.pack(side="left", fill="both", expand=True, padx=(18, 0))
+                if qr_shown:
+                    self._pack_qr()
 
         pair.body.bind("<Configure>", reflow, add="+")
 
@@ -524,37 +540,17 @@ class App:
         self.device_rows = phones.body
 
     def _apps_page(self, page: tk.Frame) -> None:
-        apps = section(page, "Pinned apps", "The phone shows these tiles in this order.")
+        apps = section(page, "Pinned apps", "The phone shows these tiles in this order. Use the arrows to move one.")
         apps.pack(fill="both", expand=True)
-        wrap = tk.Frame(apps.body, background=SURFACE)
-        wrap.pack(fill="both", expand=True)
-        side = tk.Frame(wrap, background=SURFACE)
-        side.pack(side="right", fill="y", padx=(14, 0))
-        self.pinned = themed_listbox(wrap, height=8, font=self.root._fonts["tab"], exportselection=False)
-        self.pinned.pack(side="left", fill="both", expand=True)
-        FlatButton(side, "Add apps", self.add_apps, "primary").pack(fill="x")
-        self.app_buttons = [
-            FlatButton(side, "Move up", lambda: self.move_pinned(-1)),
-            FlatButton(side, "Move down", lambda: self.move_pinned(1)),
-            FlatButton(side, "Unpin", self.unpin, "ghost"),
-        ]
-        self.app_buttons[0].pack(fill="x", pady=(14, 0))
-        self.app_buttons[1].pack(fill="x", pady=(6, 0))
-        self.app_buttons[2].pack(fill="x", pady=(14, 0))
-        self.pinned.bind("<<ListboxSelect>>", lambda e: self._app_selection())
-        self.pinned.bind("<Delete>", lambda e: self.unpin())
-        self.pinned.bind("<Alt-Up>", lambda e: self.move_pinned(-1))
-        self.pinned.bind("<Alt-Down>", lambda e: self.move_pinned(1))
-        self.pinned_count = wrapping(tk.Label(apps.body, text="", background=SURFACE, foreground=MUTED,
-                                              font=self.root._fonts["small"], anchor="w", justify="left"))
-        self.pinned_count.pack(fill="x", pady=(10, 0))
-
-    def _app_selection(self) -> None:
-        sel = self.pinned.curselection()
-        n = len(getattr(self, "pinned_items", []))
-        self.app_buttons[0].set_enabled(bool(sel) and sel[0] > 0)
-        self.app_buttons[1].set_enabled(bool(sel) and sel[0] < n - 1)
-        self.app_buttons[2].set_enabled(bool(sel))
+        top = tk.Frame(apps.body, background=SURFACE)
+        top.pack(fill="x", pady=(0, 10))
+        FlatButton(top, "Add apps", self.add_apps, "primary").pack(side="left")
+        self.pinned_count = tk.Label(top, text="", background=SURFACE, foreground=MUTED,
+                                     font=self.root._fonts["small"], anchor="w")
+        self.pinned_count.pack(side="left", padx=(14, 0))
+        # One row per app, like the pad rows, with the arrows and Unpin on the row itself.
+        self.pinned_rows = tk.Frame(apps.body, background=SURFACE)
+        self.pinned_rows.pack(fill="both", expand=True)
 
     def _pads_page(self, page: tk.Frame) -> None:
         pads = section(page, "Shortcut pads", "Buttons the phone shows for the app in front. "
@@ -763,12 +759,18 @@ class App:
                     x0, y0 = (x + quiet) * cell, (y + quiet) * cell
                     self.qr.create_rectangle(x0, y0, x0 + cell, y0 + cell, fill="#000000", outline="")
         if not self.qr.winfo_ismapped():
-            self.qr.pack(side="right", anchor="n", padx=(12, 0))
+            self._pack_qr()
+
+    def _pack_qr(self) -> None:
+        # Beside the PIN on a wide window, under the buttons on a narrow one, so it never covers them.
+        if getattr(self, "pair_narrow", False):
+            self.qr.pack(side="top", anchor="w", pady=(14, 0))
+        else:
+            self.qr.pack(side="right", anchor="n", padx=(12, 0), before=self.pin_digits)
 
     def start_pairing(self) -> None:
         self._show_pin(self.server.pairing.start())
         self.show_tab(0)
-        self.say("On the phone, scan the QR code with the camera, or tap this PC and type the PIN.")
         if self.pin_job:
             self.root.after_cancel(self.pin_job)
         self.check_pin()
@@ -811,7 +813,7 @@ class App:
             s = live.get(device_id)
             row = tk.Frame(self.device_rows, background=SURFACE_HI, padx=14, pady=10)
             row.pack(fill="x", pady=(0, 6))
-            FlatButton(row, "Remove", lambda d=device_id, n=name: self.remove_device(d, n), "ghost",
+            FlatButton(row, "Remove", lambda d=device_id, n=name: self.remove_device(d, n), "danger",
                        bg=SURFACE_HI).pack(side="right")
             dot(row, GREEN if s else FAINT, SURFACE_HI).pack(side="left", padx=(0, 12))
             texts = tk.Frame(row, background=SURFACE_HI)
@@ -949,43 +951,39 @@ class App:
     # Pinned apps ----------------------------------------------------------
 
     def refresh_pinned(self) -> None:
+        f = self.root._fonts
         self.pinned_items = self.server.config.pinned()
-        self.pinned.delete(0, "end")
-        for app in self.pinned_items:
-            self.pinned.insert("end", f"  {app['name']}")
+        for child in self.pinned_rows.winfo_children():
+            child.destroy()
         n = len(self.pinned_items)
-        if n:
-            self.pinned_count.configure(text=f"{n} app{'s' if n != 1 else ''} pinned. Select one to move or unpin "
-                                             "it. Alt+Up and Alt+Down move it, Delete unpins it.")
-        else:
-            self.pinned_count.configure(text="Nothing pinned yet. Click Add apps to choose what the phone shows.")
-        self._app_selection()
+        self.pinned_count.configure(text=f"{n} app{'s' if n != 1 else ''} pinned" if n else
+                                    "Nothing pinned yet. Add apps to choose what the phone shows.")
+        for i, app in enumerate(self.pinned_items):
+            row = tk.Frame(self.pinned_rows, background=SURFACE_HI, padx=14, pady=6)
+            row.pack(fill="x", pady=(0, 6))
+            FlatButton(row, "Unpin", lambda k=i: self.unpin(k), "danger", bg=SURFACE_HI).pack(side="right")
+            down = FlatButton(row, "↓", lambda k=i: self.move_pinned(k, 1), bg=SURFACE_HI)
+            down.pack(side="right", padx=(0, 6))
+            up = FlatButton(row, "↑", lambda k=i: self.move_pinned(k, -1), bg=SURFACE_HI)
+            up.pack(side="right")
+            up.set_enabled(i > 0)
+            down.set_enabled(i < n - 1)
+            tk.Label(row, text=app["name"], background=SURFACE_HI, foreground=TEXT, font=f["strong"],
+                     anchor="w").pack(side="left", fill="x", expand=True)
 
-    def move_pinned(self, step: int) -> None:
-        sel = self.pinned.curselection()
-        if not sel:
-            return
-        i, items = sel[0], list(self.pinned_items)
-        j = i + step
+    def move_pinned(self, i: int, step: int) -> None:
+        items, j = list(self.pinned_items), i + step
         if not 0 <= j < len(items):
             return
         items[i], items[j] = items[j], items[i]
         self.server.set_pinned(items)
         self.refresh_pinned()
-        self.pinned.selection_set(j)
-        self.pinned.see(j)
-        self._app_selection()
 
-    def unpin(self) -> None:
-        sel = self.pinned.curselection()
-        if sel:
-            name = self.pinned_items[sel[0]]["name"]
-            self.server.set_pinned([a for k, a in enumerate(self.pinned_items) if k != sel[0]])
-            self.refresh_pinned()
-            if self.pinned_items:
-                self.pinned.selection_set(min(sel[0], len(self.pinned_items) - 1))
-                self._app_selection()
-            self.say(f"Unpinned {name}")
+    def unpin(self, i: int) -> None:
+        name = self.pinned_items[i]["name"]
+        self.server.set_pinned([a for k, a in enumerate(self.pinned_items) if k != i])
+        self.refresh_pinned()
+        self.say(f"Unpinned {name}")
 
     def add_apps(self) -> None:
         win = tk.Toplevel(self.root)

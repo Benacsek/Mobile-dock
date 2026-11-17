@@ -120,7 +120,7 @@ final class CapturePanel extends ScrollView {
     private static LinearLayout row(Context c, Icon.Kind kind, int color, String label, OnClickListener click) {
         LinearLayout r = Ui.listRow(c, kind, color, label, null);
         TextView l = (TextView) r.getChildAt(1);
-        l.setSingleLine(true);
+        l.setMaxLines(2);  // a small phone wraps "Picture to clipboard" instead of cutting it
         l.setEllipsize(android.text.TextUtils.TruncateAt.END);
         Ui.pressableRow(c, r, click);
         return r;

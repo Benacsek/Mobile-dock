@@ -40,10 +40,10 @@ The `windows-media` extra powers Now playing on the phone: album art, progress, 
 
 - Ctrl+1 to Ctrl+4 switch between the Phone, Apps, Shortcuts and Settings pages in the sidebar.
 - Settings, Appearance: Automatic follows the Windows light or dark setting. Light and Dark apply at once.
-- On the Apps page, Alt+Up and Alt+Down move the selected app. Delete unpins it.
+- On the Apps page, each app has its own arrows and Unpin. Tab moves between them, and Space or Enter presses one.
 - In Add apps, double-click an app to pin it.
 - Copy address puts this PC's address on the clipboard, for Connect by address on the phone.
-- On a small screen, pages scroll and the pairing buttons move under the PIN.
+- On a small screen, pages scroll and the pairing buttons and QR code move under the PIN.
 
 ### Shortcut pads
 

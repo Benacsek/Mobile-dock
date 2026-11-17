@@ -39,7 +39,13 @@ final class TouchPanel extends LinearLayout {
             pages.add(views[i]);
             body.addView(views[i]);
         }
-        addView(seg, Ui.fillWidth(c, 2));
+        // The page name on the left, the switch beside it, like the other pages.
+        LinearLayout header = Ui.row(c);
+        header.addView(Ui.title(c, "Touch"));
+        LayoutParams slp = new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f);
+        slp.leftMargin = Ui.dp(c, 16);
+        header.addView(seg, slp);
+        addView(header, Ui.fillWidth(c, 2));
         addView(body, new LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
         show(0);
     }

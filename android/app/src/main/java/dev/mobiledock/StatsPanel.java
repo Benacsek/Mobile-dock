@@ -75,9 +75,14 @@ final class StatsPanel extends LinearLayout {
         sensors = Ui.text(c, "", 12, Ui.MUTED);
         sensors.setSingleLine(true);
         sensors.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        sensors.setPadding(Ui.dp(c, 8), 0, Ui.dp(c, 8), Ui.dp(c, 2));
+        sensors.setGravity(Gravity.END);
+        sensors.setPadding(Ui.dp(c, 12), 0, Ui.dp(c, 8), 0);
         sensors.setVisibility(GONE);
-        addView(sensors);
+        // The page name, like the other pages, with the fans to its right.
+        LinearLayout header = Ui.row(c);
+        header.addView(Ui.title(c, "Stats"));
+        header.addView(sensors, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
+        addView(header, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
 
         LinearLayout top = Ui.row(c);
         top.addView(cpu, cell(c));
@@ -173,7 +178,11 @@ final class StatsPanel extends LinearLayout {
         procs.removeAllViews();
         TextView head = Ui.strong(getContext(), "Busiest apps", 15, Ui.TEXT);
         procs.addView(head);
-        for (int i = 0; list != null && i < list.length(); i++) {
+        // Only whole rows: as many as the card has room for, so the last one is never cut in half.
+        int rowPx = Ui.text(getContext(), "Ag", 12, Ui.TEXT).getLineHeight() + Ui.dp(getContext(), 3);
+        int room = procs.getHeight() - procs.getPaddingTop() - procs.getPaddingBottom() - head.getLineHeight();
+        int fit = procs.getHeight() > 0 ? Math.max(1, room / rowPx) : Integer.MAX_VALUE;
+        for (int i = 0; list != null && i < list.length() && i < fit; i++) {
             JSONObject p = list.optJSONObject(i);
             if (p == null) continue;
             LinearLayout row = Ui.row(getContext());

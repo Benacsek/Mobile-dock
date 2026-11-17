@@ -4,6 +4,15 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 2.4.3
+
+- PC, Apps: each pinned app is its own row with up and down arrows and a red Unpin. No more select first, then move.
+- PC, Phone: the pairing steps sit above the PIN, where you look. Remove is red, and still asks before it removes a phone.
+- PC, Phone: in a narrow window the QR code moves under the buttons instead of covering them.
+- Phone: Touch and Stats show their page name at the top, like the other pages. Fan speeds sit beside the Stats title.
+- Phone: Busiest apps shows only the rows that fit, so the last one is never cut in half.
+- Phone: Capture labels wrap to two lines on small phones instead of getting cut.
+
 ## 2.4.2
 
 - New icons for Touch (a touchpad) and Shortcuts (the Command key), so no two icons in the column look alike.
