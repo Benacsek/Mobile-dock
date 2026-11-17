@@ -333,7 +333,10 @@ final class NightView extends FrameLayout {
         }
     }
 
-    /** Holds a side tile at its natural size and shrinks it when its slot is shorter, so two tiles fit. */
+    /**
+     * Holds a side tile and shrinks it to its cell. The tile is laid out at least 160 dp wide, so on a small
+     * phone its words get smaller instead of being cut short.
+     */
     static final class Fit extends FrameLayout {
         Fit(Context c, View tile) {
             super(c);
@@ -343,7 +346,8 @@ final class NightView extends FrameLayout {
         @Override
         protected void onMeasure(int widthSpec, int heightSpec) {
             int w = MeasureSpec.getSize(widthSpec), h = MeasureSpec.getSize(heightSpec);
-            getChildAt(0).measure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY),
+            int tw = Math.max(w, Ui.dp(getContext(), 160));
+            getChildAt(0).measure(MeasureSpec.makeMeasureSpec(tw, MeasureSpec.EXACTLY),
                     MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
             setMeasuredDimension(w, h);
         }
@@ -351,9 +355,10 @@ final class NightView extends FrameLayout {
         @Override
         protected void onLayout(boolean changed, int l, int t, int r, int b) {
             View tile = getChildAt(0);
-            int w = r - l, h = b - t, th = tile.getMeasuredHeight(), top = (h - th) / 2;
-            tile.layout(0, top, w, top + th);
-            float s = th > h ? (float) h / th : 1f;
+            int w = r - l, h = b - t, tw = tile.getMeasuredWidth(), th = tile.getMeasuredHeight();
+            int top = (h - th) / 2;
+            tile.layout(0, top, tw, top + th);
+            float s = Math.min(1f, Math.min((float) w / tw, (float) h / th));
             tile.setPivotX(0);  // stays lined up on the left
             tile.setPivotY(th / 2f);
             tile.setScaleX(s);
