@@ -36,14 +36,14 @@ App icons all get the same rounded-square shape. Names can use two lines. The gr
 - Search: type in the box and tap Search. Auto picks the place: a keyword like `yt lofi`, a site like `youtube` or `github.com`, the app in front on the PC, then the default search. Tap a preset chip to choose one yourself. Long press a chip to see its keyword. Your last 10 searches sit below, one tap to repeat.
 - Playing: album art, title, artist, album and a progress bar you can drag to seek. Play, skip, shuffle and repeat. A slider and mute button set the PC volume, the same level as the taskbar. The -5 and +5 buttons move a video or song by 5 seconds, even with its window in the background. Opening Spotify or another music app from Apps jumps here.
 - Shortcuts: tiles for the app in front on the PC. The pad name at the top opens a list: Follow the app in front, or one pad that stays. While it follows, the name reads "Auto: Figma".
-- Controls: volume, mute, lock, screen off, sleep, show desktop, Task Manager, Capture and Disconnect. Sleep asks first. The volume mixer lists every app playing sound with its own slider and mute button. Tap the refresh icon after you start a new app.
+- Controls: six tiles for Lock, Screen off, Sleep, Show desktop, Task Manager and Capture. Sleep asks first. Sound has the PC volume on top, then one line per app playing sound, each with a slider and a mute button. The list reloads every 5 seconds while the page is open.
 - Capture (from Controls, Back returns there): screenshot, snip a region (Win+Shift+S on Windows), record, picture to the PC clipboard and file to Downloads. Clipboard text: Phone to PC and PC to phone.
 - Touch: switch between Touchpad, Keyboard and Sign at the top. Pointer speed (Slow, Normal or Fast) sits in the touchpad's top corner.
   - Touchpad: one finger moves. Tap to click. Two finger tap is right click, three finger tap is middle click. Two fingers scroll. Hold Left and move to drag.
   - Keyboard: type in the box and the text goes to the PC as you type. Tap Ctrl, Alt, Shift or Win before a key to make a shortcut.
   - Sign: draw with your finger. Send to PC puts a PNG with a clear background on the clipboard. Paste it with Ctrl+V.
 - Stats: CPU, GPU, memory, network and disk graphs for the last minute, plus the busiest apps. Temperatures and fan speeds show when the PC can read them.
-- Settings: a short list of four groups. Each opens its own page, and Back or Settings at the top returns to the list.
+- Settings: the PC, Open when your PC starts and Disconnect at the top, then a short list of four groups. Disconnect asks first. Each group opens its own page, and Back or Settings at the top returns to the list.
   - Display: Appearance (Automatic, Light or Dark), accent color, app icon size and app labels. With labels off, Apps shows only the icons, a little bigger.
   - Idle screen: its color, its tiles, when it shows, and Preview.
   - Buttons and feedback: tap vibration and the volume buttons switch.
@@ -160,6 +160,7 @@ If you lose the key, phones can't update anymore. You'd have to uninstall and re
 | `Kit.java` | iOS controls drawn in code: switch, segmented control, slider, floating glass panel |
 | `AppsPanel.java` | Pinned apps grid with drag and drop and arrange mode |
 | `ControlsPanel.java`, `CapturePanel.java` | PC controls, capture and sending |
+| `VolumeRow.java` | One volume slider with its mute button, on Controls and Now Playing |
 | `TouchPanel.java`, `SignPanel.java` | Touchpad, keyboard and signature pad |
 | `SettingsPanel.java`, `UpdatesPanel.java` | Settings list, its pages, and versions |
 | `MediaPanel.java` | Now playing with art, seek, shuffle and repeat |

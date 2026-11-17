@@ -1,6 +1,8 @@
 package dev.mobiledock;
 
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.view.Gravity;
 import android.view.View;
@@ -22,7 +24,7 @@ final class SettingsPanel extends android.widget.ScrollView {
     private static final int[] DIM_MINUTES = {0, 1, 5, 15};
     private static final String[] DIM_NAMES = {"Off", "1 min", "5 min", "15 min"};
     private final SharedPreferences prefs;
-    private final Runnable apply, preview;
+    private final Runnable apply, preview, disconnect;
     private final UpdatesPanel updates;
     private final Kit.OnPick onPage;
     private final LinearLayout list;
@@ -35,12 +37,13 @@ final class SettingsPanel extends android.widget.ScrollView {
     private boolean pcConnected;
 
     /** onPage hears every page change, so the open page survives the rebuild after a change. */
-    SettingsPanel(Context c, SharedPreferences prefs, Runnable apply, Runnable preview, UpdatesPanel updates,
-            int page, Kit.OnPick onPage) {
+    SettingsPanel(Context c, SharedPreferences prefs, Runnable apply, Runnable preview, Runnable disconnect,
+            UpdatesPanel updates, int page, Kit.OnPick onPage) {
         super(c);
         this.prefs = prefs;
         this.apply = apply;
         this.preview = preview;
+        this.disconnect = disconnect;
         this.updates = updates;
         this.onPage = onPage;
         setVerticalScrollBarEnabled(false);
@@ -128,6 +131,8 @@ final class SettingsPanel extends android.widget.ScrollView {
             pc.addView(Ui.hairline(c, 54));
         }
         pc.addView(startWithPcRow(c));
+        pc.addView(Ui.hairline(c, 16));
+        pc.addView(disconnectRow(c));
         body.addView(pc);
         body.addView(new View(c), new LinearLayout.LayoutParams(1, Ui.dp(c, 20)));
         LinearLayout card = Ui.card(c);
@@ -426,6 +431,27 @@ final class SettingsPanel extends android.widget.ScrollView {
         phone.addView(switchRow(c, Icon.Kind.SPEAKER, 0xFFFF2D55, "Volume buttons control the PC", PREF_VOLUME_KEYS,
                 prefs.getBoolean(PREF_VOLUME_KEYS, true)));
         body.addView(phone);
+    }
+
+    /** Ends the session. It asks first, since it sits next to a switch you may tap often. */
+    private LinearLayout disconnectRow(final Context c) {
+        LinearLayout row = Ui.listRow(c, null, 0, "Disconnect", null);
+        ((TextView) row.getChildAt(0)).setTextColor(Ui.DANGER);
+        Ui.pressableRow(c, row, new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                new AlertDialog.Builder(c)
+                        .setTitle("Disconnect from " + (pcName != null ? pcName : "your PC") + "?")
+                        .setMessage("The phone will not reconnect by itself until the PC app starts again.")
+                        .setPositiveButton("Disconnect", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface d, int w) {
+                                disconnect.run();
+                            }
+                        }).setNegativeButton("Cancel", null).show();
+            }
+        });
+        return row;
     }
 
     /** The same switch as on the connect page, here too, so you can turn it off while the PC is on. */

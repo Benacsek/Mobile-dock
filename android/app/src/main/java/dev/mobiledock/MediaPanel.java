@@ -24,10 +24,8 @@ final class MediaPanel extends LinearLayout {
     private final Runnable onBack;
     private final TextView title, artist, album, source, elapsed, remaining;
     private final ImageView play, shuffle, repeat;
-    private final SeekBar seek, volume;
-    private final ImageView mute;
-    private boolean muted, volumeDragging;
-    private long volumeSentAt;
+    private final SeekBar seek;
+    private final VolumeRow volume;
     private final ImageView art;
     private boolean active, playing, dragging;
     private double position, duration;
@@ -138,44 +136,14 @@ final class MediaPanel extends LinearLayout {
         repeat = control(c, Icon.Kind.REPEAT, 40, "media.repeat", null, false);
         extras.addView(repeat);
         // The PC's own volume, the same level as the taskbar. Hidden until the PC answers volume.get.
-        mute = Ui.iconButton(c, Icon.Kind.VOL_UP, 40, 0x00000000, Ui.SELECTED, Ui.ACCENT);
-        mute.setContentDescription("Mute the PC");
-        mute.setOnClickListener(new OnClickListener() {
+        volume = new VolumeRow(c, null, new VolumeRow.Sink() {
             @Override
-            public void onClick(View v) {
-                showMuted(!muted);
-                client.fire("volume.set", DockClient.args("muted", muted));
+            public void send(JSONObject change) {
+                MediaPanel.this.client.fire("volume.set", change);
             }
         });
-        extras.addView(mute);
-        volume = new SeekBar(c);
-        Kit.slider(c, volume);
-        volume.setMax(100);
-        volume.setContentDescription("PC volume");
-        volume.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar bar, int value, boolean fromUser) {
-                long now = android.os.SystemClock.uptimeMillis();
-                if (fromUser && now - volumeSentAt > 150) {  // live, but not a flood of messages
-                    volumeSentAt = now;
-                    client.fire("volume.set", DockClient.args("volume", value));
-                }
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar bar) {
-                volumeDragging = true;
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar bar) {
-                volumeDragging = false;
-                client.fire("volume.set", DockClient.args("volume", bar.getProgress()));
-            }
-        });
-        extras.addView(volume, new LayoutParams(0, Ui.dp(c, 44), 1f));
-        mute.setVisibility(GONE);
         volume.setVisibility(GONE);
+        extras.addView(volume, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
         left.addView(extras, Ui.fillWidth(c, 0));
 
         // Like Apple Music in landscape: the cover on the left, the song and controls on the right.
@@ -402,18 +370,10 @@ final class MediaPanel extends LinearLayout {
             @Override
             public void done(JSONObject reply) {
                 boolean ok = reply.optBoolean("ok");  // an older PC app, or no sound output
-                mute.setVisibility(ok ? VISIBLE : GONE);
                 volume.setVisibility(ok ? VISIBLE : GONE);
-                if (!ok || volumeDragging) return;
-                volume.setProgress(reply.optInt("volume"));
-                showMuted(reply.optBoolean("muted"));
+                if (ok) volume.show(reply.optInt("volume"), reply.optBoolean("muted"));
             }
         });
-    }
-
-    private void showMuted(boolean on) {
-        muted = on;
-        mute.setImageDrawable(new Icon(on ? Icon.Kind.MUTE : Icon.Kind.VOL_UP, on ? Ui.SIGNAL : Ui.ACCENT));
     }
 
     void setActive(boolean on) {

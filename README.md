@@ -45,8 +45,9 @@ The PC window while pairing, and its Settings in light mode:
 - Shortcuts: tiles for the app in front on the PC. Pads for Figma, VS Code, browsers and Windows are built in. The page switches by itself when you switch apps. Edit pads and add your own in the PC window. A tile can press keys, open a web page, start a program, type text and wait, in any order.
 - Stats: live graphs for CPU, GPU, memory, network and disk, plus the busiest apps, like Task Manager. GPU load works for AMD, NVIDIA and Intel. CPU and GPU temperatures and fan speeds show on Linux, and on Windows while LibreHardwareMonitor runs.
 - Send: share a photo to Mobile Dock from any app, or use Capture in the dock. Pictures go to the PC clipboard, so Ctrl+V pastes them into Figma. Other files land in Downloads/Mobile Dock.
-- Controls: volume, mute, lock the PC, turn the screen off, sleep, show the desktop and open Task Manager. A volume mixer has one slider per app, so Spotify, Discord and a game each get their own level. There is no shutdown button on purpose.
+- Controls: lock the PC, turn the screen off, sleep, show the desktop and open Task Manager. A slider sets the PC volume, and a mixer has one slider per app, so Spotify, Discord and a game each get their own level. There is no shutdown button on purpose.
 - The phone's volume buttons change the PC volume while the dock is open. Turn it off in Settings.
+- Disconnect is at the top of Settings and asks first.
 - Idle screen: after a few idle minutes the dock dims to a bedside clock on black. Pick its color and its tiles: a big clock, calendar or song, and up to four side tiles from a checklist: the clock, date, calendar, song and phone battery. A touch brings the dock back.
 - Tap vibration: a short buzz when you press a button, so you can use the dock without looking at it.
 - Capture (from Controls): take a screenshot, snip a region, and start or stop screen recording. Screenshots save in Pictures/Mobile Dock, videos in Videos/Mobile Dock. Copy clipboard text from the phone to the PC or back.

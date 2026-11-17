@@ -1066,11 +1066,6 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         controls = new ControlsPanel(this, client, new Runnable() {
             @Override
             public void run() {
-                leaveDock();
-            }
-        }, new Runnable() {
-            @Override
-            public void run() {
                 select(CAPTURE);
             }
         });
@@ -1093,6 +1088,11 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             @Override
             public void run() {
                 dim();  // Preview: a touch brings the dock back
+            }
+        }, new Runnable() {
+            @Override
+            public void run() {
+                leaveDock();
             }
         }, updates, settingsPage, new Kit.OnPick() {
             @Override
@@ -1353,7 +1353,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         media.setActive(index == PLAYING);
         stats.setActive(index == STATS);
         if (index == SHORTCUTS) shortcuts.load();
-        if (index == CONTROLS) controls.load();
+        controls.setActive(index == CONTROLS);
         if (index == SEARCH) search.load();
         if (index == SETTINGS) updates.refresh(false);
     }

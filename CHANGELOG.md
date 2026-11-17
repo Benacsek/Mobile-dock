@@ -4,6 +4,12 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 2.6.0
+
+- Controls is calmer: the PC actions are six tiles that fit without scrolling. Capture is one of them.
+- Sound: one PC volume slider replaces the three round buttons. Each app in the mixer takes one line instead of two. The list reloads by itself every 5 seconds, so the refresh button is gone.
+- Disconnect moved to the top of Settings and now asks before it disconnects.
+
 ## 2.5.1
 
 - Playing: a volume slider and a mute button for the whole PC sit next to shuffle and repeat. They move the same level as the volume in the Windows taskbar. Update the PC app too, or the slider stays hidden.
