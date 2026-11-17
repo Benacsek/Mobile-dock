@@ -141,11 +141,13 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             android.content.SharedPreferences.Editor e = WatchService.prefs(this).edit();
             if (intent.hasExtra("idle_main")) e.putInt(NightView.PREF_MAIN, intent.getIntExtra("idle_main", 0));
             if (intent.hasExtra("idle_side")) e.putInt(NightView.PREF_SIDE, intent.getIntExtra("idle_side", 0));
+            if (intent.hasExtra("idle_side2")) e.putInt(NightView.PREF_SIDE2, intent.getIntExtra("idle_side2", 4));
             if (intent.hasExtra("idle_color")) e.putInt(NightView.PREF_COLOR, intent.getIntExtra("idle_color", 0));
             e.commit();
             dim();
             return true;
         }
+        if (page == SETTINGS) settings.show(intent.getIntExtra("settings_page", SettingsPanel.LIST));
         select(page);
         return true;
     }
@@ -280,7 +282,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private void resetIdle() {
         if (root == null) return;
         root.removeCallbacks(dimTask);
-        int minutes = WatchService.prefs(this).getInt(AppearancePanel.PREF_DIM, 5);
+        int minutes = WatchService.prefs(this).getInt(SettingsPanel.PREF_DIM, 5);
         if (minutes > 0 && isDocked()) root.postDelayed(dimTask, minutes * 60_000L);
     }
 
@@ -340,7 +342,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
 
     private boolean volumeKeysForPc() {
         return client.isConnected() && dockView != null && dockView.getVisibility() == View.VISIBLE
-                && WatchService.prefs(this).getBoolean(AppearancePanel.PREF_VOLUME_KEYS, true);
+                && WatchService.prefs(this).getBoolean(SettingsPanel.PREF_VOLUME_KEYS, true);
     }
 
     /** Opened by the PC watcher: turn the screen on and connect to the PC that just started. */
@@ -417,6 +419,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             apps.setArrange(false);
             return;
         }
+        if (docked && current == SETTINGS && settings.back()) return;  // a Settings page returns to the list
         if (docked && current == CAPTURE) {  // Capture opened from Controls, so Back returns there
             select(CONTROLS);
             return;
@@ -821,6 +824,8 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     private ControlsPanel controls;
     private SearchPanel search;
     private UpdatesPanel updates;
+    private SettingsPanel settings;
+    private int settingsPage;  // kept here, so a change that rebuilds the dock leaves its page open
 
     private void showDock() {
         if (dockView == null) {
@@ -931,13 +936,8 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             }
         }));
         panels.add(stats);
-        // Settings: one grouped list, like iOS Settings. Updates sit at the end.
-        android.widget.ScrollView settings = new android.widget.ScrollView(this);
-        settings.setVerticalScrollBarEnabled(false);
-        LinearLayout list = Ui.column(this);
-        list.setPadding(0, 0, Ui.dp(this, 6), Ui.dp(this, 16));
-        list.addView(Ui.title(this, "Settings"));
-        list.addView(new AppearancePanel(this, WatchService.prefs(this), new Runnable() {
+        // Settings: a short list of groups, like iOS Settings. Each group opens its own page.
+        settings = new SettingsPanel(this, WatchService.prefs(this), new Runnable() {
             @Override
             public void run() {
                 rebuildDock();
@@ -947,9 +947,12 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             public void run() {
                 dim();  // Preview: a touch brings the dock back
             }
-        }));
-        list.addView(updates);
-        settings.addView(list);
+        }, updates, settingsPage, new Kit.OnPick() {
+            @Override
+            public void picked(int page) {
+                settingsPage = page;
+            }
+        });
         panels.add(settings);
         for (View p : panels) content.addView(p);
         capture.setRecording(recording);
@@ -1037,16 +1040,17 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             }
         });
         head.addView(full);
-        ImageView settings = Ui.iconButton(this, Icon.Kind.GEAR, 36, 0x00000000, Ui.SELECTED, Ui.ACCENT);
-        settings.setContentDescription("Settings");
-        settings.setOnClickListener(new View.OnClickListener() {
+        ImageView gearButton = Ui.iconButton(this, Icon.Kind.GEAR, 36, 0x00000000, Ui.SELECTED, Ui.ACCENT);
+        gearButton.setContentDescription("Settings");
+        gearButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                settings.show(SettingsPanel.LIST);  // the gear always opens the list
                 select(SETTINGS);
             }
         });
-        gear = settings;
-        head.addView(settings);
+        gear = gearButton;
+        head.addView(gearButton);
         side.addView(head, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, Ui.dp(this, 44)));
 
         // On a phone the 7 rows share the height evenly. On a tall screen they stay 52 dp and the rest is empty.

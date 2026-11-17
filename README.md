@@ -47,13 +47,13 @@ The PC window while pairing, and its Settings in light mode:
 - Send: share a photo to Mobile Dock from any app, or use Capture in the dock. Pictures go to the PC clipboard, so Ctrl+V pastes them into Figma. Other files land in Downloads/Mobile Dock.
 - Controls: volume, mute, lock the PC, turn the screen off, sleep, show the desktop and open Task Manager. A volume mixer has one slider per app, so Spotify, Discord and a game each get their own level. There is no shutdown button on purpose.
 - The phone's volume buttons change the PC volume while the dock is open. Turn it off in Settings.
-- Idle screen: after a few idle minutes the dock dims to a bedside clock on black. Pick its color and two tiles: a big clock, calendar or song, and a side tile with the date, calendar, song or phone battery. A touch brings the dock back.
+- Idle screen: after a few idle minutes the dock dims to a bedside clock on black. Pick its color and its tiles: a big clock, calendar or song, and up to two side tiles with the clock, date, calendar, song or phone battery. A touch brings the dock back.
 - Tap vibration: a short buzz when you press a button, so you can use the dock without looking at it.
 - Capture (from Controls): take a screenshot, snip a region, and start or stop screen recording. Screenshots save in Pictures/Mobile Dock, videos in Videos/Mobile Dock. Copy clipboard text from the phone to the PC or back.
 - Wake PC: turn the PC on from the phone with Wake-on-LAN. See [host/README.md](host/README.md) for the PC settings it needs.
 - Touch & sign: the touchpad, the keyboard, and a signature pad. Sign with your finger, tap Send, and paste the signature into a PDF or document with Ctrl+V.
 - The look follows Apple's design guidelines: a floating sidebar, grouped lists, switches and the Inter typeface. Light, dark, or automatic with the phone's setting. The PC window matches it.
-- Settings (the gear at the top of the sidebar): light or dark, the accent color, the app icon size and whether apps show labels. See the phone and PC versions and check for updates now.
+- Settings (the gear at the top of the sidebar): four groups, each on its own page. Display has light or dark, the accent color, the app icon size and app labels. Idle screen, Buttons and feedback, and Updates hold the rest.
 - Arrange (the dots icon on Apps): tap a tile to pick it up and drop it in its new place, or on the red bar to unpin it.
 - Fullscreen (the corners icon at the top of the sidebar): hide the sidebar so the open page gets the whole screen. Back brings it back.
 - The PC app runs in the background: close its window and the phone stays connected. Open it again from the tray icon.

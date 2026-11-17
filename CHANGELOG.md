@@ -4,6 +4,13 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 2.2.0
+
+- Settings is a short list now: Display, Idle screen, Buttons and feedback, and Updates. Each opens its own page. Back or Settings at the top returns to the list.
+- The idle screen takes a second side tile. The two sit one above the other, for example the song and the battery.
+- The side tiles can show the clock too, so a big calendar or song can have the time next to it.
+- Pick each tile from a list in Settings, Idle screen, Tiles.
+
 ## 2.1.0
 
 - A new idle screen, like a bedside clock: big bold digits in a color you pick, on black.

@@ -1,0 +1,385 @@
+package dev.mobiledock;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+
+/**
+ * Settings on the phone, like iOS Settings: a short list of groups, and each group opens its own page
+ * with "Settings" at the top to go back. Saved on the phone and applied at once.
+ */
+final class SettingsPanel extends android.widget.ScrollView {
+    static final String PREF_VOLUME_KEYS = "volume_keys";
+    static final String PREF_DIM = "dim_minutes";
+    /** The pages. The three tile pickers open from the Idle screen page and go back there. */
+    static final int LIST = 0, DISPLAY = 1, IDLE = 2, BUTTONS = 3, UPDATES = 4, PICK_BIG = 5, PICK_SIDE = 6,
+            PICK_SIDE2 = 7;
+    private static final String[] PAGE_NAMES = {"Settings", "Display", "Idle screen", "Buttons and feedback",
+        "Updates", "Big tile", "Side tile", "Second side tile"};
+    private static final int[] DIM_MINUTES = {0, 1, 5, 15};
+    private static final String[] DIM_NAMES = {"Off", "1 min", "5 min", "15 min"};
+    private final SharedPreferences prefs;
+    private final Runnable apply, preview;
+    private final UpdatesPanel updates;
+    private final Kit.OnPick onPage;
+    private final LinearLayout list;
+    private int page;
+
+    /** onPage hears every page change, so the open page survives the rebuild after a change. */
+    SettingsPanel(Context c, SharedPreferences prefs, Runnable apply, Runnable preview, UpdatesPanel updates,
+            int page, Kit.OnPick onPage) {
+        super(c);
+        this.prefs = prefs;
+        this.apply = apply;
+        this.preview = preview;
+        this.updates = updates;
+        this.onPage = onPage;
+        setVerticalScrollBarEnabled(false);
+        list = Ui.column(c);
+        list.setPadding(0, 0, Ui.dp(c, 6), Ui.dp(c, 16));
+        addView(list);
+        this.page = page;
+        build();
+    }
+
+    /** Opens a page of Settings. */
+    void show(int p) {
+        page = p;
+        onPage.picked(p);
+        build();
+        scrollTo(0, 0);
+    }
+
+    /** Back from a page: a tile picker returns to Idle screen, the rest to the list. False on the list itself. */
+    boolean back() {
+        if (page == LIST) return false;
+        show(page >= PICK_BIG ? IDLE : LIST);
+        return true;
+    }
+
+    private void build() {
+        Context c = getContext();
+        list.removeAllViews();
+        if (page != LIST) list.addView(backLink(c, page >= PICK_BIG ? "Idle screen" : "Settings"));
+        list.addView(Ui.title(c, PAGE_NAMES[page]));
+        if (page == LIST) buildList(c);
+        else if (page == DISPLAY) buildDisplay(c);
+        else if (page == IDLE) buildIdle(c);
+        else if (page == BUTTONS) buildButtons(c);
+        else if (page == UPDATES) {
+            if (updates.getParent() != null) ((android.view.ViewGroup) updates.getParent()).removeView(updates);
+            list.addView(updates);
+        } else if (page == PICK_BIG) {
+            buildPicker(c, NightView.PREF_MAIN, 0, NightView.MAIN_NAMES, new int[] {0, 1, 2});
+        } else {
+            boolean first = page == PICK_SIDE;
+            buildPicker(c, first ? NightView.PREF_SIDE : NightView.PREF_SIDE2,
+                    first ? NightView.DATE : NightView.NONE, NightView.SIDE_NAMES, NightView.SIDE_ORDER);
+        }
+    }
+
+    /** "‹ Settings" in the accent color, above the page title. */
+    private View backLink(Context c, String label) {
+        LinearLayout row = Ui.row(c);
+        row.setPadding(0, Ui.dp(c, 6), Ui.dp(c, 12), Ui.dp(c, 2));
+        ImageView arrow = new ImageView(c);
+        arrow.setImageDrawable(new Icon(Icon.Kind.BACK, Ui.ACCENT));
+        row.addView(arrow, new LinearLayout.LayoutParams(Ui.dp(c, 24), Ui.dp(c, 24)));
+        row.addView(Ui.text(c, label, 17, Ui.ACCENT));
+        row.setClickable(true);
+        row.setContentDescription("Back to " + label);
+        row.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                back();
+            }
+        });
+        LinearLayout holder = Ui.row(c);
+        holder.addView(row);
+        return holder;
+    }
+
+    /** The front page: one row per group, with what is set now on the right. */
+    private void buildList(Context c) {
+        list.addView(new View(c), new LinearLayout.LayoutParams(1, Ui.dp(c, 12)));
+        LinearLayout card = Ui.card(c);
+        card.addView(groupRow(c, Icon.Kind.SUN, 0xFF0088FF, DISPLAY,
+                Ui.THEME_NAMES[Math.max(0, Math.min(2, prefs.getInt(Ui.PREF_THEME, 0)))]));
+        card.addView(Ui.hairline(c, 54));
+        card.addView(groupRow(c, Icon.Kind.MOON, 0xFF6155F5, IDLE, idleSummary()));
+        card.addView(Ui.hairline(c, 54));
+        card.addView(groupRow(c, Icon.Kind.SPEAKER, 0xFFFF2D55, BUTTONS,
+                "Vibrate: " + Haptics.LEVEL_NAMES[levelIndex(Haptics.length(prefs))]));
+        card.addView(Ui.hairline(c, 54));
+        card.addView(groupRow(c, Icon.Kind.REFRESH, 0xFF8E8E93, UPDATES, UpdatesPanel.phoneVersion(c)));
+        list.addView(card);
+    }
+
+    private LinearLayout groupRow(Context c, Icon.Kind kind, int color, final int target, String value) {
+        LinearLayout end = Ui.row(c);
+        end.addView(Ui.value(c, value));
+        end.addView(Ui.chevron(c));
+        LinearLayout row = Ui.listRow(c, kind, color, PAGE_NAMES[target], end);
+        row.setContentDescription(PAGE_NAMES[target] + ", " + value);
+        Ui.pressableRow(c, row, new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                show(target);
+            }
+        });
+        return row;
+    }
+
+    /** "Clock, Date and Battery". */
+    private String idleSummary() {
+        String s = NightView.MAIN_NAMES[pick(NightView.PREF_MAIN, 0, NightView.MAIN_NAMES.length)];
+        String[] sides = new String[2];
+        int n = 0;
+        for (int side : new int[] {pick(NightView.PREF_SIDE, NightView.DATE, NightView.SIDE_NAMES.length),
+            pick(NightView.PREF_SIDE2, NightView.NONE, NightView.SIDE_NAMES.length)}) {
+            if (side != NightView.NONE) sides[n++] = NightView.SIDE_NAMES[side];
+        }
+        if (n == 1) return s + " and " + sides[0];
+        if (n == 2) return s + ", " + sides[0] + " and " + sides[1];
+        return s;
+    }
+
+    private int pick(String key, int fallback, int count) {
+        return Math.max(0, Math.min(count - 1, prefs.getInt(key, fallback)));
+    }
+
+    private static int levelIndex(int ms) {
+        for (int i = 0; i < Haptics.LEVELS_MS.length; i++) if (Haptics.LEVELS_MS[i] == ms) return i;
+        return 0;
+    }
+
+    private void buildDisplay(Context c) {
+        list.addView(Ui.header(c, "Appearance"));
+        list.addView(Kit.segmented(c, Ui.THEME_NAMES, prefs.getInt(Ui.PREF_THEME, 0), new Kit.OnPick() {
+            @Override
+            public void picked(int index) {
+                save(Ui.PREF_THEME, index);
+            }
+        }));
+
+        list.addView(Ui.header(c, "Accent color"));
+        LinearLayout card = Ui.card(c);
+        LinearLayout swatches = Ui.row(c);
+        swatches.setPadding(Ui.dp(c, 8), Ui.dp(c, 8), Ui.dp(c, 8), Ui.dp(c, 8));
+        int chosen = Math.max(0, Math.min(Ui.ACCENTS.length - 1, prefs.getInt("accent", 0)));
+        for (int i = 0; i < Ui.ACCENTS.length; i++) {
+            final int index = i;
+            LinearLayout s = Ui.column(c);
+            s.setGravity(Gravity.CENTER);
+            s.setClickable(true);
+            s.setContentDescription(Ui.ACCENT_NAMES[i]);
+            View dot = new View(c);
+            int color = Ui.ACCENTS[i][Ui.DARK ? 1 : 0];
+            android.graphics.drawable.GradientDrawable d = Ui.rounded(c, color, 15);
+            if (i == chosen) d.setStroke(Ui.dp(c, 3), Ui.SURFACE);
+            View ring = new View(c);
+            ring.setBackground(Ui.rounded(c, i == chosen ? color : 0x00000000, 18));
+            android.widget.FrameLayout holder = new android.widget.FrameLayout(c);
+            holder.addView(ring, new android.widget.FrameLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)));
+            android.widget.FrameLayout.LayoutParams dlp = new android.widget.FrameLayout.LayoutParams(
+                    Ui.dp(c, 30), Ui.dp(c, 30), Gravity.CENTER);
+            dot.setBackground(d);
+            holder.addView(dot, dlp);
+            s.addView(holder, new LinearLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)));
+            TextView name = Ui.text(c, Ui.ACCENT_NAMES[i], 12, i == chosen ? Ui.TEXT : Ui.MUTED);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT);
+            lp.topMargin = Ui.dp(c, 4);
+            s.addView(name, lp);
+            s.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    save("accent", index);
+                }
+            });
+            swatches.addView(s, new LinearLayout.LayoutParams(0, Ui.dp(c, 64), 1f));
+        }
+        card.addView(swatches);
+        list.addView(card);
+
+        list.addView(Ui.header(c, "App icon size"));
+        int scale = 1;
+        for (int i = 0; i < Ui.TILE_SCALES.length; i++) if (Ui.TILE_SCALE == Ui.TILE_SCALES[i]) scale = i;
+        list.addView(Kit.segmented(c, Ui.TILE_SCALE_NAMES, scale, new Kit.OnPick() {
+            @Override
+            public void picked(int index) {
+                save("tile_scale", index);
+            }
+        }));
+
+        list.addView(Ui.header(c, "Apps"));
+        LinearLayout apps = Ui.card(c);
+        apps.addView(switchRow(c, Icon.Kind.APPS, 0xFFFF8D28, "Labels under app icons", "labels", Ui.LABELS));
+        list.addView(apps);
+    }
+
+    /** The idle screen: its color, the big tile, two side tiles, when it shows, and a Preview button. */
+    private void buildIdle(Context c) {
+        list.addView(Ui.header(c, "Color"));
+        LinearLayout card = Ui.card(c);
+        LinearLayout swatches = Ui.row(c);
+        swatches.setPadding(Ui.dp(c, 8), Ui.dp(c, 8), Ui.dp(c, 8), Ui.dp(c, 8));
+        int chosen = Math.max(0, Math.min(NightView.COLORS.length - 1, prefs.getInt(NightView.PREF_COLOR, 0)));
+        for (int i = 0; i < NightView.COLORS.length; i++) {
+            final int index = i;
+            LinearLayout s = Ui.column(c);
+            s.setGravity(Gravity.CENTER);
+            s.setClickable(true);
+            s.setContentDescription(NightView.COLOR_NAMES[i] + " idle screen");
+            // Shown on black, like the idle screen itself.
+            View dot = new View(c);
+            android.graphics.drawable.GradientDrawable d = Ui.rounded(c, NightView.COLORS[i], 15);
+            d.setStroke(Ui.dp(c, i == chosen ? 3 : 0), 0xFF000000);
+            dot.setBackground(d);
+            android.widget.FrameLayout holder = new android.widget.FrameLayout(c);
+            View ring = new View(c);
+            ring.setBackground(Ui.rounded(c, i == chosen ? NightView.COLORS[i] : 0xFF000000, 18));
+            holder.addView(ring, new android.widget.FrameLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)));
+            holder.addView(dot, new android.widget.FrameLayout.LayoutParams(Ui.dp(c, 30), Ui.dp(c, 30), Gravity.CENTER));
+            s.addView(holder, new LinearLayout.LayoutParams(Ui.dp(c, 36), Ui.dp(c, 36)));
+            TextView name = Ui.text(c, NightView.COLOR_NAMES[i], 12, i == chosen ? Ui.TEXT : Ui.MUTED);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT);
+            lp.topMargin = Ui.dp(c, 4);
+            s.addView(name, lp);
+            s.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    save(NightView.PREF_COLOR, index);
+                }
+            });
+            swatches.addView(s, new LinearLayout.LayoutParams(0, Ui.dp(c, 64), 1f));
+        }
+        card.addView(swatches);
+        list.addView(card);
+
+        list.addView(Ui.header(c, "Tiles"));
+        LinearLayout tiles = Ui.card(c);
+        tiles.addView(pickRow(c, PICK_BIG,
+                NightView.MAIN_NAMES[pick(NightView.PREF_MAIN, 0, NightView.MAIN_NAMES.length)]));
+        tiles.addView(Ui.hairline(c, 16));
+        tiles.addView(pickRow(c, PICK_SIDE,
+                NightView.SIDE_NAMES[pick(NightView.PREF_SIDE, NightView.DATE, NightView.SIDE_NAMES.length)]));
+        tiles.addView(Ui.hairline(c, 16));
+        tiles.addView(pickRow(c, PICK_SIDE2,
+                NightView.SIDE_NAMES[pick(NightView.PREF_SIDE2, NightView.NONE, NightView.SIDE_NAMES.length)]));
+        list.addView(tiles);
+        TextView note = Ui.text(c, "Two side tiles sit one above the other.", 13, Ui.MUTED);
+        note.setPadding(Ui.dp(c, 16), Ui.dp(c, 6), Ui.dp(c, 16), 0);
+        list.addView(note);
+
+        list.addView(Ui.header(c, "Show the idle screen after"));
+        int dim = prefs.getInt(PREF_DIM, 5), dimIndex = 0;
+        for (int i = 0; i < DIM_MINUTES.length; i++) if (DIM_MINUTES[i] == dim) dimIndex = i;
+        list.addView(Kit.segmented(c, DIM_NAMES, dimIndex, new Kit.OnPick() {
+            @Override
+            public void picked(int index) {
+                save(PREF_DIM, DIM_MINUTES[index]);
+            }
+        }));
+
+        android.widget.Button show = Ui.accentButton(c, "Preview");
+        show.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                preview.run();  // a touch brings the dock back
+            }
+        });
+        LinearLayout actions = Ui.row(c);
+        actions.setPadding(0, Ui.dp(c, 12), 0, 0);
+        actions.addView(show, Ui.wrap(c, 4));
+        list.addView(actions);
+    }
+
+    private LinearLayout pickRow(Context c, final int target, String value) {
+        LinearLayout end = Ui.row(c);
+        end.addView(Ui.value(c, value));
+        end.addView(Ui.chevron(c));
+        LinearLayout row = Ui.listRow(c, null, 0, PAGE_NAMES[target], end);
+        row.setContentDescription(PAGE_NAMES[target] + ", " + value);
+        Ui.pressableRow(c, row, new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                show(target);
+            }
+        });
+        return row;
+    }
+
+    /** One tile choice per row, a checkmark on the chosen one. Picking saves and returns to Idle screen. */
+    private void buildPicker(Context c, final String key, int fallback, String[] names, int[] order) {
+        list.addView(new View(c), new LinearLayout.LayoutParams(1, Ui.dp(c, 12)));
+        int chosen = pick(key, fallback, names.length);
+        LinearLayout card = Ui.card(c);
+        for (int i = 0; i < order.length; i++) {
+            final int value = order[i];
+            View check = null;
+            if (value == chosen) {
+                ImageView mark = new ImageView(c);
+                mark.setImageDrawable(new Icon(Icon.Kind.CHECK, Ui.ACCENT));
+                mark.setLayoutParams(new LinearLayout.LayoutParams(Ui.dp(c, 22), Ui.dp(c, 22)));
+                check = mark;
+            }
+            LinearLayout row = Ui.listRow(c, null, 0, names[value], check);
+            row.setContentDescription(names[value] + (value == chosen ? ", chosen" : ""));
+            Ui.pressableRow(c, row, new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    page = IDLE;
+                    onPage.picked(IDLE);
+                    save(key, value);
+                }
+            });
+            if (i > 0) card.addView(Ui.hairline(c, 16));
+            card.addView(row);
+        }
+        list.addView(card);
+    }
+
+    private void buildButtons(Context c) {
+        list.addView(Ui.header(c, "Vibrate when you press a button"));
+        list.addView(Kit.segmented(c, Haptics.LEVEL_NAMES, levelIndex(Haptics.length(prefs)), new Kit.OnPick() {
+            @Override
+            public void picked(int index) {
+                Haptics.tick(getContext(), Haptics.LEVELS_MS[index]);  // feel it right away
+                save(Haptics.PREF_MS, Haptics.LEVELS_MS[index]);
+            }
+        }));
+
+        list.addView(Ui.header(c, "Phone buttons"));
+        LinearLayout phone = Ui.card(c);
+        phone.addView(switchRow(c, Icon.Kind.SPEAKER, 0xFFFF2D55, "Volume buttons control the PC", PREF_VOLUME_KEYS,
+                prefs.getBoolean(PREF_VOLUME_KEYS, true)));
+        list.addView(phone);
+    }
+
+    private LinearLayout switchRow(Context c, Icon.Kind kind, int color, String label, final String key, boolean on) {
+        Kit.Switch sw = new Kit.Switch(c, on);
+        sw.setContentDescription(label);
+        sw.setOnFlip(new Kit.OnFlip() {
+            @Override
+            public void flipped(boolean value) {
+                prefs.edit().putBoolean(key, value).commit();
+                Ui.loadTheme(getContext(), prefs);
+                // Let the knob finish sliding before the page is rebuilt.
+                postDelayed(apply, 220);
+            }
+        });
+        return Ui.listRow(c, kind, color, label, sw);
+    }
+
+    private void save(String key, int value) {
+        prefs.edit().putInt(key, value).commit();
+        Ui.loadTheme(getContext(), prefs);
+        apply.run();
+    }
+}

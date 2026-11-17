@@ -18,7 +18,7 @@ final class Icon extends Drawable {
         PLAY, PAUSE, PREV, NEXT, SHUFFLE, REPEAT, REPEAT_ONE, VOL_DOWN, VOL_UP, MUTE,
         APPS, MUSIC, TOUCHPAD, KEYBOARD, CAMERA, RECORD, STOP, POWER, BACK, PLUS, REFRESH,
         SHORTCUTS, CHART, SEND, FOLLOW,
-        SLIDERS, SUN, MONITOR, LOCK, MOON, PEN, PICTURE, FILE, SCISSORS, GRIP, EXPAND, SHRINK, CLIPBOARD, BACK5, FORWARD5, SEARCH, GLOBE, PIN, CLOSE, CHEVRON, GEAR, CLOCK, SPEAKER
+        SLIDERS, SUN, MONITOR, LOCK, MOON, PEN, PICTURE, FILE, SCISSORS, GRIP, EXPAND, SHRINK, CLIPBOARD, BACK5, FORWARD5, SEARCH, GLOBE, PIN, CLOSE, CHEVRON, GEAR, CLOCK, SPEAKER, CHECK
     }
 
     private final Kind kind;
@@ -309,6 +309,9 @@ final class Icon extends Drawable {
                 c.drawCircle(x(0.5f), y(0.38f), s * 0.22f, line);
                 c.drawPath(poly(0.32f, 0.5f, 0.5f, 0.88f, 0.68f, 0.5f), fill);
                 c.drawCircle(x(0.5f), y(0.38f), s * 0.08f, fill);
+                break;
+            case CHECK:
+                c.drawPath(open(0.2f, 0.52f, 0.42f, 0.74f, 0.8f, 0.28f), line);
                 break;
             case CHEVRON:
                 c.drawPath(open(0.36f, 0.18f, 0.66f, 0.5f, 0.36f, 0.82f), line);

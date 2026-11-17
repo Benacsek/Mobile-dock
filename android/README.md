@@ -43,7 +43,11 @@ App icons all get the same rounded-square shape. Names can use two lines. The gr
   - Keyboard: type in the box and the text goes to the PC as you type. Tap Ctrl, Alt, Shift or Win before a key to make a shortcut.
   - Sign: draw with your finger. Send to PC puts a PNG with a clear background on the clipboard. Paste it with Ctrl+V.
 - Stats: CPU, GPU, memory, network and disk graphs for the last minute, plus the busiest apps. Temperatures and fan speeds show when the PC can read them.
-- Settings: Appearance (Automatic, Light or Dark), accent color, app icon size, night dimming, tap vibration, app labels and the volume buttons switch. Then the phone and PC versions, the PC's update status and Check now.
+- Settings: a short list of four groups. Each opens its own page, and Back or Settings at the top returns to the list.
+  - Display: Appearance (Automatic, Light or Dark), accent color, app icon size and app labels.
+  - Idle screen: its color, its tiles, when it shows, and Preview.
+  - Buttons and feedback: tap vibration and the volume buttons switch.
+  - Updates: the phone and PC versions, the PC's update status, Check now and Copy diagnostics.
 - Arrange: the dots icon on Apps. A tap picks a tile up. Tap the icon again or press Back when you are done.
 - Fullscreen: the corners icon at the top of the sidebar hides it on any page. Tap the small button in the corner or press Back to bring it back.
 
@@ -51,7 +55,7 @@ Idle screen: after 5 minutes without a touch, the dock dims to a bedside clock o
 
 - The color: Blue, White, Red, Orange, Green or Pink. Red is the easiest on the eyes in a dark room.
 - The big tile: Clock, Calendar or Playing (the song with its cover).
-- The side tile: Date, Calendar, Playing, Battery (the phone's charge) or None.
+- The side tile and the second side tile: Clock, Date, Calendar, Playing, Battery (the phone's charge) or None. Two side tiles sit one above the other, so you can show the song and the battery together.
 - When it shows: Off, 1, 5 or 15 minutes.
 
 Preview shows it right away. The tiles move a few dp now and then, so no pixel stays lit in one place.
@@ -112,6 +116,8 @@ adb shell am start -n dev.mobiledock/.MainActivity --ez demo true --ei page 0
 ```
 
 Pages: -1 connect, 0 Apps, 1 Search, 2 Playing, 3 Shortcuts, 4 Controls, 5 Capture, 6 Touch, 7 Stats, 8 Settings, 99 the night clock.
+On page 8, `--ei settings_page N` opens a Settings page: 0 the list, 1 Display, 2 Idle screen, 3 Buttons and feedback, 4 Updates, 5 to 7 the tile pickers.
+On page 99, `--ei idle_main`, `--ei idle_side`, `--ei idle_side2` and `--ei idle_color` pick the tiles and color.
 
 ## Release signing
 
@@ -153,7 +159,7 @@ If you lose the key, phones can't update anymore. You'd have to uninstall and re
 | `AppsPanel.java` | Pinned apps grid with drag and drop and arrange mode |
 | `ControlsPanel.java`, `CapturePanel.java` | PC controls, capture and sending |
 | `TouchPanel.java`, `SignPanel.java` | Touchpad, keyboard and signature pad |
-| `AppearancePanel.java`, `UpdatesPanel.java` | Theme settings and versions |
+| `SettingsPanel.java`, `UpdatesPanel.java` | Settings list, its pages, and versions |
 | `MediaPanel.java` | Now playing with art, seek, shuffle and repeat |
 | `PadPanel.java`, `KeysPanel.java` | Touchpad and keyboard |
 | `IconCache.java` | App icons from the PC, cached on the phone |

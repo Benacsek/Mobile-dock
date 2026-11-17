@@ -9,7 +9,7 @@ import android.widget.TextView;
 
 import org.json.JSONObject;
 
-/** Versions on both sides, the PC's update status, and a Check now button. Part of the Settings list. */
+/** Versions on both sides, the PC's update status, and a Check now button. The Updates page of Settings. */
 final class UpdatesPanel extends LinearLayout {
     private final DockClient client;
     private final PhoneUpdater updater;
@@ -21,7 +21,7 @@ final class UpdatesPanel extends LinearLayout {
         this.client = client;
         this.updater = updater;
         setOrientation(VERTICAL);
-        addView(Ui.header(c, "Updates"));
+        addView(Ui.header(c, "Versions"));
         LinearLayout card = Ui.card(c);
         card.addView(Ui.listRow(c, Icon.Kind.TOUCHPAD, 0xFF8E8E93, "This phone", Ui.value(c, phoneVersion(c))));
         card.addView(Ui.hairline(c, 54));
@@ -68,7 +68,7 @@ final class UpdatesPanel extends LinearLayout {
                 android.widget.Toast.LENGTH_SHORT).show();
     }
 
-    private static String phoneVersion(Context c) {
+    static String phoneVersion(Context c) {
         try {
             return c.getPackageManager().getPackageInfo(c.getPackageName(), 0).versionName;
         } catch (PackageManager.NameNotFoundException e) {

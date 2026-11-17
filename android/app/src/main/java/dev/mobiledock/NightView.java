@@ -26,29 +26,34 @@ import java.util.Locale;
 import java.util.Random;
 
 /**
- * The idle screen, like a bedside clock: one big tile and one side tile in a color you pick, on black.
- * Big: clock, calendar or now playing. Side: date, calendar, now playing, battery or nothing.
+ * The idle screen, like a bedside clock: one big tile and up to two side tiles in a color you pick, on black.
+ * Big: clock, calendar or now playing. Each side slot: clock, date, calendar, now playing, battery or nothing.
+ * Two side tiles stack, one above the other.
  * The tiles move a few dp now and then, so no pixel stays lit in the same place for hours.
  */
 final class NightView extends FrameLayout {
-    static final String PREF_COLOR = "idle_color", PREF_MAIN = "idle_main", PREF_SIDE = "idle_side";
+    static final String PREF_COLOR = "idle_color", PREF_MAIN = "idle_main", PREF_SIDE = "idle_side",
+            PREF_SIDE2 = "idle_side2";
     /** Bright system colors that read well on black. Red is kind to the eyes in a dark room. */
     static final int[] COLORS = {0xFF70B8FF, 0xFFF2F2F7, 0xFFFF4245, 0xFFFF9230, 0xFF30D158, 0xFFFF375F};
     static final String[] COLOR_NAMES = {"Blue", "White", "Red", "Orange", "Green", "Pink"};
     static final String[] MAIN_NAMES = {"Clock", "Calendar", "Playing"};
-    static final String[] SIDE_NAMES = {"Date", "Calendar", "Playing", "Battery", "None"};
+    /** Indexed by the saved value. Clock came later, so it is last here and first in SIDE_ORDER. */
+    static final String[] SIDE_NAMES = {"Date", "Calendar", "Playing", "Battery", "None", "Clock"};
+    static final int[] SIDE_ORDER = {5, 0, 1, 2, 3, 4};
     private static final int CLOCK = 0, CALENDAR = 1, PLAYING = 2;  // big tile
-    private static final int DATE = 0, SIDE_CALENDAR = 1, SIDE_PLAYING = 2, BATTERY = 3, NONE = 4;  // side tile
+    static final int DATE = 0, SIDE_CALENDAR = 1, SIDE_PLAYING = 2, BATTERY = 3, NONE = 4, SIDE_CLOCK = 5;  // side
 
     private final DockClient client;
     private final Random random = new Random();
     private final LinearLayout box;
-    private final int color, main, side;
+    private final int color, main;
     private boolean running;
-    private TextView clock;
+    private final java.util.List<TextView> clocks = new java.util.ArrayList<TextView>();
     private final java.util.List<Runnable> updaters = new java.util.ArrayList<Runnable>();
-    private TextView songTitle, songArtist, sideTitle, sideArtist;
-    private ImageView art, sideArt;
+    private final java.util.List<TextView> titles = new java.util.ArrayList<TextView>();
+    private final java.util.List<TextView> artists = new java.util.ArrayList<TextView>();
+    private final java.util.List<ImageView> arts = new java.util.ArrayList<ImageView>();
     private String artId = "";
 
     private final Runnable tick = new Runnable() {
@@ -64,19 +69,30 @@ final class NightView extends FrameLayout {
         this.client = client;
         color = COLORS[clamp(prefs.getInt(PREF_COLOR, 0), COLORS.length)];
         main = clamp(prefs.getInt(PREF_MAIN, CLOCK), MAIN_NAMES.length);
-        side = clamp(prefs.getInt(PREF_SIDE, DATE), SIDE_NAMES.length);
+        int[] sides = {clamp(prefs.getInt(PREF_SIDE, DATE), SIDE_NAMES.length),
+                clamp(prefs.getInt(PREF_SIDE2, NONE), SIDE_NAMES.length)};
         setBackgroundColor(0xFF000000);
         setClickable(true);  // the first touch only wakes the dock
         box = Ui.row(c);
         int p = Ui.dp(c, 28);
         box.setPadding(p, p, p, p);
+        // Side tiles share the column. A tile taller than its half shrinks to fit, the clock and calendar
+        // fill whatever room they get.
+        LinearLayout column = Ui.column(c);
+        for (int side : sides) {
+            if (side == NONE) continue;
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f);
+            if (column.getChildCount() > 0) lp.topMargin = Ui.dp(c, 20);
+            View tile = sideTile(c, side);
+            column.addView(side == SIDE_CLOCK || side == SIDE_CALENDAR ? tile : new Fit(c, tile), lp);
+        }
         // The clock gets more room than a calendar or a song, so its digits can fill the height.
-        float big = side == NONE ? 1f : main == CLOCK ? 0.7f : 0.64f;
+        float big = column.getChildCount() == 0 ? 1f : main == CLOCK ? 0.7f : 0.64f;
         box.addView(bigTile(c), new LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, big));
-        if (side != NONE) {
+        if (column.getChildCount() > 0) {
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LayoutParams.MATCH_PARENT, 1f - big);
             lp.leftMargin = Ui.dp(c, 24);
-            box.addView(sideTile(c), lp);
+            box.addView(column, lp);
         }
         addView(box, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
     }
@@ -90,28 +106,35 @@ final class NightView extends FrameLayout {
         if (main == PLAYING) {
             LinearLayout col = Ui.row(c);
             col.setGravity(Gravity.CENTER_VERTICAL);
-            art = new ImageView(c);
+            ImageView art = new ImageView(c);
             art.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            arts.add(art);
             int s = Ui.dp(c, 150);
             col.addView(art, new LinearLayout.LayoutParams(s, s));
             LinearLayout words = Ui.column(c);
             words.setPadding(Ui.dp(c, 20), 0, 0, 0);
-            songTitle = big(c, "Nothing playing", 30, 0xFFFFFFFF);
+            TextView songTitle = big(c, "Nothing playing", 30, 0xFFFFFFFF);
             songTitle.setTypeface(Ui.bold());
             songTitle.setSingleLine(false);
             songTitle.setMaxLines(2);  // long titles get a second line before they are cut
-            songArtist = big(c, "", 22, color);
+            TextView songArtist = big(c, "", 22, color);
+            titles.add(songTitle);
+            artists.add(songArtist);
             words.addView(songTitle);
             words.addView(songArtist);
             col.addView(words, new LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
             return col;
         }
-        // The clock fills its tile: the digits grow to the height, then shrink to fit the width.
-        clock = new TextView(c) {
+        return clockTile(c);
+    }
+
+    /** A clock that fills its tile: the digits grow to the height, then shrink to fit the width. */
+    private TextView clockTile(Context c) {
+        final TextView clock = new TextView(c) {
             @Override
             protected void onSizeChanged(int w, int h, int oldw, int oldh) {
                 super.onSizeChanged(w, h, oldw, oldh);
-                fitClock(w, h);
+                fitClock(this, w, h);
             }
         };
         clock.setTypeface(Ui.bold());
@@ -119,11 +142,12 @@ final class NightView extends FrameLayout {
         clock.setGravity(Gravity.CENTER);
         clock.setSingleLine(true);
         clock.setIncludeFontPadding(false);
+        clocks.add(clock);
         return clock;
     }
 
     /** Sizes the digits to the time on screen: as tall as the tile allows, then narrowed to its width. */
-    private void fitClock(int w, int h) {
+    private static void fitClock(TextView clock, int w, int h) {
         if (w <= 0 || h <= 0) return;
         String now = clock.getText().length() > 0 ? clock.getText().toString() : "00:00";
         Paint paint = new Paint();
@@ -135,8 +159,9 @@ final class NightView extends FrameLayout {
         clock.setTextSize(TypedValue.COMPLEX_UNIT_PX, size);
     }
 
-    private View sideTile(Context c) {
+    private View sideTile(Context c, int side) {
         if (side == SIDE_CALENDAR) return new MonthView(c, color, false);
+        if (side == SIDE_CLOCK) return clockTile(c);
         LinearLayout col = Ui.column(c);
         col.setGravity(Gravity.CENTER_VERTICAL);
         if (side == DATE) {
@@ -159,14 +184,17 @@ final class NightView extends FrameLayout {
                 }
             });
         } else if (side == SIDE_PLAYING) {
-            sideArt = new ImageView(c);
+            ImageView sideArt = new ImageView(c);
             sideArt.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            arts.add(sideArt);
             int s = Ui.dp(c, 84);
             col.addView(sideArt, new LinearLayout.LayoutParams(s, s));
-            sideTitle = big(c, "Nothing playing", 20, 0xFFFFFFFF);
+            TextView sideTitle = big(c, "Nothing playing", 20, 0xFFFFFFFF);
             sideTitle.setTypeface(Ui.bold());
             sideTitle.setPadding(0, Ui.dp(c, 10), 0, 0);
-            sideArtist = big(c, "", 17, color);
+            TextView sideArtist = big(c, "", 17, color);
+            titles.add(sideTitle);
+            artists.add(sideArtist);
             col.addView(sideTitle);
             col.addView(sideArtist);
         } else if (side == BATTERY) {
@@ -214,18 +242,19 @@ final class NightView extends FrameLayout {
     }
 
     private void update() {
-        if (clock != null) {
-            boolean h24 = android.text.format.DateFormat.is24HourFormat(getContext());
-            clock.setText(new SimpleDateFormat(h24 ? "H:mm" : "h:mm", Locale.getDefault()).format(new Date()));
-            fitClock(clock.getWidth(), clock.getHeight());  // "8:31" can be bigger than "12:31"
+        boolean h24 = android.text.format.DateFormat.is24HourFormat(getContext());
+        String time = new SimpleDateFormat(h24 ? "H:mm" : "h:mm", Locale.getDefault()).format(new Date());
+        for (TextView clock : clocks) {
+            clock.setText(time);
+            fitClock(clock, clock.getWidth(), clock.getHeight());  // "8:31" can be bigger than "12:31"
         }
         for (Runnable r : updaters) r.run();
         // A small shift now and then, so the screen does not burn in. Small enough that the layout holds.
         int shift = Ui.dp(getContext(), 8);
         box.setTranslationX(random.nextInt(2 * shift + 1) - shift);
         box.setTranslationY(random.nextInt(2 * shift + 1) - shift);
-        for (int i = 0; i < box.getChildCount(); i++) box.getChildAt(i).invalidate();
-        if (songTitle != null || sideTitle != null) loadSong();
+        invalidateAll(box);
+        if (!titles.isEmpty()) loadSong();
     }
 
     private void loadSong() {
@@ -235,14 +264,8 @@ final class NightView extends FrameLayout {
                 boolean on = r.optBoolean("ok") && r.optString("title").length() > 0;
                 String title = on ? r.optString("title") : "Nothing playing";
                 String artist = on ? r.optString("artist") : "";
-                if (songTitle != null) {
-                    songTitle.setText(title);
-                    songArtist.setText(artist);
-                }
-                if (sideTitle != null) {
-                    sideTitle.setText(title);
-                    sideArtist.setText(artist);
-                }
+                for (TextView t : titles) t.setText(title);
+                for (TextView t : artists) t.setText(artist);
                 String id = on ? r.optString("art_id", "") : "";
                 if (!id.equals(artId)) {
                     artId = id;
@@ -273,10 +296,46 @@ final class NightView extends FrameLayout {
     }
 
     private void showArt(Bitmap bmp) {
-        for (ImageView v : new ImageView[] {art, sideArt}) {
-            if (v == null) continue;
+        for (ImageView v : arts) {
             v.setImageBitmap(bmp != null ? rounded(bmp) : null);
             v.setVisibility(bmp != null ? VISIBLE : GONE);
+        }
+    }
+
+    /** Redraws the calendars and batteries, wherever they sit. */
+    private static void invalidateAll(View v) {
+        v.invalidate();
+        if (v instanceof android.view.ViewGroup) {
+            android.view.ViewGroup g = (android.view.ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) invalidateAll(g.getChildAt(i));
+        }
+    }
+
+    /** Holds a side tile at its natural size and shrinks it when its slot is shorter, so two tiles fit. */
+    static final class Fit extends FrameLayout {
+        Fit(Context c, View tile) {
+            super(c);
+            addView(tile);
+        }
+
+        @Override
+        protected void onMeasure(int widthSpec, int heightSpec) {
+            int w = MeasureSpec.getSize(widthSpec), h = MeasureSpec.getSize(heightSpec);
+            getChildAt(0).measure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY),
+                    MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
+            setMeasuredDimension(w, h);
+        }
+
+        @Override
+        protected void onLayout(boolean changed, int l, int t, int r, int b) {
+            View tile = getChildAt(0);
+            int w = r - l, h = b - t, th = tile.getMeasuredHeight(), top = (h - th) / 2;
+            tile.layout(0, top, w, top + th);
+            float s = th > h ? (float) h / th : 1f;
+            tile.setPivotX(0);  // stays lined up on the left
+            tile.setPivotY(th / 2f);
+            tile.setScaleX(s);
+            tile.setScaleY(s);
         }
     }
 
