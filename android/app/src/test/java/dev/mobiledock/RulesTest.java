@@ -31,6 +31,16 @@ public class RulesTest {
     }
 
     @Test
+    public void tabletTilesGrowToFillTheHeight() {
+        assertEquals(2f, Rules.fillScale(1040, 680, 112, 124, 8, 2f), 0.001f);  // two big rows of 4
+        assertEquals(1f, Rules.fillScale(560, 250, 112, 124, 8, 2f), 0.001f);  // a phone: no room to grow
+        float s = Rules.fillScale(1040, 680, 112, 124, 20, 2f);
+        int cols = Rules.balancedColumns(1040, Math.round(112 * s), 20);
+        assertTrue(((20 + cols - 1) / cols) * 124 * s <= 680);  // many apps: as big as still fits
+        assertTrue(s > 1f);
+    }
+
+    @Test
     public void onlyRealTapsBuzz() {
         assertTrue(Rules.isTap(2, 3, 8, 120, 500));
         assertFalse(Rules.isTap(20, 0, 8, 120, 500));  // a scroll that started on a button

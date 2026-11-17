@@ -21,6 +21,19 @@ final class Rules {
      * Columns for the app grid: as many as fit, then spread evenly over the rows needed,
      * so 8 apps make two rows of 4 instead of 6 and a ragged 2. Never fewer than 3.
      */
+    /**
+     * How much bigger the app tiles may grow, from 1 up to max, so the rows still fit the height.
+     * A tablet uses it to fill its screen instead of showing one thin row of small icons.
+     */
+    static float fillScale(int width, int height, int minTile, int rowHeight, int apps, float max) {
+        for (float s = max; s > 1f; s -= 0.05f) {
+            int cols = balancedColumns(width, Math.round(minTile * s), apps);
+            int rows = Math.max(1, (apps + cols - 1) / cols);
+            if (rows * rowHeight * s <= height) return s;
+        }
+        return 1f;
+    }
+
     static int balancedColumns(int width, int minTile, int apps) {
         int max = Math.max(3, width / Math.max(1, minTile));
         if (apps <= 0) return max;

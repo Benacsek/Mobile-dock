@@ -191,7 +191,7 @@ GitHub hides releases of a private repository from anyone who isn't signed in. T
 1. On GitHub, open Settings, Developer settings, Personal access tokens, Fine-grained tokens, and click Generate new token.
 2. Under Repository access, pick Only select repositories and choose Mobile-dock.
 3. Under Permissions, set Contents to Read-only. Leave everything else at No access.
-4. Copy the token. On the Settings page, click Private repository token and paste it.
+4. Copy the token. On the Settings page, under Backup and help, click Private repository token and paste it.
 
 The token is saved in the host config file. It can only read this one repository. On Linux you can set `MDOCK_GITHUB_TOKEN` instead.
 

@@ -570,7 +570,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             other.addView(Ui.hairline(this, 54));
             other.addView(otherRow(Icon.Kind.SEND, 0xFF8E8E93, "USB cable", "", OTHER_USB));
             other.addView(Ui.hairline(this, 54));
-            other.addView(otherRow(Icon.Kind.POWER, 0xFF34C759, "Start with your PC",
+            other.addView(otherRow(Icon.Kind.POWER, 0xFF34C759, "Open when your PC starts",
                     WatchService.enabled(this) ? "On" : "Off", OTHER_START));
             other.addView(Ui.hairline(this, 0));
             LinearLayout forget = Ui.listRow(this, null, 0, "Forget paired PCs", null);
@@ -624,7 +624,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             });
             body.addView(usb, Ui.wrap(this, 4));
         } else {
-            body.addView(Ui.strong(this, "Start with your PC", 20, Ui.TEXT), Ui.fillWidth(this, 4));
+            body.addView(Ui.strong(this, "Open when your PC starts", 20, Ui.TEXT), Ui.fillWidth(this, 4));
             buildStartWithPc(body);
         }
         other.addView(body);
@@ -642,7 +642,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     /** The two switches, the watcher status, Fix permissions and Show log. */
     private void buildStartWithPc(LinearLayout right) {
         final CheckBox wakeBox = new CheckBox(this);
-        wakeBox.setText("Wake up and connect when my PC turns on");
+        wakeBox.setText("Open when your PC starts");
         wakeBox.setTextColor(Ui.TEXT);
         Kit.asSwitch(this, wakeBox);
         wakeBox.setChecked(WatchService.enabled(this));
@@ -667,7 +667,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             }
         });
         right.addView(lockBox, Ui.fillWidth(this, 2));
-        right.addView(Ui.text(this, "Works best while the phone charges. Over the lock screen, anyone near the phone can control your PC.", 12, Ui.MUTED), Ui.fillWidth(this, 4));
+        right.addView(Ui.text(this, "The phone turns its screen on and connects when your PC starts. Works best while the phone charges. Over the lock screen, anyone near the phone can control your PC.", 12, Ui.MUTED), Ui.fillWidth(this, 4));
         watchStatus = Ui.text(this, "", 13, Ui.TEXT);
         watchStatus.setBackground(Ui.rounded(this, Ui.SURFACE_HI, 10));
         int sp = Ui.dp(this, 10);
@@ -764,7 +764,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         }
         sb.append("App version ").append(version).append('\n');
         if (!WatchService.enabled(this)) {
-            sb.append("Wake on PC start is off.");
+            sb.append("Open when your PC starts: off.");
             watchStatus.setText(sb.toString());
             return;
         }
@@ -874,7 +874,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         boolean lastFound = false;
         for (Discovery.Host h : found) lastFound |= h.address.equals(last);
         if (demoWake || !lastFound && store.mac(last).length() > 0) {  // a known PC that may be asleep
-            hostList.addView(Kit.navRow(this, Icon.Kind.POWER, Ui.SIGNAL, "Wake your PC", "", new View.OnClickListener() {
+            hostList.addView(Kit.navRow(this, Icon.Kind.POWER, Ui.SIGNAL, "Turn on your PC", "", new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     wakePc();
@@ -1002,8 +1002,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
 
     private View buildDock() {
         FrameLayout frame = new FrameLayout(this);
-        android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
-        rail = Rules.useRail((int) (Math.min(metrics.widthPixels, metrics.heightPixels) / metrics.density));
+        rail = !Ui.tablet(this);
         dock = Ui.column(this);
         int pad = Ui.dp(this, 10);
         dock.setPadding(pad, pad, pad, Ui.dp(this, 6));

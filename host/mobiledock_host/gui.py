@@ -66,19 +66,22 @@ def _autostart_set(enabled: bool) -> None:
 
 # Apple's semantic colors, as on the phone. BG is the window, SURFACE a card on it, SURFACE_HI a fill
 # for buttons and fields, LINE a hairline. use_palette sets them before any widget is built.
+# ACCENT fills buttons under white text. LINK is the accent for text and focus rings. Every text color
+# reaches 4.5 to 1 on BG, SURFACE and SURFACE_HI, the WCAG AA level. FAINT is only for disabled things.
+# MARK is the orange tile of the logo, which is not text and keeps Apple's brighter orange.
 PALETTES = {
     "dark": dict(BG="#1C1C1E", SURFACE="#2C2C2E", SURFACE_HI="#3A3A3C", LINE="#48484A", TEXT="#FFFFFF",
-                 MUTED="#98989F", FAINT="#636366", ACCENT="#0091FF", ACCENT_HOVER="#33A7FF", ACCENT_PRESS="#0074CC",
+                 MUTED="#A3A3A9", FAINT="#636366", ACCENT="#0074CE", ACCENT_HOVER="#0B7FDA", ACCENT_PRESS="#005FA8",
                  ON_ACCENT="#FFFFFF", SIGNAL="#FF9230", SIGNAL_BG="#3A2A1A", HOVER="#444446", PRESS="#505052",
-                 GREEN="#30D158", SIDEBAR="#252527", SELECTED="#3A3A3C", DANGER="#FF4245"),
+                 GREEN="#30D158", SIDEBAR="#252527", SELECTED="#3A3A3C", DANGER="#FF7A7C", LINK="#3BAAFF", MARK="#FF9230"),
     "light": dict(BG="#F2F2F7", SURFACE="#FFFFFF", SURFACE_HI="#E9E9EE", LINE="#D1D1D6", TEXT="#000000",
-                  MUTED="#6E6E73", FAINT="#AEAEB2", ACCENT="#0088FF", ACCENT_HOVER="#2E9BFF", ACCENT_PRESS="#006ECC",
-                  ON_ACCENT="#FFFFFF", SIGNAL="#FF8D28", SIGNAL_BG="#FFF1E3", HOVER="#DEDEE3", PRESS="#D1D1D6",
-                  GREEN="#34C759", SIDEBAR="#E8E8ED", SELECTED="#D9D9DE", DANGER="#FF383C"),
+                  MUTED="#68686C", FAINT="#AEAEB2", ACCENT="#0069C4", ACCENT_HOVER="#0A74D1", ACCENT_PRESS="#00579F",
+                  ON_ACCENT="#FFFFFF", SIGNAL="#A74F00", SIGNAL_BG="#FFF1E3", HOVER="#DEDEE3", PRESS="#D1D1D6",
+                  GREEN="#34C759", SIDEBAR="#E8E8ED", SELECTED="#D9D9DE", DANGER="#D40004", LINK="#0069C4", MARK="#FF8D28"),
 }
 THEME_NAMES = ("Automatic", "Light", "Dark")
 BG = SURFACE = SURFACE_HI = LINE = TEXT = MUTED = FAINT = ACCENT = ACCENT_HOVER = ACCENT_PRESS = ""
-ON_ACCENT = SIGNAL = SIGNAL_BG = HOVER = PRESS = GREEN = SIDEBAR = SELECTED = DANGER = ""
+ON_ACCENT = SIGNAL = SIGNAL_BG = HOVER = PRESS = GREEN = SIDEBAR = SELECTED = DANGER = LINK = MARK = ""
 DARK = True
 
 
@@ -161,7 +164,7 @@ def apply_theme(root: tk.Tk) -> None:
     style.configure("Card.TFrame", background=SURFACE)
     style.configure("TLabel", background=BG, foreground=TEXT)
     style.configure("Footer.TLabel", foreground=MUTED)
-    style.configure("TButton", background=SURFACE_HI, foreground=ACCENT, padding=(14, 7), borderwidth=0)
+    style.configure("TButton", background=SURFACE_HI, foreground=LINK, padding=(14, 7), borderwidth=0)
     style.map("TButton", background=[("active", HOVER), ("pressed", PRESS)])
     style.configure("Accent.TButton", background=ACCENT, foreground=ON_ACCENT)
     style.map("Accent.TButton", background=[("active", ACCENT_HOVER), ("pressed", ACCENT_PRESS)])
@@ -196,8 +199,8 @@ class FlatButton(tk.Canvas):
     def __init__(self, parent, text: str, command, kind: str = "secondary", bg: str | None = None):
         kinds = {
             "primary": (ACCENT, ACCENT_HOVER, ACCENT_PRESS, ON_ACCENT),
-            "secondary": (SURFACE_HI, HOVER, PRESS, ACCENT),
-            "ghost": (None, SURFACE_HI, HOVER, ACCENT),
+            "secondary": (SURFACE_HI, HOVER, PRESS, LINK),
+            "ghost": (None, SURFACE_HI, HOVER, LINK),
             "danger": (None, HOVER, PRESS, DANGER),  # red text for actions that remove something
         }
         base, hover, press, fg = kinds[kind]
@@ -217,7 +220,7 @@ class FlatButton(tk.Canvas):
         self.bind("<ButtonRelease-1>", self._release)
         self.bind("<Return>", lambda e: self._run())
         self.bind("<space>", lambda e: self._run())
-        self.bind("<FocusIn>", lambda e: self.itemconfigure(self._shape, outline=ACCENT, width=2))
+        self.bind("<FocusIn>", lambda e: self.itemconfigure(self._shape, outline=LINK, width=2))
         self.bind("<FocusOut>", lambda e: self.itemconfigure(self._shape, outline="", width=1))
 
     def set_enabled(self, on: bool) -> None:
@@ -267,6 +270,41 @@ class Switch(tk.Canvas):
     def flip(self) -> None:
         self.set(not self.on)
         self._command(self.on)
+
+
+class Segmented(tk.Canvas):
+    """Apple's segmented control: one gray track, the chosen part raised. Click, or Left and Right keys."""
+
+    def __init__(self, parent, names, current: int, command):
+        self._bg = parent.cget("background")
+        self._font = parent._root()._fonts["strong"]
+        self._names, self.current, self._command = list(names), current, command
+        self._cell = max(self._font.measure(n) for n in names) + 36
+        self._tall = self._font.metrics("linespace") + 16
+        super().__init__(parent, width=self._cell * len(names) + 4, height=self._tall + 4, background=self._bg,
+                         highlightthickness=0, borderwidth=0, cursor="hand2", takefocus=1)
+        self.bind("<Button-1>", lambda e: self.pick(min(len(self._names) - 1, max(0, (e.x - 2) // self._cell))))
+        self.bind("<Left>", lambda e: self.pick(max(0, self.current - 1)))
+        self.bind("<Right>", lambda e: self.pick(min(len(self._names) - 1, self.current + 1)))
+        self.bind("<FocusIn>", lambda e: self._draw(True))
+        self.bind("<FocusOut>", lambda e: self._draw(False))
+        self._draw(False)
+
+    def _draw(self, focused: bool) -> None:
+        self.delete("all")
+        h = self._tall + 4
+        rounded(self, 0, 0, self._cell * len(self._names) + 4, h, h / 2, fill=SURFACE_HI,
+                outline=LINK if focused else "", width=2)
+        x = 2 + self._cell * self.current
+        rounded(self, x, 2, x + self._cell, h - 2, (h - 4) / 2, fill=SURFACE if not DARK else FAINT, outline="")
+        for i, name in enumerate(self._names):
+            self.create_text(2 + self._cell * i + self._cell / 2, h / 2, text=name, fill=TEXT, font=self._font)
+
+    def pick(self, index: int) -> None:
+        if index != self.current:
+            self.current = index
+            self._draw(self.focus_get() is self)
+            self._command(index)
 
 
 class Card(tk.Canvas):
@@ -433,7 +471,7 @@ class App:
         brand = tk.Frame(side, background=SIDEBAR)
         brand.pack(fill="x", padx=6)
         mark = tk.Canvas(brand, width=26, height=26, background=SIDEBAR, highlightthickness=0)
-        for x, y, color in ((1, 1, ACCENT), (14, 1, ACCENT), (1, 14, ACCENT), (14, 14, SIGNAL)):
+        for x, y, color in ((1, 1, ACCENT), (14, 1, ACCENT), (1, 14, ACCENT), (14, 14, MARK)):
             rounded(mark, x, y, x + 11, y + 11, 3, fill=color, outline="")  # four dock tiles
         mark.pack(side="left")
         tk.Label(brand, text="Mobile Dock", background=SIDEBAR, foreground=TEXT, font=f["strong"]).pack(
@@ -455,7 +493,7 @@ class App:
             self.root.bind(f"<Control-Key-{i + 1}>", lambda e, k=i: self.show_tab(k))
             row.name = name
             self.tab_rows.append(row)
-        tk.Label(side, text=f"Version {__version__}", background=SIDEBAR, foreground=FAINT, font=f["small"],
+        tk.Label(side, text=f"Version {__version__}", background=SIDEBAR, foreground=MUTED, font=f["small"],
                  anchor="w").pack(side="bottom", fill="x", padx=6)
         tk.Frame(self.root, background=LINE, width=1).pack(side="left", fill="y")
 
@@ -586,12 +624,8 @@ class App:
         f = self.root._fonts
         look = section(page, "Appearance", "Automatic follows the Windows light or dark setting.")
         look.pack(fill="x", pady=(0, 16))
-        choice = tk.Frame(look.body, background=SURFACE)
-        choice.pack(anchor="w")
-        current = int(self.server.config.data.get("theme", 0))
-        for i, name in enumerate(THEME_NAMES):
-            FlatButton(choice, name, lambda k=i: self.set_theme(k), "primary" if i == current else "secondary").pack(
-                side="left", padx=(0, 8))
+        Segmented(look.body, THEME_NAMES, int(self.server.config.data.get("theme", 0)), self.set_theme).pack(
+            anchor="w")
 
         general = section(page, "General")
         general.pack(fill="x", pady=(0, 16))
@@ -618,7 +652,6 @@ class App:
             row = tk.Frame(up.body, background=SURFACE)
             row.pack(fill="x")
             FlatButton(row, "Check for updates", self.check_updates, "primary").pack(side="left")
-            FlatButton(row, "Private repository token", self.set_token, "ghost").pack(side="left", padx=8)
         backup = section(page, "Backup and help", "Your pinned apps and shortcut pads, in one file. "
                          "Pairing keys are never included. Diagnostics stay on this PC until you paste them.")
         backup.pack(fill="x", pady=(16, 0))
@@ -627,6 +660,9 @@ class App:
         FlatButton(brow, "Export setup", self.export_setup).pack(side="left")
         FlatButton(brow, "Import setup", self.import_setup).pack(side="left", padx=8)
         FlatButton(brow, "Copy diagnostics", self.copy_diagnostics, "ghost").pack(side="left")
+        if self.updater is not None:
+            # Only needed when the releases live in a private copy of the project, so it sits with the help tools.
+            FlatButton(backup.body, "Private repository token", self.set_token, "ghost").pack(anchor="w", pady=(6, 0))
 
     def show_tab(self, index: int) -> None:
         self.tab = index
@@ -875,7 +911,7 @@ class App:
             name = tk.Label(top, text=pad["name"], background=SURFACE_HI, foreground=TEXT, font=f["strong"])
             name.pack(side="left")
             count = tk.Label(top, text=f"{len(pad.get('tiles', []))} shortcuts", background=SURFACE_HI,
-                             foreground=FAINT, font=f["small"])
+                             foreground=MUTED, font=f["small"])
             count.pack(side="right")
             apps = pad.get("apps", [])
             # Long app lists get shortened, so the row never runs off a small screen.

@@ -4,6 +4,14 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 2.5.0
+
+- Easier to read: blue links, red buttons, orange text and gray hints are darker in light mode and lighter in dark mode. Every text color now reaches the WCAG AA contrast level on its background, in both apps.
+- Clearer names on the phone: Turn on your PC sends the wake signal to the PC. Open when your PC starts wakes the phone when the PC starts. The second one uses the same name in Settings, on the connect page and in its status.
+- Tablets: app tiles grow to fill the screen, and Settings shows its list on the left with the open page on the right.
+- Playing: the three volume buttons are gone. Volume stays on Controls and on the phone's own volume buttons.
+- PC, Settings: Appearance is one segmented control. Private repository token moved to Backup and help.
+
 ## 2.4.5
 
 - Phone: Start with your PC has a switch at the top of Settings. Turn it off and the phone no longer wakes when the PC starts. Before, the switch was only on the connect page, which you never see while connected.

@@ -16,7 +16,7 @@ import android.widget.Toast;
 import org.json.JSONObject;
 
 /**
- * Now playing: album art, title, progress with seeking, transport, shuffle, repeat and volume.
+ * Now playing: album art, title, progress with seeking, transport, shuffle and repeat.
  * Data comes from the PC media session (Windows) or MPRIS (Linux), so no Spotify account is needed.
  */
 final class MediaPanel extends LinearLayout {
@@ -134,9 +134,7 @@ final class MediaPanel extends LinearLayout {
         extras.addView(shuffle);
         repeat = control(c, Icon.Kind.REPEAT, 40, "media.repeat", null, false);
         extras.addView(repeat);
-        extras.addView(control(c, Icon.Kind.VOL_DOWN, 40, "media", "vol_down", false));
-        extras.addView(control(c, Icon.Kind.MUTE, 40, "media", "mute", false));
-        extras.addView(control(c, Icon.Kind.VOL_UP, 40, "media", "vol_up", false));
+        // Volume lives on Controls and on the phone's own volume buttons, so this page keeps to the song.
         left.addView(extras, Ui.fillWidth(c, 0));
 
         // Like Apple Music in landscape: the cover on the left, the song and controls on the right.

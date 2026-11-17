@@ -26,6 +26,10 @@ final class SettingsPanel extends android.widget.ScrollView {
     private final UpdatesPanel updates;
     private final Kit.OnPick onPage;
     private final LinearLayout list;
+    /** Where the build methods add rows: the list itself, or one of the two columns on a tablet. */
+    private LinearLayout body;
+    /** On a tablet the group list stays on the left and the open page shows on the right. */
+    private final boolean split;
     private int page;
     private String pcName, pcStatus;  // shown at the top of the list when the dock uses the icon rail
     private boolean pcConnected;
@@ -40,6 +44,7 @@ final class SettingsPanel extends android.widget.ScrollView {
         this.updates = updates;
         this.onPage = onPage;
         setVerticalScrollBarEnabled(false);
+        split = Ui.tablet(c);
         list = Ui.column(c);
         list.setPadding(0, 0, Ui.dp(c, 6), Ui.dp(c, 16));
         addView(list);
@@ -60,12 +65,12 @@ final class SettingsPanel extends android.widget.ScrollView {
         pcName = name;
         pcStatus = status;
         pcConnected = connected;
-        if (page == LIST) build();
+        if (page == LIST || split) build();
     }
 
     /** Back from a page: a tile picker returns to Idle screen, the rest to the list. False on the list itself. */
     boolean back() {
-        if (page == LIST) return false;
+        if (page == LIST || (split && page < PICK_BIG)) return false;
         show(page >= PICK_BIG ? IDLE : LIST);
         return true;
     }
@@ -73,22 +78,39 @@ final class SettingsPanel extends android.widget.ScrollView {
     private void build() {
         Context c = getContext();
         list.removeAllViews();
-        if (page != LIST) {
-            list.addView(Kit.backLink(c, page >= PICK_BIG ? "Idle screen" : "Settings", new Runnable() {
+        body = list;
+        int shown = page;
+        if (split) {
+            LinearLayout row = Ui.row(c);
+            row.setGravity(Gravity.TOP);
+            LinearLayout left = Ui.column(c), right = Ui.column(c);
+            row.addView(left, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f));
+            LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 3f);
+            rlp.leftMargin = Ui.dp(c, 24);
+            row.addView(right, rlp);
+            list.addView(row);
+            body = left;
+            body.addView(Ui.title(c, PAGE_NAMES[LIST]));
+            buildList(c);
+            body = right;
+            if (shown == LIST) shown = DISPLAY;
+        }
+        if (shown != LIST && (!split || shown >= PICK_BIG)) {
+            body.addView(Kit.backLink(c, page >= PICK_BIG ? "Idle screen" : "Settings", new Runnable() {
                 @Override
                 public void run() {
                     back();
                 }
             }));
         }
-        list.addView(Ui.title(c, PAGE_NAMES[page]));
-        if (page == LIST) buildList(c);
-        else if (page == DISPLAY) buildDisplay(c);
-        else if (page == IDLE) buildIdle(c);
-        else if (page == BUTTONS) buildButtons(c);
-        else if (page == UPDATES) {
+        body.addView(Ui.title(c, PAGE_NAMES[shown]));
+        if (shown == LIST) buildList(c);
+        else if (shown == DISPLAY) buildDisplay(c);
+        else if (shown == IDLE) buildIdle(c);
+        else if (shown == BUTTONS) buildButtons(c);
+        else if (shown == UPDATES) {
             if (updates.getParent() != null) ((android.view.ViewGroup) updates.getParent()).removeView(updates);
-            list.addView(updates);
+            body.addView(updates);
         } else {
             buildPicker(c, NightView.PREF_MAIN, 0, NightView.MAIN_NAMES, new int[] {0, 1, 2});
         }
@@ -96,7 +118,7 @@ final class SettingsPanel extends android.widget.ScrollView {
 
     /** The front page: one row per group, with what is set now on the right. */
     private void buildList(Context c) {
-        list.addView(new View(c), new LinearLayout.LayoutParams(1, Ui.dp(c, 12)));
+        body.addView(new View(c), new LinearLayout.LayoutParams(1, Ui.dp(c, 12)));
         LinearLayout pc = Ui.card(c);
         if (pcName != null) {
             LinearLayout row = Ui.listRow(c, Icon.Kind.MONITOR, pcConnected ? Ui.GREEN : Ui.SIGNAL, pcName,
@@ -106,8 +128,8 @@ final class SettingsPanel extends android.widget.ScrollView {
             pc.addView(Ui.hairline(c, 54));
         }
         pc.addView(startWithPcRow(c));
-        list.addView(pc);
-        list.addView(new View(c), new LinearLayout.LayoutParams(1, Ui.dp(c, 20)));
+        body.addView(pc);
+        body.addView(new View(c), new LinearLayout.LayoutParams(1, Ui.dp(c, 20)));
         LinearLayout card = Ui.card(c);
         card.addView(groupRow(c, Icon.Kind.SUN, 0xFF0088FF, DISPLAY,
                 Ui.THEME_NAMES[Math.max(0, Math.min(2, prefs.getInt(Ui.PREF_THEME, 0)))]));
@@ -118,7 +140,7 @@ final class SettingsPanel extends android.widget.ScrollView {
                 "Vibrate: " + Haptics.LEVEL_NAMES[levelIndex(Haptics.length(prefs))]));
         card.addView(Ui.hairline(c, 54));
         card.addView(groupRow(c, Icon.Kind.REFRESH, 0xFF8E8E93, UPDATES, UpdatesPanel.phoneVersion(c)));
-        list.addView(card);
+        body.addView(card);
     }
 
     private LinearLayout groupRow(Context c, Icon.Kind kind, int color, final int target, String value) {
@@ -150,15 +172,15 @@ final class SettingsPanel extends android.widget.ScrollView {
     }
 
     private void buildDisplay(Context c) {
-        list.addView(Ui.header(c, "Appearance"));
-        list.addView(Kit.segmented(c, Ui.THEME_NAMES, prefs.getInt(Ui.PREF_THEME, 0), new Kit.OnPick() {
+        body.addView(Ui.header(c, "Appearance"));
+        body.addView(Kit.segmented(c, Ui.THEME_NAMES, prefs.getInt(Ui.PREF_THEME, 0), new Kit.OnPick() {
             @Override
             public void picked(int index) {
                 save(Ui.PREF_THEME, index);
             }
         }));
 
-        list.addView(Ui.header(c, "Accent color"));
+        body.addView(Ui.header(c, "Accent color"));
         LinearLayout card = Ui.card(c);
         LinearLayout swatches = Ui.row(c);
         swatches.setPadding(Ui.dp(c, 8), Ui.dp(c, 8), Ui.dp(c, 8), Ui.dp(c, 8));
@@ -196,27 +218,27 @@ final class SettingsPanel extends android.widget.ScrollView {
             swatches.addView(s, new LinearLayout.LayoutParams(0, Ui.dp(c, 64), 1f));
         }
         card.addView(swatches);
-        list.addView(card);
+        body.addView(card);
 
-        list.addView(Ui.header(c, "App icon size"));
+        body.addView(Ui.header(c, "App icon size"));
         int scale = 1;
         for (int i = 0; i < Ui.TILE_SCALES.length; i++) if (Ui.TILE_SCALE == Ui.TILE_SCALES[i]) scale = i;
-        list.addView(Kit.segmented(c, Ui.TILE_SCALE_NAMES, scale, new Kit.OnPick() {
+        body.addView(Kit.segmented(c, Ui.TILE_SCALE_NAMES, scale, new Kit.OnPick() {
             @Override
             public void picked(int index) {
                 save("tile_scale", index);
             }
         }));
 
-        list.addView(Ui.header(c, "Apps"));
+        body.addView(Ui.header(c, "Apps"));
         LinearLayout apps = Ui.card(c);
         apps.addView(switchRow(c, Icon.Kind.APPS, 0xFFFF8D28, "Labels under app icons", "labels", Ui.LABELS));
-        list.addView(apps);
+        body.addView(apps);
     }
 
     /** The idle screen: its color, the big tile, two side tiles, when it shows, and a Preview button. */
     private void buildIdle(Context c) {
-        list.addView(Ui.header(c, "Color"));
+        body.addView(Ui.header(c, "Color"));
         LinearLayout card = Ui.card(c);
         LinearLayout swatches = Ui.row(c);
         swatches.setPadding(Ui.dp(c, 8), Ui.dp(c, 8), Ui.dp(c, 8), Ui.dp(c, 8));
@@ -252,17 +274,17 @@ final class SettingsPanel extends android.widget.ScrollView {
             swatches.addView(s, new LinearLayout.LayoutParams(0, Ui.dp(c, 64), 1f));
         }
         card.addView(swatches);
-        list.addView(card);
+        body.addView(card);
 
-        list.addView(Ui.header(c, "Tiles"));
+        body.addView(Ui.header(c, "Tiles"));
         LinearLayout tiles = Ui.card(c);
         tiles.addView(pickRow(c, PICK_BIG,
                 NightView.MAIN_NAMES[pick(NightView.PREF_MAIN, 0, NightView.MAIN_NAMES.length)]));
-        list.addView(tiles);
+        body.addView(tiles);
 
         // The side tiles as a checklist. Checked tiles come first, in the order they show, with arrows to
         // move them. When 4 are checked, the rest wait until one is unchecked.
-        list.addView(Ui.header(c, "Side tiles"));
+        body.addView(Ui.header(c, "Side tiles"));
         final int mask = NightView.tileMask(prefs);
         final int[] order = NightView.tileOrder(prefs);
         final int[] shown = NightView.sideTiles(prefs);
@@ -298,16 +320,16 @@ final class SettingsPanel extends android.widget.ScrollView {
             if (i > 0) sides.addView(Ui.hairline(c, 16));
             sides.addView(row);
         }
-        list.addView(sides);
+        body.addView(sides);
         TextView note = Ui.text(c, "Check up to " + NightView.MAX_SIDE + ". The arrows set the order. One or two "
                 + "sit one above the other. With three, the first is wide on top. Four share a grid.", 13, Ui.MUTED);
         note.setPadding(Ui.dp(c, 16), Ui.dp(c, 6), Ui.dp(c, 16), 0);
-        list.addView(note);
+        body.addView(note);
 
-        list.addView(Ui.header(c, "Show the idle screen after"));
+        body.addView(Ui.header(c, "Show the idle screen after"));
         int dim = prefs.getInt(PREF_DIM, 5), dimIndex = 0;
         for (int i = 0; i < DIM_MINUTES.length; i++) if (DIM_MINUTES[i] == dim) dimIndex = i;
-        list.addView(Kit.segmented(c, DIM_NAMES, dimIndex, new Kit.OnPick() {
+        body.addView(Kit.segmented(c, DIM_NAMES, dimIndex, new Kit.OnPick() {
             @Override
             public void picked(int index) {
                 saveIdle(PREF_DIM, DIM_MINUTES[index]);
@@ -324,7 +346,7 @@ final class SettingsPanel extends android.widget.ScrollView {
         LinearLayout actions = Ui.row(c);
         actions.setPadding(0, Ui.dp(c, 12), 0, 0);
         actions.addView(show, Ui.wrap(c, 4));
-        list.addView(actions);
+        body.addView(actions);
     }
 
     private LinearLayout pickRow(Context c, final int target, String value) {
@@ -333,7 +355,7 @@ final class SettingsPanel extends android.widget.ScrollView {
 
     /** One tile choice per row, a checkmark on the chosen one. Picking saves and returns to Idle screen. */
     private void buildPicker(Context c, final String key, int fallback, String[] names, int[] order) {
-        list.addView(new View(c), new LinearLayout.LayoutParams(1, Ui.dp(c, 12)));
+        body.addView(new View(c), new LinearLayout.LayoutParams(1, Ui.dp(c, 12)));
         int chosen = pick(key, fallback, names.length);
         LinearLayout card = Ui.card(c);
         for (int i = 0; i < order.length; i++) {
@@ -351,7 +373,7 @@ final class SettingsPanel extends android.widget.ScrollView {
             if (i > 0) card.addView(Ui.hairline(c, 16));
             card.addView(row);
         }
-        list.addView(card);
+        body.addView(card);
     }
 
     /** An up or down arrow that moves a checked side tile one place. */
@@ -390,8 +412,8 @@ final class SettingsPanel extends android.widget.ScrollView {
     }
 
     private void buildButtons(Context c) {
-        list.addView(Ui.header(c, "Vibrate when you press a button"));
-        list.addView(Kit.segmented(c, Haptics.LEVEL_NAMES, levelIndex(Haptics.length(prefs)), new Kit.OnPick() {
+        body.addView(Ui.header(c, "Vibrate when you press a button"));
+        body.addView(Kit.segmented(c, Haptics.LEVEL_NAMES, levelIndex(Haptics.length(prefs)), new Kit.OnPick() {
             @Override
             public void picked(int index) {
                 Haptics.tick(getContext(), Haptics.LEVELS_MS[index]);  // feel it right away
@@ -399,17 +421,17 @@ final class SettingsPanel extends android.widget.ScrollView {
             }
         }));
 
-        list.addView(Ui.header(c, "Phone buttons"));
+        body.addView(Ui.header(c, "Phone buttons"));
         LinearLayout phone = Ui.card(c);
         phone.addView(switchRow(c, Icon.Kind.SPEAKER, 0xFFFF2D55, "Volume buttons control the PC", PREF_VOLUME_KEYS,
                 prefs.getBoolean(PREF_VOLUME_KEYS, true)));
-        list.addView(phone);
+        body.addView(phone);
     }
 
     /** The same switch as on the connect page, here too, so you can turn it off while the PC is on. */
     private LinearLayout startWithPcRow(final Context c) {
         Kit.Switch sw = new Kit.Switch(c, WatchService.enabled(c));
-        sw.setContentDescription("Start with your PC");
+        sw.setContentDescription("Open when your PC starts");
         sw.setOnFlip(new Kit.OnFlip() {
             @Override
             public void flipped(boolean value) {
@@ -418,7 +440,7 @@ final class SettingsPanel extends android.widget.ScrollView {
                 if (value && c instanceof MainActivity) ((MainActivity) c).explainWakePermissions();
             }
         });
-        return Ui.listRow(c, Icon.Kind.POWER, 0xFF34C759, "Start with your PC", sw);
+        return Ui.listRow(c, Icon.Kind.POWER, 0xFF34C759, "Open when your PC starts", sw);
     }
 
     private LinearLayout switchRow(Context c, Icon.Kind kind, int color, String label, final String key, boolean on) {

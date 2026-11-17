@@ -66,9 +66,13 @@ final class AppsPanel extends LinearLayout {
     private int width, gridHeight;
     private ScrollView gridScroll;
     private int iconPx;
+    private final boolean tablet;
+    /** 1 on a phone. Above 1 on a tablet, where the tiles grow to fill the screen. */
+    private float fill = 1f;
 
     AppsPanel(Context c, DockClient client, LaunchListener onLaunch) {
         super(c);
+        tablet = Ui.tablet(c);
         this.client = client;
         this.onLaunch = onLaunch;
         icons = new IconCache(c, client);
@@ -212,19 +216,22 @@ final class AppsPanel extends LinearLayout {
      */
     private int balancedColumns() {
         if (width <= 0) return columns;
-        return Rules.balancedColumns(width, Ui.dp(getContext(), 112 * Ui.TILE_SCALE), apps.size());
+        return Rules.balancedColumns(width, Ui.dp(getContext(), 112 * Ui.TILE_SCALE * fill), apps.size());
     }
 
     private void rebuild() {
         Context c = getContext();
+        gridHeight = gridScroll.getHeight();
+        // A tablet has room for bigger tiles. They grow until the rows fill the height.
+        fill = tablet && width > 0 && gridHeight > 0 ? Rules.fillScale(width, gridHeight,
+                Ui.dp(c, 112 * Ui.TILE_SCALE), Ui.dp(c, 124 * Ui.TILE_SCALE), apps.size(), 2f) : 1f;
         columns = balancedColumns();
         if (hint != null) updateHint();
         grid.removeAllViews();
         empty.setVisibility(apps.isEmpty() ? VISIBLE : GONE);
         // Rows shrink, down to a minimum, so all rows fit on screen without scrolling.
         int rows = Math.max(1, (apps.size() + columns - 1) / columns);
-        int rowPx = Ui.dp(c, 124 * Ui.TILE_SCALE);
-        gridHeight = gridScroll.getHeight();
+        int rowPx = Ui.dp(c, 124 * Ui.TILE_SCALE * fill);
         if (gridHeight > 0 && rows * rowPx > gridHeight) {
             rowPx = Math.max(Ui.dp(c, 92 * Ui.TILE_SCALE), gridHeight / rows);
         }
@@ -232,7 +239,7 @@ final class AppsPanel extends LinearLayout {
         // With labels off in Settings, Display, the icons take that room.
         int labelRoom = Ui.LABELS ? 2 * Ui.text(c, "Ag", 12, Ui.TEXT).getLineHeight() + Ui.dp(c, 18) : Ui.dp(c, 12);
         rowPx = Math.max(rowPx, Ui.dp(c, 36) + labelRoom);  // large text: rows grow and the grid scrolls
-        iconPx = Math.max(Ui.dp(c, 36), Math.min(Ui.dp(c, (Ui.LABELS ? 56 : 72) * Ui.TILE_SCALE), rowPx - labelRoom));
+        iconPx = Math.max(Ui.dp(c, 36), Math.min(Ui.dp(c, (Ui.LABELS ? 56 : 72) * Ui.TILE_SCALE * fill), rowPx - labelRoom));
         LinearLayout row = null;
         for (int i = 0; i < apps.size(); i++) {
             if (i % columns == 0) {

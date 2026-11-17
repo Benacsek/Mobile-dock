@@ -29,15 +29,20 @@ final class Ui {
     /** Floating glass for navigation: tint, bright rim and shadow. Content never uses it. */
     static int GLASS, GLASS_RIM, SELECTED;
     static boolean DARK = true;
-    /** Set from the Appearance page. Everything reads it when it is built. */
+    /** Set from the Appearance page. Everything reads it when it is built. ACCENT is for text and icons. */
     static int ACCENT;
+    /** The accent behind white text, such as a filled button. Darker than ACCENT in dark mode. */
+    static int FILL;
     static float TILE_SCALE = 1f;
     static boolean LABELS = true;
 
-    /** Apple's system colors, 2025 values from developer.apple.com: light, then dark. */
+    /**
+     * Apple's system colors, light then dark, adjusted for contrast: each one reaches 4.5 to 1 as text on
+     * every card and button fill of its mode, the WCAG AA level for normal text.
+     */
     static final int[][] ACCENTS = {
-        {0xFF0088FF, 0xFF0091FF}, {0xFF34C759, 0xFF30D158}, {0xFF6155F5, 0xFF6D7CFF}, {0xFFFF8D28, 0xFFFF9230},
-        {0xFFFF2D55, 0xFFFF375F},
+        {0xFF0069C4, 0xFF0D96FF}, {0xFF1F7836, 0xFF30D158}, {0xFF5A4EF5, 0xFF7C8AFF}, {0xFFA74F00, 0xFFFF9230},
+        {0xFFD30028, 0xFFFF5677},
     };
     static final String[] ACCENT_NAMES = {"Blue", "Green", "Indigo", "Orange", "Pink"};
     static final float[] TILE_SCALES = {0.85f, 1f, 1.2f};
@@ -87,24 +92,51 @@ final class Ui {
         if (DARK) {
             BG = 0xFF000000; SURFACE = 0xFF1C1C1E; SURFACE_HI = 0xFF2C2C2E; PRESSED = 0xFF3A3A3C;
             LINE = 0xFF38383A; TEXT = 0xFFFFFFFF; MUTED = 0xFF98989F; FAINT = 0xFF636366;
-            SIGNAL = 0xFFFF9230; DANGER = 0xFFFF4245; GREEN = 0xFF30D158;
+            SIGNAL = 0xFFFF9230; DANGER = 0xFFFF595C; GREEN = 0xFF30D158;
             GLASS = 0xD82C2C30; GLASS_RIM = 0x24FFFFFF; SELECTED = 0x22FFFFFF;
         } else {
             BG = 0xFFF2F2F7; SURFACE = 0xFFFFFFFF; SURFACE_HI = 0xFFE9E9EE; PRESSED = 0xFFD1D1D6;
-            LINE = 0xFFC6C6C8; TEXT = 0xFF000000; MUTED = 0xFF6E6E73; FAINT = 0xFFAEAEB2;
-            SIGNAL = 0xFFFF8D28; DANGER = 0xFFFF383C; GREEN = 0xFF34C759;
+            LINE = 0xFFC6C6C8; TEXT = 0xFF000000; MUTED = 0xFF68686C; FAINT = 0xFFAEAEB2;
+            SIGNAL = 0xFFA74F00; DANGER = 0xFFD40004; GREEN = 0xFF34C759;
             GLASS = 0xD8FAFAFC; GLASS_RIM = 0x99FFFFFF; SELECTED = 0x16000000;
         }
         int a = Math.max(0, Math.min(ACCENTS.length - 1, p.getInt("accent", 0)));
         ACCENT = ACCENTS[a][DARK ? 1 : 0];
+        FILL = fillFor(ACCENT);
         TILE_SCALE = TILE_SCALES[Math.max(0, Math.min(TILE_SCALES.length - 1, p.getInt("tile_scale", 1)))];
         LABELS = p.getBoolean("labels", true);
     }
 
     /** The accent, a little darker, for the pressed state. */
     static int accentPressed() {
-        return android.graphics.Color.rgb(android.graphics.Color.red(ACCENT) * 4 / 5,
-                android.graphics.Color.green(ACCENT) * 4 / 5, android.graphics.Color.blue(ACCENT) * 4 / 5);
+        return android.graphics.Color.rgb(android.graphics.Color.red(FILL) * 4 / 5,
+                android.graphics.Color.green(FILL) * 4 / 5, android.graphics.Color.blue(FILL) * 4 / 5);
+    }
+
+    /** The color made darker in small steps until white text on it reaches 4.5 to 1. */
+    static int fillFor(int color) {
+        int c = color;
+        while (contrast(0xFFFFFFFF, c) < 4.5) {
+            c = android.graphics.Color.rgb(android.graphics.Color.red(c) * 19 / 20,
+                    android.graphics.Color.green(c) * 19 / 20, android.graphics.Color.blue(c) * 19 / 20);
+        }
+        return c;
+    }
+
+    /** WCAG contrast ratio of two opaque colors, from 1 to 21. */
+    static double contrast(int a, int b) {
+        double la = luminance(a), lb = luminance(b);
+        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    }
+
+    private static double luminance(int color) {
+        return 0.2126 * channel(android.graphics.Color.red(color)) + 0.7152 * channel(android.graphics.Color.green(color))
+                + 0.0722 * channel(android.graphics.Color.blue(color));
+    }
+
+    private static double channel(int v) {
+        double c = v / 255.0;
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
     }
 
     /** Text on the accent. Apple uses white on every system color. */
@@ -127,6 +159,12 @@ final class Ui {
     private Ui() {
     }
 
+    /** A tablet gets the full sidebar and wider layouts. Phones get the icon rail. */
+    static boolean tablet(Context c) {
+        android.util.DisplayMetrics m = c.getResources().getDisplayMetrics();
+        return !Rules.useRail((int) (Math.min(m.widthPixels, m.heightPixels) / m.density));
+    }
+
     static int dp(Context c, float v) {
         return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, c.getResources().getDisplayMetrics());
     }
@@ -141,7 +179,7 @@ final class Ui {
     static Drawable pressable(Context c, int color, int pressed, float radiusDp) {
         StateListDrawable s = new StateListDrawable();
         s.addState(new int[] {android.R.attr.state_pressed}, rounded(c, pressed, radiusDp));
-        s.addState(new int[] {android.R.attr.state_selected}, rounded(c, ACCENT, radiusDp));
+        s.addState(new int[] {android.R.attr.state_selected}, rounded(c, FILL, radiusDp));
         s.addState(new int[] {}, rounded(c, color, radiusDp));
         return s;
     }
@@ -294,7 +332,7 @@ final class Ui {
 
     static Button accentButton(Context c, String label) {
         Button b = button(c, label);
-        b.setBackground(pressable(c, ACCENT, accentPressed(), 24));
+        b.setBackground(pressable(c, FILL, accentPressed(), 24));
         b.setTextColor(onAccent());
         return b;
     }
@@ -319,7 +357,7 @@ final class Ui {
 
     /** Fills a selected button of a choice with the accent, like a picked option. */
     static void markChosen(Button b) {
-        b.setBackground(pressable(b.getContext(), ACCENT, accentPressed(), 24));
+        b.setBackground(pressable(b.getContext(), FILL, accentPressed(), 24));
         b.setTextColor(onAccent());
     }
 

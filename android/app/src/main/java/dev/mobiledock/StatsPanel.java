@@ -13,10 +13,11 @@ import java.util.Locale;
 /** Live PC performance: CPU, GPU, memory, network, disk and the busiest apps. */
 final class StatsPanel extends LinearLayout {
     // Apple's system colors: blue, red, purple, green, orange, cyan and pink.
-    private final int CPU = Ui.DARK ? 0xFF0091FF : 0xFF0088FF, GPU = Ui.DARK ? 0xFFFF4245 : 0xFFFF383C,
-            RAM = Ui.DARK ? 0xFFDB34F2 : 0xFFCB30E0, DOWN = Ui.DARK ? 0xFF30D158 : 0xFF34C759,
-            UP = Ui.DARK ? 0xFFFF9230 : 0xFFFF8D28, READ = Ui.DARK ? 0xFF3CD3FE : 0xFF00C0E8,
-            WRITE = Ui.DARK ? 0xFFFF375F : 0xFFFF2D55;
+    // Light values are darker than Apple's, so each label reaches 4.5 to 1 on a white card.
+    private final int CPU = Ui.DARK ? 0xFF0091FF : 0xFF0076DE, GPU = Ui.DARK ? 0xFFFF4245 : 0xFFED0005,
+            RAM = Ui.DARK ? 0xFFDB34F2 : 0xFFC521DB, DOWN = Ui.DARK ? 0xFF30D158 : 0xFF24883D,
+            UP = Ui.DARK ? 0xFFFF9230 : 0xFFBE5900, READ = Ui.DARK ? 0xFF3CD3FE : 0xFF00819B,
+            WRITE = Ui.DARK ? 0xFFFF375F : 0xFFEC002D;
 
     private final DockClient client;
     private final Card cpu, gpu, ram, net, disk;

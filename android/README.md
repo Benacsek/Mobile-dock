@@ -34,7 +34,7 @@ App icons all get the same rounded-square shape. Names can use two lines. The gr
 
 - Apps: tap a tile to open it on the PC. Long press a tile to drag it. Drop it on another tile to move it there, or on the red bar to unpin. Its icons are + to pin more apps and the dots for Arrange.
 - Search: type in the box and tap Search. Auto picks the place: a keyword like `yt lofi`, a site like `youtube` or `github.com`, the app in front on the PC, then the default search. Tap a preset chip to choose one yourself. Long press a chip to see its keyword. Your last 10 searches sit below, one tap to repeat.
-- Playing: album art, title, artist, album and a progress bar you can drag to seek. Play, skip, shuffle, repeat and volume. The -5 and +5 buttons move a video or song by 5 seconds, even with its window in the background. Opening Spotify or another music app from Apps jumps here.
+- Playing: album art, title, artist, album and a progress bar you can drag to seek. Play, skip, shuffle and repeat. Volume is on Controls and on the phone's volume buttons. The -5 and +5 buttons move a video or song by 5 seconds, even with its window in the background. Opening Spotify or another music app from Apps jumps here.
 - Shortcuts: tiles for the app in front on the PC. The pad name at the top opens a list: Follow the app in front, or one pad that stays. While it follows, the name reads "Auto: Figma".
 - Controls: volume, mute, lock, screen off, sleep, show desktop, Task Manager, Capture and Disconnect. Sleep asks first. The volume mixer lists every app playing sound with its own slider and mute button. Tap the refresh icon after you start a new app.
 - Capture (from Controls, Back returns there): screenshot, snip a region (Win+Shift+S on Windows), record, picture to the PC clipboard and file to Downloads. Clipboard text: Phone to PC and PC to phone.
@@ -68,11 +68,11 @@ Pair with a QR code: when you click Pair new phone, the PC shows a QR code. Scan
 
 ## Wake the PC
 
-After the phone has connected once, the connect page shows Wake your PC when it cannot find that PC. It sends a Wake-on-LAN signal, which can turn on a PC that sleeps or is shut down. The PC must allow it. See the host README.
+After the phone has connected once, the connect page shows Turn on your PC when it cannot find that PC. It sends a Wake-on-LAN signal, which can turn on a PC that sleeps or is shut down. The PC must allow it. See the host README.
 
-## Start with your PC
+## Open when your PC starts
 
-Turn on Start with your PC at the top of Settings. The same switch is on the connect page, under Other ways to connect. Turn it off in Settings when someone else uses the PC and the phone should stay asleep. The lock screen option, the status and Fix permissions stay on the connect page.
+Turn on Open when your PC starts at the top of Settings. The same switch is on the connect page, under Other ways to connect. Turn it off in Settings when someone else uses the PC and the phone should stay asleep. The lock screen option, the status and Fix permissions stay on the connect page.
 
 - A small background service sends the discovery probe every 5 seconds while charging and every 60 seconds on battery.
 - When a paired PC answers after being off, or after the PC app restarted, the phone turns its screen on, opens the dock and connects.
@@ -118,7 +118,7 @@ adb shell am start -n dev.mobiledock/.MainActivity --ez demo true --ei page 0
 Pages: -1 connect, 0 Apps, 1 Search, 2 Playing, 3 Shortcuts, 4 Controls, 5 Capture, 6 Touch, 7 Stats, 8 Settings, 99 the night clock.
 On page 8, `--ei settings_page N` opens a Settings page: 0 the list, 1 Display, 2 Idle screen, 3 Buttons and feedback, 4 Updates, 5 the big tile picker.
 `--ez labels false` saves Labels under app icons as off, `--ez labels true` turns it back on.
-On page -1, `--es connect_state searching|found|none` fills the PC list with sample PCs, and `--ei connect_page N` opens one of the other ways to connect: 0 the list, 1 Enter address, 2 USB cable, 3 Start with your PC.
+On page -1, `--es connect_state searching|found|none` fills the PC list with sample PCs, and `--ei connect_page N` opens one of the other ways to connect: 0 the list, 1 Enter address, 2 USB cable, 3 Open when your PC starts.
 On page 99, `--ei idle_main`, `--ei idle_tiles`, `--ei idle_color` and `--es idle_order` pick the tiles, color and order. idle_tiles adds up the side tiles: 1 Date, 2 Calendar, 4 Playing, 8 Battery, 32 Clock.
 
 ## Release signing
