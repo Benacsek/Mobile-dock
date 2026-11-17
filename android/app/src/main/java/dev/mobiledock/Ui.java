@@ -409,26 +409,6 @@ final class Ui {
         return iconButton(c, kind, sizeDp, 0x00000000, SELECTED, TEXT);
     }
 
-    /** Four small squares, three blue and one amber. The same mark as the PC window. */
-    static View logo(Context c, int sizeDp) {
-        final int size = dp(c, sizeDp);
-        View v = new View(c) {
-            private final android.graphics.Paint paint = new android.graphics.Paint();
-            private final float cell = size * 11f / 26f, gap = size * 2f / 26f;
-
-            @Override
-            protected void onDraw(android.graphics.Canvas canvas) {
-                for (int i = 0; i < 4; i++) {
-                    float x = gap + (i % 2) * (gap + cell), y = gap + (i / 2) * (gap + cell);
-                    paint.setColor(i == 3 ? SIGNAL : ACCENT);
-                    canvas.drawRect(x, y, x + cell, y + cell, paint);
-                }
-            }
-        };
-        v.setLayoutParams(new LinearLayout.LayoutParams(size, size));
-        return v;
-    }
-
     static String initials(String name) {
         String[] words = name.trim().split("\\s+");
         StringBuilder sb = new StringBuilder();
