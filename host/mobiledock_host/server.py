@@ -265,7 +265,7 @@ class Session:
 
 
 class DockServer:
-    SLOW = {"search.run", "search.icon", "pad.run", "mixer.list", "mixer.set", "clipboard.get_text", "clipboard.set_text", "host.info",
+    SLOW = {"search.run", "search.icon", "pad.run", "mixer.list", "mixer.set", "volume.get", "volume.set", "clipboard.get_text", "clipboard.set_text", "host.info",
             "update.refresh", "system", "apps.available", "apps.launch", "apps.pin", "apps.icon", "screenshot", "record.start", "record.stop",
             "media", "media.status", "media.art", "media.seek", "media.jump", "media.shuffle", "media.repeat", "update.chunk"}
 
@@ -624,6 +624,14 @@ class DockServer:
             pf.mixer_set(str(msg.get("id", ""))[:200],
                          None if volume is None else max(0, min(100, int(volume))),
                          None if muted is None else bool(muted))
+            return None
+        if cmd == "volume.get":
+            return pf.volume()
+        if cmd == "volume.set":
+            volume = msg.get("volume")
+            muted = msg.get("muted")
+            pf.volume_set(None if volume is None else max(0, min(100, int(volume))),
+                          None if muted is None else bool(muted))
             return None
         if cmd == "clipboard.set_text":
             text = str(msg.get("text", ""))

@@ -291,6 +291,27 @@ def test_mixer_clipboard_and_host_info(server):
     assert call(channel, "host.info", 6)["mac"] == "aa:bb:cc:dd:ee:ff"
 
 
+def test_pc_volume(server):
+    level = {"volume": 30, "muted": False}
+    server.platform.volume = lambda: dict(level)
+    server.platform.volume_set = lambda v, m: level.update({k: x for k, x in (("volume", v), ("muted", m))
+                                                            if x is not None})
+    channel, _ = pair(server, server.pairing.start())
+    assert call(channel, "volume.get", 1)["volume"] == 30
+    assert call(channel, "volume.set", 2, volume=-5)["ok"]
+    assert level == {"volume": 0, "muted": False}  # clamped, mute untouched
+    assert call(channel, "volume.set", 3, volume=180, muted=True)["ok"]
+    assert level == {"volume": 100, "muted": True}
+
+
+def test_pactl_volume_parse():
+    from mobiledock_host.platforms.linux import parse_pactl_volume
+
+    assert parse_pactl_volume("Volume: front-left: 32768 /  50% / -18.06 dB,   front-right: 32768 /  50%") == 50
+    assert parse_pactl_volume("Volume: mono: 98304 / 150% / 10.57 dB") == 100
+    assert parse_pactl_volume("") == 0
+
+
 def test_sensors_parse_libre_hardware_monitor(monkeypatch):
     import json
     import subprocess

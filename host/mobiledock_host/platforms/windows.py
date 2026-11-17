@@ -599,6 +599,41 @@ class WindowsPlatform(Platform):
             if muted is not None:
                 vol.SetMute(int(muted), None)
 
+    def volume(self) -> dict:
+        return self._audio_thread.submit(self._volume_get).result(timeout=10)
+
+    def volume_set(self, volume: int | None = None, muted: bool | None = None) -> None:
+        self._audio_thread.submit(self._volume_set, volume, muted).result(timeout=10)
+
+    @staticmethod
+    def _endpoint():
+        """The default speakers' volume control, the same one as the taskbar volume."""
+        try:
+            from comtypes import CLSCTX_ALL, POINTER, cast
+            from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+        except ImportError as exc:
+            raise PlatformError("The PC volume needs the pycaw package") from exc
+        try:
+            device = AudioUtilities.GetSpeakers()
+            endpoint = getattr(device, "EndpointVolume", None)  # newer pycaw wraps the device
+            if endpoint is None:
+                endpoint = cast(device.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None),
+                                POINTER(IAudioEndpointVolume))
+            return endpoint
+        except Exception as exc:  # noqa: BLE001 - COMError when Windows has no sound output at all
+            raise PlatformError("No sound output found on the PC") from exc
+
+    def _volume_get(self) -> dict:
+        ep = self._endpoint()
+        return {"volume": round(ep.GetMasterVolumeLevelScalar() * 100), "muted": bool(ep.GetMute())}
+
+    def _volume_set(self, volume: int | None, muted: bool | None) -> None:
+        ep = self._endpoint()
+        if volume is not None:
+            ep.SetMasterVolumeLevelScalar(volume / 100, None)
+        if muted is not None:
+            ep.SetMute(int(muted), None)
+
     # Icons ----------------------------------------------------------------
 
     def app_icon(self, app_id: str) -> bytes | None:

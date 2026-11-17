@@ -98,6 +98,8 @@ Requests are JSON with `t` and an optional numeric `id`. If `id` is present, the
 | search.run | text, preset (empty for Auto) | did: what happened, for example "YouTube: lofi" |
 | mixer.list | | apps: [{id, name, volume 0 to 100, muted}] |
 | mixer.set | id, volume (0 to 100) and/or muted | |
+| volume.get | | volume (0 to 100), muted: the PC's own volume, as in the taskbar |
+| volume.set | volume (0 to 100) and/or muted | |
 | clipboard.set_text | text (at most 100,000 characters) | |
 | clipboard.get_text | | text |
 | host.info | | mac, the PC's network card address for Wake-on-LAN |

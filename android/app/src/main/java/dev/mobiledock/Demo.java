@@ -84,6 +84,8 @@ final class Demo {
                     .put(mixer("javaw.exe", "Minecraft", 45, false))
                     .put(mixer("spotify.exe", "Spotify", 30, false))
                     .put(mixer("system", "System sounds", 20, true)));
+        } else if ("volume.get".equals(cmd)) {
+            r.put("volume", 60).put("muted", false);
         } else if ("update.status".equals(cmd) || "update.refresh".equals(cmd)) {
             r.put("pc_version", "1.2.32").put("status", "Up to date (1.2.32)").put("phone_ready", "1.2.32");
         } else if ("update.check".equals(cmd)) {

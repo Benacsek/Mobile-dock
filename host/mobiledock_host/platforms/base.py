@@ -122,6 +122,13 @@ class Platform:
     def mixer_set(self, session_id: str, volume: int | None = None, muted: bool | None = None) -> None:
         raise PlatformError("The volume mixer is not supported here")
 
+    def volume(self) -> dict:
+        """The PC's own volume: {"volume" 0-100, "muted"}."""
+        raise PlatformError("The PC volume is not supported here")
+
+    def volume_set(self, volume: int | None = None, muted: bool | None = None) -> None:
+        raise PlatformError("The PC volume is not supported here")
+
     def mac_address(self, local_ip: str) -> str | None:
         """MAC address of the network card that has local_ip, for Wake-on-LAN."""
         import psutil

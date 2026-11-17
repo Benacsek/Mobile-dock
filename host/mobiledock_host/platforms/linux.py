@@ -77,6 +77,14 @@ def _run(cmd: list[str], timeout: float = 5) -> str:
         raise PlatformError(f"{cmd[0]} timed out") from exc
 
 
+def parse_pactl_volume(text: str) -> int:
+    """The first channel's percent from "Volume: front-left: 32768 /  50% / -18.06 dB, ...", else 0."""
+    import re
+
+    match = re.search(r"(\d+)%", text)
+    return min(100, int(match.group(1))) if match else 0
+
+
 def _data_dirs() -> list[Path]:
     home = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
     dirs = os.environ.get("XDG_DATA_DIRS", "/usr/local/share:/usr/share").split(":")
@@ -315,6 +323,16 @@ class LinuxPlatform(Platform):
                 _run(["pactl", "set-sink-input-volume", index, f"{volume}%"])
             if muted is not None:
                 _run(["pactl", "set-sink-input-mute", index, "1" if muted else "0"])
+
+    def volume(self) -> dict:
+        return {"volume": parse_pactl_volume(_run(["pactl", "get-sink-volume", "@DEFAULT_SINK@"])),
+                "muted": "yes" in _run(["pactl", "get-sink-mute", "@DEFAULT_SINK@"])}
+
+    def volume_set(self, volume: int | None = None, muted: bool | None = None) -> None:
+        if volume is not None:
+            _run(["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{volume}%"])
+        if muted is not None:
+            _run(["pactl", "set-sink-mute", "@DEFAULT_SINK@", "1" if muted else "0"])
 
     # Icons ----------------------------------------------------------------
 

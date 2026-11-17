@@ -4,6 +4,10 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 2.5.1
+
+- Playing: a volume slider and a mute button for the whole PC sit next to shuffle and repeat. They move the same level as the volume in the Windows taskbar. Update the PC app too, or the slider stays hidden.
+
 ## 2.5.0
 
 - Easier to read: blue links, red buttons, orange text and gray hints are darker in light mode and lighter in dark mode. Every text color now reaches the WCAG AA contrast level on its background, in both apps.
