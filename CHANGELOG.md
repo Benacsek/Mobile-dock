@@ -4,6 +4,10 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 2.4.5
+
+- Phone: Start with your PC has a switch at the top of Settings. Turn it off and the phone no longer wakes when the PC starts. Before, the switch was only on the connect page, which you never see while connected.
+
 ## 2.4.4
 
 - PC: every page scrolls when the window is too short, also with Windows display scaling. Before, the bottom of Settings was cut off with no scrollbar.

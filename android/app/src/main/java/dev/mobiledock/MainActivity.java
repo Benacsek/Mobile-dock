@@ -714,7 +714,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
                 }).setNegativeButton("Cancel", null).show();
     }
 
-    private void explainWakePermissions() {
+    void explainWakePermissions() {
         fixNextPermission(false);
     }
 

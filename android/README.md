@@ -72,7 +72,7 @@ After the phone has connected once, the connect page shows Wake your PC when it 
 
 ## Start with your PC
 
-On the connect page, open Start with your PC under Other ways to connect and turn on "Wake up and connect when my PC turns on". Tap Disconnect on the Controls page to reach it.
+Turn on Start with your PC at the top of Settings. The same switch is on the connect page, under Other ways to connect. Turn it off in Settings when someone else uses the PC and the phone should stay asleep. The lock screen option, the status and Fix permissions stay on the connect page.
 
 - A small background service sends the discovery probe every 5 seconds while charging and every 60 seconds on battery.
 - When a paired PC answers after being off, or after the PC app restarted, the phone turns its screen on, opens the dock and connects.

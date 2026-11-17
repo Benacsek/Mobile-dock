@@ -97,15 +97,17 @@ final class SettingsPanel extends android.widget.ScrollView {
     /** The front page: one row per group, with what is set now on the right. */
     private void buildList(Context c) {
         list.addView(new View(c), new LinearLayout.LayoutParams(1, Ui.dp(c, 12)));
+        LinearLayout pc = Ui.card(c);
         if (pcName != null) {
-            LinearLayout pc = Ui.card(c);
             LinearLayout row = Ui.listRow(c, Icon.Kind.MONITOR, pcConnected ? Ui.GREEN : Ui.SIGNAL, pcName,
                     Ui.value(c, pcStatus));
             row.setContentDescription(pcName + ", " + pcStatus);
             pc.addView(row);
-            list.addView(pc);
-            list.addView(new View(c), new LinearLayout.LayoutParams(1, Ui.dp(c, 20)));
+            pc.addView(Ui.hairline(c, 54));
         }
+        pc.addView(startWithPcRow(c));
+        list.addView(pc);
+        list.addView(new View(c), new LinearLayout.LayoutParams(1, Ui.dp(c, 20)));
         LinearLayout card = Ui.card(c);
         card.addView(groupRow(c, Icon.Kind.SUN, 0xFF0088FF, DISPLAY,
                 Ui.THEME_NAMES[Math.max(0, Math.min(2, prefs.getInt(Ui.PREF_THEME, 0)))]));
@@ -402,6 +404,21 @@ final class SettingsPanel extends android.widget.ScrollView {
         phone.addView(switchRow(c, Icon.Kind.SPEAKER, 0xFFFF2D55, "Volume buttons control the PC", PREF_VOLUME_KEYS,
                 prefs.getBoolean(PREF_VOLUME_KEYS, true)));
         list.addView(phone);
+    }
+
+    /** The same switch as on the connect page, here too, so you can turn it off while the PC is on. */
+    private LinearLayout startWithPcRow(final Context c) {
+        Kit.Switch sw = new Kit.Switch(c, WatchService.enabled(c));
+        sw.setContentDescription("Start with your PC");
+        sw.setOnFlip(new Kit.OnFlip() {
+            @Override
+            public void flipped(boolean value) {
+                prefs.edit().putBoolean(WatchService.PREF_ENABLED, value).commit();
+                WatchService.sync(c);
+                if (value && c instanceof MainActivity) ((MainActivity) c).explainWakePermissions();
+            }
+        });
+        return Ui.listRow(c, Icon.Kind.POWER, 0xFF34C759, "Start with your PC", sw);
     }
 
     private LinearLayout switchRow(Context c, Icon.Kind kind, int color, String label, final String key, boolean on) {
