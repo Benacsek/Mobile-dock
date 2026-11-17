@@ -19,13 +19,21 @@ The phone dock, 720p landscape. These come from the emulator in CI with sample d
 | Controls and volume mixer | Stats |
 | ![PC controls and a slider per app](docs/screenshots/phone-controls.png) | ![CPU, GPU, memory, network and disk](docs/screenshots/phone-stats.png) |
 
+In light mode:
+
+| Search | Settings |
+| --- | --- |
+| ![Search with presets and recent searches](docs/screenshots/phone-search-light.png) | ![Settings as grouped lists](docs/screenshots/phone-settings-light.png) |
+
 After a few idle minutes the dock dims to a quiet clock:
 
 ![Night clock](docs/screenshots/phone-night.png)
 
-The PC window while pairing:
+The PC window while pairing, and its Settings in light mode:
 
 ![PC window with the pairing PIN and QR code](docs/screenshots/pc-window.png)
+
+![PC window settings in light mode](docs/screenshots/pc-window-light.png)
 
 ## What you can do from the phone
 
@@ -41,12 +49,13 @@ The PC window while pairing:
 - The phone's volume buttons change the PC volume while the dock is open. Turn it off in Settings.
 - Night dimming: after a few idle minutes the dock dims to a quiet clock with the current song. A touch brings it back.
 - Tap vibration: a short buzz when you press a button, so you can use the dock without looking at it.
-- Capture: take a screenshot, snip a region, and start or stop screen recording. Screenshots save in Pictures/Mobile Dock, videos in Videos/Mobile Dock. Copy clipboard text from the phone to the PC or back.
+- Capture (from Controls): take a screenshot, snip a region, and start or stop screen recording. Screenshots save in Pictures/Mobile Dock, videos in Videos/Mobile Dock. Copy clipboard text from the phone to the PC or back.
 - Wake PC: turn the PC on from the phone with Wake-on-LAN. See [host/README.md](host/README.md) for the PC settings it needs.
 - Touch & sign: the touchpad, the keyboard, and a signature pad. Sign with your finger, tap Send, and paste the signature into a PDF or document with Ctrl+V.
-- Settings: pick the accent color, the tile size, the background glow and whether the dock shows labels. See the phone and PC versions and check for updates now.
-- Arrange (the arrows icon on Apps): tap a tile to pick it up and drop it in its new place, or on the red bar to unpin it.
-- Fullscreen (the corners icon at the end of the dock bar, on every page): hide the dock bar so the open page gets the whole screen. Back brings the bar back.
+- The look follows Apple's design guidelines: a floating sidebar, grouped lists, switches and the Inter typeface. Light, dark, or automatic with the phone's setting. The PC window matches it.
+- Settings (the gear at the top of the sidebar): light or dark, the accent color, the app icon size and whether apps show labels. See the phone and PC versions and check for updates now.
+- Arrange (the dots icon on Apps): tap a tile to pick it up and drop it in its new place, or on the red bar to unpin it.
+- Fullscreen (the corners icon at the top of the sidebar): hide the sidebar so the open page gets the whole screen. Back brings it back.
 - The PC app runs in the background: close its window and the phone stays connected. Open it again from the tray icon.
 - Optional: turn on "Wake up and connect when my PC turns on". When your PC starts, or when you close and reopen the PC app, the phone turns its screen on, opens the dock and connects. It works best while the phone charges.
 
@@ -115,3 +124,5 @@ docs/        Protocol description
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+Both apps include the Inter typeface by The Inter Project Authors, under the SIL Open Font License 1.1. Its license is next to the font files.

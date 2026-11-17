@@ -4,6 +4,14 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 2.0.0
+
+- A new look on the phone and the PC, following Apple's design guidelines: grouped lists, switches, capsule buttons and the Inter typeface.
+- Light and dark. Automatic follows your phone's and Windows' setting. Change it under Settings, Appearance.
+- The phone has a floating sidebar instead of the dock bar. Settings is the gear at the top, next to your PC's name. Capture now opens from Controls.
+- Now Playing looks like Apple Music: the cover on the left, and its colors fill the screen.
+- The PC window has a sidebar, rounded cards and switches.
+
 ## 1.5.0
 
 - The PC app keeps running when you close its window, so your phone stays connected. Open it again from the Mobile Dock icon in the tray, next to the clock. Right-click the icon for Show pairing PIN and Quit.
