@@ -32,8 +32,8 @@ def test_window_builds(tmp_path):
     try:
         root = tk.Tk()
         root.destroy()
-    except tk.TclError:
-        pytest.skip("no display")
+    except tk.TclError as exc:
+        pytest.skip(f"no display: {exc}")
     from mobiledock_host.gui import App
 
     config = Config(tmp_path / "config.json")
@@ -84,8 +84,8 @@ def _app(tmp_path, tray=None):
     try:
         root = tk.Tk()
         root.destroy()
-    except tk.TclError:
-        pytest.skip("no display")
+    except tk.TclError as exc:
+        pytest.skip(f"no display: {exc}")
     from mobiledock_host.gui import App
 
     config = Config(tmp_path / "config.json")
