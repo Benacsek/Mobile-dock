@@ -120,10 +120,9 @@ final class SettingsPanel extends android.widget.ScrollView {
     }
 
     private LinearLayout groupRow(Context c, Icon.Kind kind, int color, final int target, String value) {
-        LinearLayout end = Ui.row(c);
-        end.addView(Ui.value(c, value));
-        end.addView(Ui.chevron(c));
+        LinearLayout end = valueEnd(c, value);
         LinearLayout row = Ui.listRow(c, kind, color, PAGE_NAMES[target], end);
+        keepLabel(row, end);
         row.setContentDescription(PAGE_NAMES[target] + ", " + value);
         Ui.pressableRow(c, row, new OnClickListener() {
             @Override
@@ -132,6 +131,27 @@ final class SettingsPanel extends android.widget.ScrollView {
             }
         });
         return row;
+    }
+
+    /** The gray value and a chevron. The value is cut with "..." when the row is short of room. */
+    private static LinearLayout valueEnd(Context c, String value) {
+        LinearLayout end = Ui.row(c);
+        end.setGravity(Gravity.CENTER_VERTICAL | Gravity.RIGHT);
+        TextView v = Ui.value(c, value);
+        v.setSingleLine(true);
+        v.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        v.setGravity(Gravity.RIGHT);
+        end.addView(v, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        end.addView(Ui.chevron(c));
+        return end;
+    }
+
+    /** The row's name keeps its full width, and the value takes what is left. */
+    private static void keepLabel(LinearLayout row, LinearLayout end) {
+        View label = row.getChildAt(row.indexOfChild(end) - 1);
+        label.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        end.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
     }
 
     /** "Clock, Date and Battery". */
@@ -301,10 +321,9 @@ final class SettingsPanel extends android.widget.ScrollView {
     }
 
     private LinearLayout pickRow(Context c, final int target, String value) {
-        LinearLayout end = Ui.row(c);
-        end.addView(Ui.value(c, value));
-        end.addView(Ui.chevron(c));
+        LinearLayout end = valueEnd(c, value);
         LinearLayout row = Ui.listRow(c, null, 0, PAGE_NAMES[target], end);
+        keepLabel(row, end);
         row.setContentDescription(PAGE_NAMES[target] + ", " + value);
         Ui.pressableRow(c, row, new OnClickListener() {
             @Override
