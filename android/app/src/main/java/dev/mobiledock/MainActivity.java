@@ -640,7 +640,9 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             View name = row.getChildAt(1);
             row.removeView(name);
             LinearLayout texts = Ui.column(this);
-            texts.addView(name);
+            // The name had a zero width with a weight in the row. In a column that would wrap every letter.
+            texts.addView(name, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT));
             TextView sub = Ui.text(this, value, 13, Ui.MUTED);
             sub.setSingleLine(true);
             sub.setEllipsize(android.text.TextUtils.TruncateAt.END);
