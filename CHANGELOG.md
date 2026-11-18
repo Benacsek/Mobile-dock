@@ -6,7 +6,7 @@ The notes under the newest version show once in both apps after they update.
 
 ## 2.6.4
 
-- Connect page: Open when your PC starts shows On or Off and its arrow again. The long name pushed them out of the narrow card.
+- Connect page: Open when your PC starts shows On or Off and its arrow again. The value now sits in gray under the name, so long names fit the narrow card.
 
 ## 2.6.3
 

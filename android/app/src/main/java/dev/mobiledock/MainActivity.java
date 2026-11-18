@@ -630,20 +630,30 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         other.addView(body);
     }
 
+    /**
+     * A row of the narrow Other ways card. The value sits in gray under the name, like an iOS subtitle,
+     * so a long name such as "Open when your PC starts" never pushes On/Off or the arrow out.
+     */
     private View otherRow(Icon.Kind kind, int color, String label, String value, final int target) {
-        LinearLayout row = Kit.navRow(this, kind, color, label, value, new View.OnClickListener() {
+        LinearLayout row = Ui.listRow(this, kind, color, label, Ui.chevron(this));
+        if (value.length() > 0) {
+            View name = row.getChildAt(1);
+            row.removeView(name);
+            LinearLayout texts = Ui.column(this);
+            texts.addView(name);
+            TextView sub = Ui.text(this, value, 13, Ui.MUTED);
+            sub.setSingleLine(true);
+            sub.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            texts.addView(sub);
+            row.addView(texts, 1, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        }
+        row.setContentDescription(value.length() > 0 ? label + ", " + value : label);
+        Ui.pressableRow(this, row, new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 showOther(target);
             }
         });
-        // This card is narrow. A long name such as "Open when your PC starts" took the whole width and
-        // pushed On/Off and the arrow out. Here the name gets 60 percent and wraps, the value the rest.
-        int last = row.getChildCount() - 1;
-        row.getChildAt(last - 1).setLayoutParams(new LinearLayout.LayoutParams(0,
-                LinearLayout.LayoutParams.WRAP_CONTENT, 3f));
-        row.getChildAt(last).setLayoutParams(new LinearLayout.LayoutParams(0,
-                LinearLayout.LayoutParams.WRAP_CONTENT, 2f));
         return row;
     }
 
