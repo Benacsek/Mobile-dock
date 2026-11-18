@@ -631,12 +631,20 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     }
 
     private View otherRow(Icon.Kind kind, int color, String label, String value, final int target) {
-        return Kit.navRow(this, kind, color, label, value, new View.OnClickListener() {
+        LinearLayout row = Kit.navRow(this, kind, color, label, value, new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 showOther(target);
             }
         });
+        // This card is narrow. A long name such as "Open when your PC starts" took the whole width and
+        // pushed On/Off and the arrow out. Here the name gets 60 percent and wraps, the value the rest.
+        int last = row.getChildCount() - 1;
+        row.getChildAt(last - 1).setLayoutParams(new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 3f));
+        row.getChildAt(last).setLayoutParams(new LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 2f));
+        return row;
     }
 
     /** The two switches, the watcher status, Fix permissions and Show log. */
