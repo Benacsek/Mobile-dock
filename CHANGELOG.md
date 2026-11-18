@@ -4,6 +4,10 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 2.6.3
+
+- Connect page: the gray placeholder rows from the search no longer stay on top of the results. They kept pulsing after the search ended, and Android kept drawing them.
+
 ## 2.6.2
 
 - The solid Lock icon has no keyhole now, like Apple's. At phone size the keyhole looked like a small triangle.

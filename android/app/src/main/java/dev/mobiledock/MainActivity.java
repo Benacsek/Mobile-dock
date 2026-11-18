@@ -830,7 +830,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     /** Three gray placeholder rows in the shape of the PC rows. They pulse unless animations are off. */
     private void showSearching() {
         connectStatus.setText("Looking for PCs on this Wi-Fi");
-        hostList.removeAllViews();
+        clearHostList();
         boolean motion = animationsOn();
         for (int i = 0; i < 3; i++) {
             LinearLayout row = Ui.row(this);
@@ -868,8 +868,17 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         return scale > 0f;
     }
 
-    private void showHosts(List<Discovery.Host> found) {
+    /**
+     * Stops the placeholder pulse before the rows go. Android keeps drawing a removed view while its
+     * animation runs, and the pulse never ends, so the gray rows stayed on top of the results.
+     */
+    private void clearHostList() {
+        for (int i = 0; i < hostList.getChildCount(); i++) hostList.getChildAt(i).clearAnimation();
         hostList.removeAllViews();
+    }
+
+    private void showHosts(List<Discovery.Host> found) {
+        clearHostList();
         String last = store.lastHost();
         boolean lastFound = false;
         for (Discovery.Host h : found) lastFound |= h.address.equals(last);
