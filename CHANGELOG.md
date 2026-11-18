@@ -4,6 +4,10 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 2.6.2
+
+- The solid Lock icon has no keyhole now, like Apple's. At phone size the keyhole looked like a small triangle.
+
 ## 2.6.1
 
 - Icons closer to Apple's: solid white icons inside the colored squares, as in iOS Settings. Music is one note, Controls shows sliders, Fullscreen shows two arrows, Settings a gear and Mute a crossed out speaker.
