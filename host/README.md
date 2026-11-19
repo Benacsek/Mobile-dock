@@ -121,7 +121,7 @@ pipx install ./host
 Install the tools the host calls. On Arch Linux:
 
 ```bash
-sudo pacman -S python-evdev wtype playerctl grim wf-recorder libnotify tk
+sudo pacman -S python-evdev wtype playerctl grim wf-recorder libnotify tk wl-clipboard
 ```
 
 The PC volume slider and the volume mixer need `pactl`, from the libpulse package. The phone's volume buttons use `wpctl` from PipeWire, or `pactl`.
