@@ -4,6 +4,10 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 2.6.5
+
+- Stats on Windows: temperatures and fan speeds work again with LibreHardwareMonitor 0.9.5 and newer. Those versions dropped WMI, so the PC app now reads LibreHardwareMonitor's web server on this PC. Turn it on in LibreHardwareMonitor under Options, Remote Web Server, Run. Older versions still work as before.
+
 ## 2.6.4
 
 - Connect page: Open when your PC starts shows On or Off and its arrow again. The value now sits in gray under the name, so long names fit the narrow card.

@@ -324,10 +324,60 @@ def test_sensors_parse_libre_hardware_monitor(monkeypatch):
              {"Name": "Fan #1", "SensorType": "Fan", "Value": 1180.0, "Parent": "/lpc/nct6798d/0"},
              {"Name": "Fan #2", "SensorType": "Fan", "Value": 0.0, "Parent": "/lpc/nct6798d/0"}]
     monkeypatch.setattr(perf.sys, "platform", "win32")
+    monkeypatch.setattr(perf, "_read_lhm_web", lambda: [])  # 0.9.4 and older: no web server, WMI only
     monkeypatch.setattr(subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, json.dumps(items), ""))
     assert perf.read_sensors() == {"cpu_temp": 61.4, "gpu_temp": 55.0, "fans": [{"name": "Fan #1", "rpm": 1180}]}
     monkeypatch.setattr(subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, "", ""))
     assert "sensors_hint" in perf.read_sensors()
+
+
+def test_sensors_from_libre_hardware_monitor_web_server(monkeypatch):
+    import http.server
+    import json
+    import threading
+
+    from mobiledock_host import perf
+
+    def sensor(text, kind, sensor_id, **values):
+        return {"Text": text, "Type": kind, "SensorId": sensor_id, "Children": [], **values}
+
+    # The shape of data.json: computer, hardware, sensor type, sensors. Each LHM version writes values differently.
+    data = {"Text": "Sensor", "Children": [{"Text": "PC", "Children": [
+        {"Text": "AMD Ryzen 7", "HardwareId": "/amdcpu/0", "Children": [{"Text": "Temperatures", "Children": [
+            sensor("Core (Tctl/Tdie)", "Temperature", "/amdcpu/0/temperature/2", RawValue="61,4 °C")]}]},
+        {"Text": "NVIDIA GeForce", "HardwareId": "/gpu-nvidia/0", "Children": [{"Text": "Temperatures", "Children": [
+            sensor("GPU Core", "Temperature", "/gpu-nvidia/0/temperature/0", RawValue=55.0, Value="131.0 °F")]}]},
+        {"Text": "Motherboard", "HardwareId": "/motherboard", "Children": [{"Text": "Nuvoton", "Children": [
+            {"Text": "Fans", "Children": [
+                sensor("Fan #1", "Fan", "/lpc/nct6798d/0/fan/0", Value="1180 RPM"),
+                sensor("Fan #2", "Fan", "/lpc/nct6798d/0/fan/1", RawValue=0.0),
+                sensor("Fan #3", "Fan", "/lpc/nct6798d/0/fan/2", RawValue=None, Value="-")]}]}]}]}]}
+    body = json.dumps(data).encode()
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200 if self.path == "/data.json" else 404)
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    httpd = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    try:
+        monkeypatch.setattr(perf, "LHM_WEB", f"http://127.0.0.1:{httpd.server_port}/data.json")
+        items = perf._read_lhm_web()
+    finally:
+        httpd.shutdown()
+    # Faking Windows for the whole process breaks Python's HTTPS setup, so the fetch above runs first.
+    monkeypatch.setattr(perf.sys, "platform", "win32")
+    monkeypatch.setattr(perf, "_read_lhm_web", lambda: items)
+    monkeypatch.setattr(perf, "_read_lhm_wmi", lambda: [])
+    assert perf.read_sensors() == {"cpu_temp": 61.4, "gpu_temp": 55.0, "fans": [{"name": "Fan #1", "rpm": 1180}]}
+    assert perf.lhm_web_items({"Children": [sensor("CPU Package", "Temperature", "/intelcpu/0/temperature/0",
+                                                   Value="140.0 °F")]})[0]["Value"] == 60.0
+    assert perf.lhm_web_items(["not", "a", "tree"]) == []
 
 
 def test_setup_export_and_import(server):

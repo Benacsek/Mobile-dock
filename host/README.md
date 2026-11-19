@@ -88,6 +88,9 @@ The phone sets the PC volume from Controls and Now playing. Controls also has on
 
 - Linux: read from the kernel sensors through psutil. Install `lm_sensors` if nothing shows.
 - Windows: Windows has no built-in way to read them. Run [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) on the PC, and the Stats page shows CPU and GPU temperatures and fan speeds. It needs to run as administrator to see most sensors.
+- In LibreHardwareMonitor, turn on Options, Remote Web Server, Run. Mobile Dock reads it at `http://127.0.0.1:8085/data.json`, so keep the port at 8085.
+- The web server listens on your whole network by default. Under Options, Remote Web Server, Interface / Port, pick 127.0.0.1 so only this PC can reach it.
+- LibreHardwareMonitor 0.9.4 and older, and OpenHardwareMonitor, also work without the web server. Mobile Dock reads them through WMI. Version 0.9.5 removed WMI.
 
 ### Wake-on-LAN
 

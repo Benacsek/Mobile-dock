@@ -5,7 +5,8 @@ GPU load comes from Windows performance counters, which cover AMD, NVIDIA and In
 or from the amdgpu driver files on Linux.
 
 Temperatures and fan speeds come from psutil on Linux. Windows has no built-in way to read them,
-so the host reads them from LibreHardwareMonitor when that program is running.
+so the host reads them from LibreHardwareMonitor when that program is running: from its web server,
+which version 0.9.5 and newer need, or from WMI, which only 0.9.4 and older publish.
 """
 
 from __future__ import annotations
@@ -14,10 +15,12 @@ import ctypes
 import glob
 import json
 import platform
+import re
 import subprocess
 import sys
 import threading
 import time
+import urllib.request
 from pathlib import Path
 
 import psutil
@@ -30,20 +33,63 @@ LHM_QUERY = (
     "$s=Get-CimInstance -Namespace $ns -ClassName Sensor|Where-Object{$_.SensorType -in 'Temperature','Fan'}"
     "|Select-Object Name,SensorType,Value,Parent;if($s){$s|ConvertTo-Json -Compress;break}}"
 )
+LHM_WEB = "http://127.0.0.1:8085/data.json"  # LibreHardwareMonitor's Remote Web Server, at its default port
+
+
+def _lhm_number(node: dict) -> float | None:
+    """A sensor value from the web server. RawValue is a number in new versions, text such as "61.4 °C" in
+    0.9.5 and 0.9.6, and missing in older ones. Value is text in the user's units and decimal mark."""
+    raw = node.get("RawValue")
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+        return float(raw)
+    text = str(raw if raw not in (None, "") else node.get("Value", ""))
+    found = re.search(r"-?\d+(?:[.,]\d+)?", text)
+    if not found:
+        return None
+    value = float(found.group().replace(",", "."))
+    return (value - 32) * 5 / 9 if "°F" in text else value
+
+
+def lhm_web_items(node) -> list[dict]:
+    """Temperature and fan sensors from LibreHardwareMonitor's data.json, in the same shape as its WMI rows."""
+    if not isinstance(node, dict):
+        return []
+    out = []
+    sensor_id, kind = node.get("SensorId"), node.get("Type")
+    if isinstance(sensor_id, str) and kind in ("Temperature", "Fan"):
+        value = _lhm_number(node)
+        if value is not None:  # "/amdcpu/0/temperature/2" belongs to the hardware "/amdcpu/0"
+            out.append({"Name": str(node.get("Text", "")), "SensorType": kind, "Value": value,
+                        "Parent": sensor_id.rsplit("/", 2)[0]})
+    for child in node.get("Children") or []:
+        out += lhm_web_items(child)
+    return out
+
+
+def _read_lhm_web() -> list[dict]:
+    try:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # this PC only, never a proxy
+        with opener.open(LHM_WEB, timeout=1) as resp:
+            return lhm_web_items(json.loads(resp.read(8 << 20)))
+    except (OSError, ValueError, RecursionError):
+        return []
+
+
+def _read_lhm_wmi() -> list[dict]:
+    try:
+        raw = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", LHM_QUERY],
+                             capture_output=True, text=True, timeout=8, creationflags=0x08000000).stdout
+        items = json.loads(raw) if raw.strip() else []
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        items = []
+    return [items] if isinstance(items, dict) else items
 
 
 def read_sensors() -> dict:
     """cpu_temp, gpu_temp and fans [{name, rpm}] where the system can tell. Missing keys mean unknown."""
     out: dict = {}
     if sys.platform == "win32":
-        try:
-            raw = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", LHM_QUERY],
-                                 capture_output=True, text=True, timeout=8, creationflags=0x08000000).stdout
-            items = json.loads(raw) if raw.strip() else []
-        except (OSError, ValueError, subprocess.TimeoutExpired):
-            items = []
-        if isinstance(items, dict):
-            items = [items]
+        items = _read_lhm_web() or _read_lhm_wmi()
         fans = []
         for it in items:
             name, kind, parent = str(it.get("Name", "")), it.get("SensorType"), str(it.get("Parent", "")).lower()
@@ -60,7 +106,8 @@ def read_sensors() -> dict:
         if fans:
             out["fans"] = fans[:6]
         if not items:
-            out["sensors_hint"] = "For temperatures and fans, run LibreHardwareMonitor on the PC."
+            out["sensors_hint"] = ("For temperatures and fans, run LibreHardwareMonitor on the PC "
+                                   "and turn on Options, Remote Web Server, Run.")
         return out
     temps = getattr(psutil, "sensors_temperatures", lambda: {})() or {}
     for chip in ("k10temp", "zenpower", "coretemp", "cpu_thermal"):
