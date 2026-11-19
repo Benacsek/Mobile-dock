@@ -24,7 +24,7 @@ Mobile Dock lets a phone type and click on your PC. Treat a paired phone like a 
 | A stolen copy of the PC config | On Windows, pairing keys and the GitHub token are encrypted with DPAPI, tied to your Windows account. A copy is useless on another PC or account. On Linux the file is readable only by you. |
 | A stolen copy of the phone's app data | On Android 6 and newer, pairing keys are encrypted with a key held in the Android Keystore, which never leaves the phone. |
 | Another app on the phone | It cannot send files to your PC without your tap, and it cannot wake the dock or show it over the lock screen. A shared file that points into Mobile Dock's own storage or its own provider is refused, so another app cannot trick the dock into copying the pairing keys to the PC. |
-| Stolen phone | Click Remove selected in the host window. The key stops working at once, and any open session closes. |
+| Stolen phone | Click Remove next to the phone on the Phone page of the host window. The key stops working at once, and any open session closes. |
 
 ## Limits you should know
 
@@ -48,9 +48,9 @@ On Android 4.1 to 4.3, `SecureRandom` had a seeding bug. The app reads `/dev/ura
 ## Supply chain
 
 - The Android app has zero third-party dependencies.
-- The host depends on `cryptography`, and `evdev` on Linux.
+- The host depends on `cryptography`, `psutil`, `Pillow` and `segno`. It adds `evdev` on Linux, and `pycaw` and the `winrt` media packages on Windows.
 - GitHub Actions are pinned to commit hashes. Dependabot opens one grouped update PR per ecosystem each week.
-- CodeQL scans the Python, Java and workflow code for security bugs on every push and every week.
+- CodeQL scans the Python, Java and workflow code for security bugs on every push to main, every pull request and every week.
 - Every release carries a signed build attestation. It proves the file was built by this repository's workflow from a specific commit. See "Check a download" below.
 - Workflows run with read-only tokens. Only the release job gets write access, and only for pushes to main.
 
@@ -63,7 +63,7 @@ The code and its history contain no passwords, tokens or keys. These steps are a
 3. In the repository, under Settings, Code security, turn on private vulnerability reporting, Dependabot alerts, secret scanning and push protection.
 4. Under Settings, Rules, add a ruleset for main that blocks force pushes and deletion.
 5. Under Settings, Actions, General, keep "Require approval for all outside collaborators" and set workflow permissions to read only. The release job asks for write access itself.
-6. Once the repository is public, the PC no longer needs a GitHub token. Revoke it on GitHub, then click GitHub token in the PC window and save it empty.
+6. Once the repository is public, the PC no longer needs a GitHub token. Revoke it on GitHub, then click Private repository token on the Settings page of the PC window and save it empty.
 
 Repository secrets stay secret in a public repository. Pull requests from forks never receive them, and only pushes to main can publish releases.
 

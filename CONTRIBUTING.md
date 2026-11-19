@@ -8,4 +8,4 @@
 python -m pytest host/tests
 ```
 
-- CI builds the APK, runs Android lint and runs the Java interop test.
+- CI runs the host tests with the Java interop test, Android lint and the phone unit tests. It builds the APK and takes phone screenshots on an emulator.
