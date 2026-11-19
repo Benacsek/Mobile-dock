@@ -80,9 +80,9 @@ Actions use the same steps as shortcut tiles, except `run`, so typed text can ne
 
 Site icons are downloaded once from the site itself over https, at most 512 KB, and kept in the config. Set `"search_fetch_icons": false` in the config to never fetch them.
 
-### Volume mixer
+### PC volume and mixer
 
-The Controls page on the phone has one slider per app that plays sound. On Windows this uses the same audio sessions as the Windows volume mixer. On Linux it uses `pactl` from PipeWire or PulseAudio.
+The phone sets the PC volume from Controls and Now playing. Controls also has one slider per app that plays sound. On Windows this uses the same audio sessions as the Windows volume mixer. On Linux it uses `pactl` from PipeWire or PulseAudio.
 
 ### Temperatures and fans
 
@@ -124,7 +124,7 @@ Install the tools the host calls. On Arch Linux:
 sudo pacman -S python-evdev wtype playerctl grim wf-recorder libnotify tk
 ```
 
-`wpctl` comes with PipeWire. `pactl` works as a fallback.
+The PC volume slider and the volume mixer need `pactl`, from the libpulse package. The phone's volume buttons use `wpctl` from PipeWire, or `pactl`.
 
 ### Allow the virtual touchpad and keyboard
 
@@ -160,7 +160,8 @@ Prefer a window? Run `mobile-dock-host` without flags. It uses Tk through XWayla
 | python-evdev | Touchpad, clicks, scroll, special keys |
 | wtype | Typing text in any keyboard layout |
 | playerctl | Play, pause, next, song title |
-| wpctl or pactl | Volume |
+| pactl | PC volume slider and volume mixer |
+| wpctl or pactl | Phone volume buttons |
 | grim | Screenshots |
 | wf-recorder or wl-screenrec | Screen recording of the focused monitor |
 | notify-send | PIN and pairing notifications |

@@ -57,10 +57,10 @@ The PC window while pairing, and its Settings in light mode:
 - Settings (the gear at the bottom of the icons, or at the top of the tablet sidebar): your PC and its connection, then four groups, each on its own page. Display has light or dark, the accent color, the app icon size and app labels. Idle screen, Buttons and feedback, and Updates hold the rest.
 - Arrange (the dots icon on Apps): tap a tile to pick it up and drop it in its new place, or on the red bar to unpin it.
 - Fullscreen (the corners icon at the top of the icons or the sidebar): hide them so the open page gets the whole screen. Back brings it back.
-- The PC app runs in the background: close its window and the phone stays connected. Open it again from the tray icon.
+- The PC app runs in the background: close its window and the phone stays connected. On Windows, open it again from the tray icon. On Linux, start it again.
 - Optional: turn on "Open when your PC starts". When your PC starts, or when you close and reopen the PC app, the phone turns its screen on, opens the dock and connects. It works best while the phone charges.
 
-Both apps share one look: graphite surfaces, blue for actions and selection, and amber for anything live. The PC window shows the connected phone in an amber badge at the top. The Phone tab lists how it connects and since when.
+Both apps share one look in light or dark, with blue for actions and selection. On the phone you can pick another accent color. The PC window shows the connected phone with a green dot at the top of its sidebar. The Phone tab lists how it connects and since when.
 
 ## Quick start
 
@@ -89,7 +89,7 @@ A release happens when [CHANGELOG.md](CHANGELOG.md) gets a new version at the to
 
 ## Report a problem
 
-Copy diagnostics, in the PC window's Settings tab or on the phone's Settings page, copies the version and a short local error log to the clipboard. Paste it into a GitHub issue. Nothing is sent anywhere by itself. The logs never contain pairing keys.
+Copy diagnostics, in the PC window's Settings tab or on the phone's Settings, Updates page, copies the version and a short local error log to the clipboard. Paste it into a GitHub issue. Nothing is sent anywhere by itself. The logs never contain pairing keys.
 
 ## Automatic updates
 
@@ -118,7 +118,7 @@ Read [SECURITY.md](SECURITY.md) for the full threat model and [docs/PROTOCOL.md]
 ```
 host/        Python host for Windows and Linux
 android/     Android app, plain Java, no libraries
-docs/        Protocol description
+docs/        Protocol, screenshots and licenses
 .github/     CI that tests and builds everything
 ```
 
