@@ -45,7 +45,7 @@ The PC window while pairing, and its Settings in light mode:
 - Shortcuts: tiles for the app in front on the PC. Pads for Figma, VS Code, browsers and Windows are built in. The page switches by itself when you switch apps. Edit pads and add your own in the PC window. A tile can press keys, open a web page, start a program, type text and wait, in any order.
 - Stats: live graphs for CPU, GPU, memory, network and disk, plus the busiest apps, like Task Manager. GPU load works for AMD, NVIDIA and Intel on Windows, and for AMD on Linux. CPU and GPU temperatures and fan speeds show on Linux, and on Windows while LibreHardwareMonitor runs with its web server on.
 - Send: share a photo to Mobile Dock from any app, or use Capture in the dock. Pictures go to the PC clipboard, so Ctrl+V pastes them into Figma. Other files land in Downloads/Mobile Dock.
-- Controls: lock the PC, turn the screen off, sleep, show the desktop and open Task Manager. A slider sets the PC volume, and a mixer has one slider per app, so Spotify, Discord and a game each get their own level. Shut down sits apart in red and asks first. There is no restart button.
+- Controls: six tiles lock the PC, turn the screen off, sleep, show the desktop, open Task Manager and open Capture. A slider sets the PC volume, and a mixer has one line per app, so Spotify, Discord and a game each get their own level. The mixer reloads every 5 seconds while you look at it. Shut down sits apart in red and asks first. There is no restart button.
 - The phone's volume buttons change the PC volume while the dock is open. Turn it off in Settings.
 - Disconnect is at the top of Settings and asks first.
 - Idle screen: after a few idle minutes the dock dims to a bedside clock on black. Pick its color and its tiles: a big clock, calendar or song, and up to four side tiles from a checklist: the clock, date, calendar, song and phone battery. A touch brings the dock back.
@@ -53,10 +53,10 @@ The PC window while pairing, and its Settings in light mode:
 - Capture (from Controls): take a screenshot, snip a region, and start or stop screen recording. Screenshots save in Pictures/Mobile Dock, videos in Videos/Mobile Dock. Copy clipboard text from the phone to the PC or back.
 - Wake PC: turn the PC on from the phone with Wake-on-LAN. See [host/README.md](host/README.md) for the PC settings it needs.
 - Touch & sign: the touchpad, the keyboard, and a signature pad. Sign with your finger, tap Send, and paste the signature into a PDF or document with Ctrl+V.
-- The look follows Apple's design guidelines: a floating icon column on phones and a sidebar with names on tablets, grouped lists, switches and the Inter typeface. Light, dark, or automatic with the phone's setting. The PC window matches it.
-- Settings (the gear at the bottom of the icons, or at the top of the tablet sidebar): your PC and its connection, then four groups, each on its own page. Display has light or dark, the accent color, the app icon size and app labels. Idle screen, Buttons and feedback, and Updates hold the rest.
+- The look follows Apple's design guidelines: a floating icon column on phones and a sidebar with names on tablets, grouped lists, switches, solid icons in colored squares as in iOS Settings, and the Inter typeface. Light, dark, or automatic with the phone's setting. The PC window matches it.
+- Settings (the gear at the bottom of the icons, or at the top of the tablet sidebar): your PC and its connection, then four groups, each on its own page. Display has light or dark, the accent color, the app icon size and app labels. Idle screen, Buttons and feedback, and Updates hold the rest. When the PC is not connected, the gear shows an orange dot, and Settings says why and what to check.
 - Arrange (the dots icon on Apps): tap a tile to pick it up and drop it in its new place, or on the red bar to unpin it.
-- Fullscreen (the corners icon at the top of the icons or the sidebar): hide them so the open page gets the whole screen. Back brings it back.
+- Fullscreen (the two arrows icon at the top of the icons or the sidebar): hide them so the open page gets the whole screen. Back brings it back.
 - The PC app runs in the background: close its window and the phone stays connected. On Windows, open it again from the tray icon. On Linux, start it again.
 - Optional: turn on "Open when your PC starts". When your PC starts, or when you close and reopen the PC app, the phone turns its screen on, opens the dock and connects. It works best while the phone charges.
 

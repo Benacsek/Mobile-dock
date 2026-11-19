@@ -28,7 +28,7 @@ Debug builds from the Actions tab are signed with a different key on every run. 
 
 ## Use
 
-On a phone, a slim floating column of icons on the left holds Fullscreen, the 7 pages and Settings (the gear, at the bottom). Long press an icon to see its name. The gear shows a dot while the PC is not connected, and your PC's name and connection sit at the top of Settings. On a tablet (600 dp or more on the short side), a sidebar lists the 7 pages by name, with your PC, Fullscreen and Settings at the top. The look follows Apple's design guidelines, in light or dark.
+On a phone, a slim floating column of icons on the left holds Fullscreen, the 7 pages and Settings (the gear, at the bottom). Long press an icon to see its name. The gear shows an orange dot while the PC is not connected. Your PC's name and connection sit at the top of Settings, with the reason and what to check when it is not connected. On a tablet (600 dp or more on the short side), a sidebar lists the 7 pages by name, with your PC, Fullscreen and Settings at the top. The look follows Apple's design guidelines, in light or dark.
 
 App icons all get the same rounded-square shape. Names can use two lines. The grid spreads apps evenly over the rows, so 8 apps make two rows of 4.
 
@@ -49,7 +49,7 @@ App icons all get the same rounded-square shape. Names can use two lines. The gr
   - Buttons and feedback: tap vibration and the volume buttons switch.
   - Updates: the phone and PC versions, the PC's update status, Check now and Copy diagnostics.
 - Arrange: the dots icon on Apps. A tap picks a tile up. Tap the icon again or press Back when you are done.
-- Fullscreen: the corners icon at the top of the icons or the sidebar hides them on any page. Tap the small button in the corner or press Back to bring it back.
+- Fullscreen: the two arrows icon at the top of the icons or the sidebar hides them on any page. Tap the small button in the corner or press Back to bring it back.
 
 Idle screen: after 5 minutes without a touch, the dock dims to a bedside clock on black. The first touch brings the dock back and does not press anything. In Settings, Idle screen, pick:
 
