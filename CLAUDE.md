@@ -75,6 +75,7 @@ Add facts that only apply to this project here:
 - Hosting and deploy method: GitHub Actions builds every branch and takes phone screenshots on an emulator. A push to main releases only when CHANGELOG.md has a new version at the top. The release holds MobileDockHost.exe, the APK and latest.json. The PC app updates itself from the release. The phone gets its update from the PC.
 - Data and money rules: No money and no paid features. Pairing keys stay on the PC and the phone. The apps contact only GitHub releases and, for search icons, the preset's own site.
 - Special constraints: Keep Android 4.1 support. The signing keystore and its password live only in GitHub secrets and with the owner. Never commit them. Never put the owner's personal email, real PC name or IP address in the repo. Commits are authored as Benacsek with the GitHub noreply address. A release changes both apps, so add a CHANGELOG version only for changes meant to ship.
+- Docs: every change that adds, moves, renames or removes a feature also updates README.md, and host/README.md or android/README.md where they describe it, in the same commit.
 
 ## Coding guidelines
 
