@@ -4,6 +4,10 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 2.6.6
+
+- Settings: changing a setting low on the Display or Buttons and feedback page keeps the page where it is. Before, the page jumped back to the top.
+
 ## 2.6.5
 
 - Stats on Windows: temperatures and fan speeds work again with LibreHardwareMonitor 0.9.5 and newer. Those versions dropped WMI, so the PC app now reads LibreHardwareMonitor's web server on this PC. Turn it on in LibreHardwareMonitor under Options, Remote Web Server, Run. Older versions still work as before.

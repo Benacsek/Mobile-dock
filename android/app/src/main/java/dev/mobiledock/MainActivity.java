@@ -1021,6 +1021,8 @@ public final class MainActivity extends Activity implements DockClient.Listener 
     /** Rebuilds the dock after an Appearance change. The connection stays up. */
     private void rebuildDock() {
         int keep = current;
+        // A setting changed: the new Settings page keeps the scroll of the old one, so the row you tapped stays put.
+        final int settingsY = settings != null ? settings.getScrollY() : 0;
         root.setBackground(Ui.background(this));
         if (dockView != null) root.removeView(dockView);
         if (connectView != null) root.removeView(connectView);
@@ -1031,6 +1033,14 @@ public final class MainActivity extends Activity implements DockClient.Listener 
         fullscreen = false;
         showDock();
         select(keep);
+        // Scroll once the new rows have their height. Earlier, the scroll would be cut to 0.
+        settings.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                settings.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                settings.scrollTo(0, settingsY);
+            }
+        });
     }
 
     private View buildDock() {
