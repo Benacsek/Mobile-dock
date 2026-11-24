@@ -4,6 +4,10 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 2.6.8
+
+- Idle screen: the small shift every 20 seconds that protects the screen now glides to its new spot over 2 seconds instead of jumping.
+
 ## 2.6.7
 
 - Search: the hint in the search box shows an everyday example, "w Eiffel Tower" for Wikipedia, in place of "yt lofi".

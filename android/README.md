@@ -58,7 +58,7 @@ Idle screen: after 5 minutes without a touch, the dock dims to a bedside clock o
 - The side tiles, from a checklist: Clock, Date, Calendar, Playing and Battery (the phone's charge). Check up to 4. The arrows on a checked tile move it up or down. One or two sit one above the other. With three, the first is wide on top and two share the row below. Four share a 2 x 2 grid.
 - When it shows: Off, 1, 5 or 15 minutes.
 
-Preview shows it right away. The tiles move a few dp now and then, so no pixel stays lit in one place.
+Preview shows it right away. Every 20 seconds the tiles glide a few dp to a new spot, so no pixel stays lit in one place. With animations off in Android's settings, they jump instead.
 
 Tap vibration: a short buzz when you tap a tile or button, so you know it worked without looking. It buzzes when you lift your finger, only for a tap. Scrolling across buttons, long presses, the touchpad, signature pad and sliders do not buzz. In Settings pick Off, Light, Medium or Strong. The phone buzzes once when you pick, so you can feel it. Older phones need Medium or Strong, because their motors need about 30 ms to start.
 

@@ -279,8 +279,9 @@ final class NightView extends FrameLayout {
         for (Runnable r : updaters) r.run();
         // A small shift now and then, so the screen does not burn in. Small enough that the layout holds.
         int shift = Ui.dp(getContext(), 8);
-        box.setTranslationX(random.nextInt(2 * shift + 1) - shift);
-        box.setTranslationY(random.nextInt(2 * shift + 1) - shift);
+        // It glides there over 2 seconds. With animations off in the phone's settings, Android makes it jump.
+        box.animate().translationX(random.nextInt(2 * shift + 1) - shift)
+                .translationY(random.nextInt(2 * shift + 1) - shift).setDuration(2000).withLayer();
         invalidateAll(box);
         if (!titles.isEmpty()) loadSong();
     }
