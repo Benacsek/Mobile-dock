@@ -128,7 +128,7 @@ public final class MainActivity extends Activity implements DockClient.Listener 
             return true;
         }
         WatchService.prefs(this).edit().putString("search_recent",
-                "[\"lofi beats to study to\",\"figma auto layout tips\",\"weather this weekend\"]").commit();
+                "[\"weather tomorrow\",\"pizza near me\",\"how to cook rice\"]").commit();
         if (intent.hasExtra("labels") && intent.getBooleanExtra("labels", true) != Ui.LABELS) {  // Apps without names
             WatchService.prefs(this).edit().putBoolean("labels", intent.getBooleanExtra("labels", true)).commit();
             Ui.loadTheme(this, WatchService.prefs(this));

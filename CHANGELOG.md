@@ -4,6 +4,10 @@ A new version at the top of this file makes a release when it reaches main.
 Pushes without a new version here build and test, but do not update anyone's apps.
 The notes under the newest version show once in both apps after they update.
 
+## 2.6.7
+
+- Search: the hint in the search box shows an everyday example, "w Eiffel Tower" for Wikipedia, in place of "yt lofi".
+
 ## 2.6.6
 
 - Settings: changing a setting low on the Display or Buttons and feedback page keeps the page where it is. Before, the page jumped back to the top.

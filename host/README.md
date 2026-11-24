@@ -70,7 +70,7 @@ On the Shortcuts page, click Search presets. Each preset has:
 | Field | Example | What it does |
 | --- | --- | --- |
 | Name | YouTube | The chip on the phone |
-| Keyword | `yt` | Typing `yt lofi` uses this preset |
+| Keyword | `yt` | Typing `yt how to cook rice` uses this preset |
 | Apps | `chrome.exe` | Auto picks this preset when that app is in front |
 | Action | `open https://www.youtube.com/results?search_query={q}` | `{q}` is the typed text. Web addresses get it safely encoded |
 | Browser | default, chrome, edge or firefox | Where web searches open |

@@ -55,7 +55,7 @@ final class SearchPanel extends LinearLayout {
         addView(Ui.title(c, "Search"));
         LinearLayout top = Ui.row(c);
         field = new EditText(c);
-        Ui.searchField(c, field, "Search on the PC, or yt lofi, youtube.com");
+        Ui.searchField(c, field, "Search on the PC, or w Eiffel Tower");
         field.setInputType(InputType.TYPE_CLASS_TEXT);
         field.setImeOptions(EditorInfo.IME_ACTION_GO | EditorInfo.IME_FLAG_NO_EXTRACT_UI);
         field.setOnEditorActionListener(new TextView.OnEditorActionListener() {

@@ -95,7 +95,7 @@ Requests are JSON with `t` and an optional numeric `id`. If `id` is present, the
 | system | action: lock, sleep, display_off, desktop, task_manager, shutdown | |
 | search.presets | | presets: [{id, name, keyword, icon_rev}] |
 | search.icon | id | png (base64), or builtin: search, globe, pin or windows |
-| search.run | text, preset (empty for Auto) | did: what happened, for example "YouTube: lofi" |
+| search.run | text, preset (empty for Auto) | did: what happened, for example "YouTube: how to cook rice" |
 | mixer.list | | apps: [{id, name, volume 0 to 100, muted}] |
 | mixer.set | id, volume (0 to 100) and/or muted | |
 | volume.get | | volume (0 to 100), muted: the PC's own volume, as in the taskbar |
